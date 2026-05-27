@@ -35,9 +35,11 @@ struct LeaderboardEntry: Identifiable {
 
         self.networkName = !isPublic
             ? NSLocalizedString("Private Network", comment: "Network name when privacy is enabled")
-            : containsProfanity
+            : containsProfanity && networkName.count >= 2
                 ? String(networkName.prefix(1)) + String(repeating: "*", count: networkName.count - 2) + String(networkName.suffix(1))
-                : networkName
+                : containsProfanity
+                    ? String(repeating: "*", count: max(networkName.count, 1))
+                    : networkName
         
         self.netProvided = netProvided
         self.rank = "\(rank + 1)"

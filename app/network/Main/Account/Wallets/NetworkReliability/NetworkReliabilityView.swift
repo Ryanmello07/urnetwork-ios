@@ -94,7 +94,7 @@ struct NetworkReliabilityView: View {
             }
             
             HStack {
-                Text(reliabilityWindow == nil ? "-" : String(format: "%.2f%", mean))
+                Text(reliabilityWindow == nil ? "-" : String(format: "%.2f", mean))
                     .font(themeManager.currentTheme.titleCondensedFont)
                     .foregroundColor(themeManager.currentTheme.textColor)
 
@@ -103,7 +103,7 @@ struct NetworkReliabilityView: View {
             
             Chart {
                 
-                ForEach(Array(reliabilityAverage), id: \.self.element) { index, avg in
+                ForEach(Array(reliabilityAverage), id: \.self.offset) { index, avg in
                     LineMark(
                         x: .value("", index),
                         y: .value("Average Reliability", avg)
@@ -112,7 +112,7 @@ struct NetworkReliabilityView: View {
                     .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 3])) // Dashed line
                 }
                 
-                ForEach(Array(clientCounts), id: \.self.element) { index, counts in
+                ForEach(Array(clientCounts), id: \.self.offset) { index, counts in
                     LineMark(
                         x: .value("", index),
                         y: .value("Clients", counts),
@@ -120,7 +120,7 @@ struct NetworkReliabilityView: View {
                     .foregroundStyle(by: .value("key", "Clients"))
                 }
                 
-                ForEach(Array(reliabilityWeights), id: \.self.element) { index, weight in
+                ForEach(Array(reliabilityWeights), id: \.self.offset) { index, weight in
                     
                     LineMark(
                         x: .value("", index),
@@ -190,7 +190,7 @@ struct CountryMultiplierList: View {
                     
                     Spacer()
                     
-                    Text(String(format: "x%.2f%", countryMultiplier.reliabilityMultiplier))
+                    Text(String(format: "x%.2f", countryMultiplier.reliabilityMultiplier))
                         .font(themeManager.currentTheme.bodyFont)
                         .foregroundColor(countryMultiplier.reliabilityMultiplier >= highlightThreshold ? .urGreen: .primary)
                 }

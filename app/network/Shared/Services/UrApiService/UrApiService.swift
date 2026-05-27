@@ -231,9 +231,7 @@ extension UrApiService {
      * Get all providers
      */
     func getAllProviders() async throws -> SdkFilteredLocations {
-        return try await withCheckedThrowingContinuation { [weak self] continuation in
-            
-            guard let self = self else { return }
+        return try await withCheckedThrowingContinuation { continuation in
             
             let callback = FindLocationsCallback { result, err in
                 
@@ -314,22 +312,18 @@ extension UrApiService {
                         
                         var acceptedAuthMethods: [String] = []
 
-                        // loop authAllowed
                         for i in 0..<authAllowed.len() {
                             acceptedAuthMethods.append(authAllowed.get(i))
                         }
 
-                        guard acceptedAuthMethods.isEmpty else {
+                        let errMessage = acceptedAuthMethods.isEmpty
+                            ? "No supported authentication methods available."
+                            : "Please login with one of: \(acceptedAuthMethods.joined(separator: ", "))."
 
-                            let errMessage = "Please login with one of: \(acceptedAuthMethods.joined(separator: ", "))."
+                        continuation.resume(returning: .incorrectAuth(errMessage))
 
-                            continuation.resume(returning: .incorrectAuth(errMessage))
-
-                            return
-                        }
-                        
                     }
-                    
+
                     return
                     
                 }
@@ -356,35 +350,31 @@ extension UrApiService {
                     return
                 }
                 
-                if let result = result {
-                    
-                    if let resultError = result.error {
-
-                        continuation.resume(throwing: NSError(domain: "UrApiService", code: -1, userInfo: [NSLocalizedDescriptionKey: resultError.message]))
-                        
-                        return
-                        
-                    }
-                    
-                    if result.verificationRequired != nil {
-                        continuation.resume(returning: .successWithVerificationRequired)
-                        return
-                    }
-                    
-                    if let network = result.network {
-                        
-                        continuation.resume(returning: .successWithJwt(network.byJwt))
-                        return
-                        
-                    } else {
-                        continuation.resume(throwing: NSError(domain: "UrApiService", code: 0, userInfo: [NSLocalizedDescriptionKey: "No network object found in result"]))
-                        return
-                    }
-                    
+                guard let result = result else {
+                    continuation.resume(throwing: NSError(domain: "UrApiService", code: -1, userInfo: [NSLocalizedDescriptionKey: "createNetwork returned nil result"]))
+                    return
                 }
-                
+
+                if let resultError = result.error {
+                    continuation.resume(throwing: NSError(domain: "UrApiService", code: -1, userInfo: [NSLocalizedDescriptionKey: resultError.message]))
+                    return
+                }
+
+                if result.verificationRequired != nil {
+                    continuation.resume(returning: .successWithVerificationRequired)
+                    return
+                }
+
+                if let network = result.network {
+                    continuation.resume(returning: .successWithJwt(network.byJwt))
+                    return
+                } else {
+                    continuation.resume(throwing: NSError(domain: "UrApiService", code: 0, userInfo: [NSLocalizedDescriptionKey: "No network object found in result"]))
+                    return
+                }
+
             }
-            
+
             api.networkCreate(args, callback: callback)
             
         }
@@ -400,35 +390,31 @@ extension UrApiService {
                     return
                 }
                 
-                if let result = result {
-                    
-                    if let resultError = result.error {
-
-                        continuation.resume(throwing: UrApiError.resultError(message: resultError.message))
-                        
-                        return
-                        
-                    }
-                    
-                    if result.verificationRequired != nil {
-                        continuation.resume(returning: .successWithVerificationRequired)
-                        return
-                    }
-                    
-                    if let network = result.network {
-                        
-                        continuation.resume(returning: .successWithJwt(network.byJwt))
-                        return
-                        
-                    } else {
-                        continuation.resume(throwing: NSError(domain: "UrApiService", code: 0, userInfo: [NSLocalizedDescriptionKey: "No network found in result"]))
-                        return
-                    }
-                    
+                guard let result = result else {
+                    continuation.resume(throwing: NSError(domain: "UrApiService", code: -1, userInfo: [NSLocalizedDescriptionKey: "upgradeGuest returned nil result"]))
+                    return
                 }
-                
+
+                if let resultError = result.error {
+                    continuation.resume(throwing: UrApiError.resultError(message: resultError.message))
+                    return
+                }
+
+                if result.verificationRequired != nil {
+                    continuation.resume(returning: .successWithVerificationRequired)
+                    return
+                }
+
+                if let network = result.network {
+                    continuation.resume(returning: .successWithJwt(network.byJwt))
+                    return
+                } else {
+                    continuation.resume(throwing: NSError(domain: "UrApiService", code: 0, userInfo: [NSLocalizedDescriptionKey: "No network found in result"]))
+                    return
+                }
+
             }
-            
+
             api.upgradeGuest(args, callback: callback)
             
         }
@@ -451,13 +437,9 @@ extension UrApiService {
                 }
                 
                 if result.error != nil {
-                    print("createAuthCode.error result is \(String(describing: result.error?.message))")
                     continuation.resume(throwing: NSError(domain: "UrApiService", code: 0, userInfo: [NSLocalizedDescriptionKey: "Error in result"]))
                     return
-                    
                 }
-                
-                print("createAuthCode result is \(result)")
                 
                 continuation.resume(returning: result)
                 
@@ -719,14 +701,14 @@ extension UrApiService {
                 }
                 
                 guard let result = result else {
-                    continuation.resume(throwing: SendPasswordResetLinkError.resultInvalid)
+                    continuation.resume(throwing: NetworkDeleteError.resultInvalid)
                     return
                 }
-                
+
                 continuation.resume(returning: result)
-                
+
             }
-            
+
             api.networkDelete(callback)
             
         }

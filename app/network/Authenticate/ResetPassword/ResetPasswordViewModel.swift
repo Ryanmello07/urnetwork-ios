@@ -15,10 +15,11 @@ enum SendPasswordResetError: Error {
 
 extension ResetPasswordView {
     
+    @MainActor
     class ViewModel: ObservableObject {
-        
+
         private var api: SdkApi
-        
+
         @Published var sendInProgress: Bool = false
         
         let domain = "ResetPasswordViewModel"
@@ -33,15 +34,11 @@ extension ResetPasswordView {
                 return .failure(SendPasswordResetError.inProgress)
             }
             
-            DispatchQueue.main.async {
-                self.sendInProgress = true
-            }
-            
+            self.sendInProgress = true
+
             do {
-                
-                let result: Void = try await withCheckedThrowingContinuation { [weak self] continuation in
-                    
-                    guard let self = self else { return }
+
+                let result: Void = try await withCheckedThrowingContinuation { continuation in
                     
                     let callback = AuthPasswordResetCallback { result, error in
                         
@@ -51,7 +48,7 @@ extension ResetPasswordView {
                         }
                         
                         guard let result = result else {
-                            continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: "No result found"]))
+                            continuation.resume(throwing: NSError(domain: "ResetPasswordViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "No result found"]))
                             
                             return
                         }
@@ -68,13 +65,12 @@ extension ResetPasswordView {
                     
                 }
                 
-                DispatchQueue.main.async {
-                    self.sendInProgress = false
-                }
-                
+                self.sendInProgress = false
+
                 return .success(result)
-                
+
             } catch(let error) {
+                self.sendInProgress = false
                 return .failure(error)
             }
             

@@ -31,6 +31,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private var close: (() -> Void)?
     private var memoryPressureSource: DispatchSourceMemoryPressure?
     private var connected: Bool = false
+    private var stopped: Bool = false
 
     
     override init() {
@@ -63,13 +64,10 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         memoryPressureSource = DispatchSource.makeMemoryPressureSource(eventMask: .all, queue: nil)
         if let memoryPressureSource = memoryPressureSource {
             memoryPressureSource.setEventHandler {
-                switch memoryPressureSource.mask {
-                case DispatchSource.MemoryPressureEvent.warning, DispatchSource.MemoryPressureEvent.critical:
+                let event = DispatchSource.MemoryPressureEvent(rawValue: memoryPressureSource.data)
+                if event.contains(.warning) || event.contains(.critical) {
                     SdkFreeMemory()
-                default:
-                    break
                 }
-                
             }
             memoryPressureSource.activate()
         }
@@ -81,36 +79,36 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         
         guard let providerConfiguration = (protocolConfiguration as? NETunnelProviderProtocol)?.providerConfiguration else {
             logger.error( "[PacketTunnelProvider]start failed - no providerConfiguration")
-            completionHandler(nil)
+            completionHandler(NSError(domain: "network.ur.extension", code: 1, userInfo: [NSLocalizedDescriptionKey: "No provider configuration"]))
             return
         }
-        
-        
+
+
         guard let byJwt = providerConfiguration["by_jwt"] as? String else {
-            completionHandler(nil)
+            completionHandler(NSError(domain: "network.ur.extension", code: 2, userInfo: [NSLocalizedDescriptionKey: "Missing by_jwt"]))
             return
         }
-        
+
         guard let networkSpaceJson = providerConfiguration["network_space"] as? String else {
-            completionHandler(nil)
+            completionHandler(NSError(domain: "network.ur.extension", code: 3, userInfo: [NSLocalizedDescriptionKey: "Missing network_space"]))
             return
         }
-        
+
         guard let rpcPublicKey = providerConfiguration["rpc_public_key"] as? String else {
-            completionHandler(nil)
+            completionHandler(NSError(domain: "network.ur.extension", code: 4, userInfo: [NSLocalizedDescriptionKey: "Missing rpc_public_key"]))
             return
         }
-        
-        
+
+
         var err: NSError?
-        
+
         let instanceId = SdkParseId(providerConfiguration["instance_id"] as? String, &err)
         if let err {
             completionHandler(err)
             return
         }
         guard let instanceId = instanceId else {
-            completionHandler(nil)
+            completionHandler(NSError(domain: "network.ur.extension", code: 5, userInfo: [NSLocalizedDescriptionKey: "Failed to parse instance_id"]))
             return
         }
         
@@ -140,6 +138,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         
         
         self.connected = false
+        self.stopped = false
         self.reasserting = true
         
         self.close?()
@@ -162,17 +161,17 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
         
         guard let networkSpace = networkSpace else {
-            completionHandler(nil)
+            completionHandler(NSError(domain: "network.ur.extension", code: 6, userInfo: [NSLocalizedDescriptionKey: "Network space is nil"]))
             return
         }
-        
+
         guard let localState = networkSpace.getAsyncLocalState()?.getLocalState() else {
-            completionHandler(nil)
+            completionHandler(NSError(domain: "network.ur.extension", code: 7, userInfo: [NSLocalizedDescriptionKey: "Failed to get local state"]))
             return
         }
-        
-        let appVersionString: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as! String
-        let buildNumber: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as! String
+
+        let appVersionString: String = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "unknown"
+        let buildNumber: String = (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String) ?? "0"
 
         self.device = SdkNewDeviceLocalWithDefaults(
             networkSpace,
@@ -191,7 +190,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         
         
         guard let device = self.device else {
-            completionHandler(nil)
+            completionHandler(NSError(domain: "network.ur.extension", code: 8, userInfo: [NSLocalizedDescriptionKey: "Failed to create device"]))
             return
         }
         
@@ -405,9 +404,15 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
         logger.info("[PacketTunnelProvider]stop with reason: \(String(describing: reason))")
-        
-        self.close?()
-        self.close = nil
+
+        self.stopped = true
+        if let close = self.close {
+            close()
+            self.close = nil
+        } else {
+            self.device?.close()
+        }
+        self.device = nil
         self.memoryPressureSource?.cancel()
         completionHandler()
     }
@@ -420,27 +425,16 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     
     
     private func readToDevice() {
-    //    if device.getDone() {
-    //        return
-    //    }
-        
-    //    if context.load(ordering: .relaxed) != instance {
-    //        return
-    //    }
-        
-        // see https://developer.apple.com/documentation/networkextension/nepackettunnelflow/readpackets(completionhandler:)
-        // "Each call to this method results in a single execution of the completion handler"
+        guard !self.stopped else { return }
+
         self.packetFlow.readPackets { packets, protocols in
-    //        if (packets.count == 0) {
-    //            // EOF
-    //            return
-    //        }
+            guard !self.stopped else { return }
+
             if let device = self.device {
                 for packet in packets {
                     device.sendPacket(packet, n: Int32(packet.count))
                 }
             }
-            // note since `readPackets` is async this is not recursion on the call stack
             self.readToDevice()
         }
     }

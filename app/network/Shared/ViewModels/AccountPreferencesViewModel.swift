@@ -23,12 +23,13 @@ private class UpdateAccountPreferencesCallback: SdkCallback<SdkAccountPreference
 @MainActor
 class AccountPreferencesViewModel: ObservableObject {
     
+    private var isLoadingPreferences = true
+
     @Published var canReceiveProductUpdates: Bool = false {
-        
         didSet {
+            guard !isLoadingPreferences else { return }
             self.updateAccountPreferences(canReceiveProductUpdates)
         }
-        
     }
     
     @Published var isUpdatingAccountPreferences: Bool = false
@@ -48,9 +49,7 @@ class AccountPreferencesViewModel: ObservableObject {
         
             do {
                 
-                let result: SdkAccountPreferencesGetResult = try await withCheckedThrowingContinuation { [weak self] continuation in
-                  
-                    guard let self = self else { return }
+                let result: SdkAccountPreferencesGetResult = try await withCheckedThrowingContinuation { continuation in
                     
                     let callback = GetAccountPreferencesCallback { result, err in
                         
@@ -60,7 +59,7 @@ class AccountPreferencesViewModel: ObservableObject {
                         }
                         
                         guard let result = result else {
-                            continuation.resume(throwing: NSError(domain: self.domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "AccountPreferencesGetCallback result is nil"]))
+                            continuation.resume(throwing: NSError(domain: "AccountPreferencesViewModel", code: 0, userInfo: [NSLocalizedDescriptionKey: "AccountPreferencesGetCallback result is nil"]))
                             return
                         }
                         
@@ -68,11 +67,15 @@ class AccountPreferencesViewModel: ObservableObject {
                         return
                     }
                     
-                    api?.accountPreferencesGet(callback)
+                    guard let api = self.api else {
+                        continuation.resume(throwing: NSError(domain: "AccountPreferencesViewModel", code: 0, userInfo: [NSLocalizedDescriptionKey: "API not available"]))
+                        return
+                    }
+                    api.accountPreferencesGet(callback)
                 }
                 
                 self.canReceiveProductUpdates = result.productUpdates
-                print("canReceiveProductUpdates: \(result.productUpdates)")
+                self.isLoadingPreferences = false
                 
             } catch(let error) {
                 print("[\(domain)] Error fetching account preferences: \(error)")
@@ -94,9 +97,7 @@ class AccountPreferencesViewModel: ObservableObject {
          
             do {
                 
-                let _: SdkAccountPreferencesSetResult = try await withCheckedThrowingContinuation { [weak self] continuation in
-                    
-                    guard let self = self else { return }
+                let _: SdkAccountPreferencesSetResult = try await withCheckedThrowingContinuation { continuation in
                     
                     let callback = UpdateAccountPreferencesCallback { result, err in
                         
@@ -106,7 +107,7 @@ class AccountPreferencesViewModel: ObservableObject {
                         }
                         
                         guard let result = result else {
-                            continuation.resume(throwing: NSError(domain: self.domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "UpdateAccountPreferencesCallback result is nil"]))
+                            continuation.resume(throwing: NSError(domain: "AccountPreferencesViewModel", code: 0, userInfo: [NSLocalizedDescriptionKey: "UpdateAccountPreferencesCallback result is nil"]))
                             return
                         }
                         
@@ -117,8 +118,12 @@ class AccountPreferencesViewModel: ObservableObject {
                     let args = SdkAccountPreferencesSetArgs()
                     args.productUpdates = allowUpdates
                     
-                    api?.accountPreferencesUpdate(args, callback: callback)
-                    
+                    guard let api = self.api else {
+                        continuation.resume(throwing: NSError(domain: "AccountPreferencesViewModel", code: 0, userInfo: [NSLocalizedDescriptionKey: "API not available"]))
+                        return
+                    }
+                    api.accountPreferencesUpdate(args, callback: callback)
+
                 }
                 
                 isUpdatingAccountPreferences = false

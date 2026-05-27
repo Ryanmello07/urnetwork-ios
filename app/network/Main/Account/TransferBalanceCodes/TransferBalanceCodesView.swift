@@ -160,13 +160,17 @@ struct TransferBalanceCodesView: View {
         .background(themeManager.currentTheme.backgroundColor.ignoresSafeArea())
     }
     
-    private func formatShortDate(unixMilli: Int64) -> String {
-        let date = Date(timeIntervalSince1970: TimeInterval(unixMilli) / 1000)
+    private static let shortDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
         formatter.timeStyle = .none
         formatter.locale = .current
-        return formatter.string(from: date)
+        return formatter
+    }()
+
+    private func formatShortDate(unixMilli: Int64) -> String {
+        let date = Date(timeIntervalSince1970: TimeInterval(unixMilli) / 1000)
+        return Self.shortDateFormatter.string(from: date)
     }
     
 }

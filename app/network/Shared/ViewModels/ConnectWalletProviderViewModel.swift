@@ -211,8 +211,13 @@ class ConnectWalletProviderViewModel: ObservableObject {
             "redirect_link": redirectLink
         ]
         
-        let queryString = params.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
-        
+        let queryString = params.map { key, value in
+            guard let encodedValue = value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+                return "\(key)=\(value)"
+            }
+            return "\(key)=\(encodedValue)"
+        }.joined(separator: "&")
+
         return .success(queryString)
     }
     
@@ -233,7 +238,7 @@ class ConnectWalletProviderViewModel: ObservableObject {
         
         let host = components.host
         
-        let connectedWalletProvider = (host == "solflare-connect") ? ConnectedWalletProvider.solflare : ConnectedWalletProvider.phantom
+        let connectedWalletProvider = (host == "solflare-connect" || host == "solflare-sign-message") ? ConnectedWalletProvider.solflare : ConnectedWalletProvider.phantom
         
         let isConnecting = host == "solflare-connect" || host == "phantom-connect"
         
@@ -383,17 +388,19 @@ class ConnectWalletProviderViewModel: ObservableObject {
      * Disconnect is currently not used or handled in handleDeepLink
      */
     private func disconnect(connectedWalletProvider: ConnectedWalletProvider) {
-        
+
         let redirectLink = connectedWalletProvider == .phantom ? self.phantomDisconnectRedirectLink : self.solflareDisconnectRedirectLink
-        
-        let queryString = buildDisconnectQueryString(redirectLink: redirectLink)
-        
+
+        guard case .success(let queryString) = buildDisconnectQueryString(redirectLink: redirectLink) else {
+            return
+        }
+
         let hostName = connectedWalletProvider == .phantom ? phantomHostname : solflareHostname
-        
+
         if let url = URL(string: "https://\(hostName)/ul/v1/disconnect?\(queryString)") {
             self.openURL(url)
         }
-        
+
     }
     
     private func buildDisconnectQueryString(redirectLink: String) -> Result<String, WalletDeepLinkError> {
@@ -413,7 +420,12 @@ class ConnectWalletProviderViewModel: ObservableObject {
             "payload": jsonString
         ]
         
-        let queryString = params.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
+        let queryString = params.map { key, value in
+            guard let encodedValue = value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+                return "\(key)=\(value)"
+            }
+            return "\(key)=\(encodedValue)"
+        }.joined(separator: "&")
         return .success(queryString)
     }
     
@@ -421,8 +433,8 @@ class ConnectWalletProviderViewModel: ObservableObject {
      * Used for created a disconnect nonce
      */
     private func generateNonce() -> String {
-        let randomBytes = Array<UInt8>.init(repeating: 0, count: 32)
-        SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, UnsafeMutableRawPointer(mutating: randomBytes))
+        var randomBytes = [UInt8](repeating: 0, count: 32)
+        SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes)
         return SdkEncodeBase58(Data(randomBytes))
     }
     

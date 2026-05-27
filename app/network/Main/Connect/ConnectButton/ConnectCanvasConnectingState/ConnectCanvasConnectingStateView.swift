@@ -55,7 +55,10 @@ struct ConnectCanvasConnectingStateView: View {
         .onAppear {
             viewModel.updateGridPoints(gridPoints, gridWidth: gridWidth)
         }
-        
+        .onDisappear {
+            viewModel.stopAnimations()
+        }
+
     }
 }
 

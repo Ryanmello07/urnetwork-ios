@@ -111,9 +111,7 @@ extension LoginInitialView.ViewModel {
             return .failure(NSError(domain: domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "Form invalid"]))
         }
         
-        DispatchQueue.main.async {
-            self.setIsCheckingUserAuth(true)
-        }
+        self.setIsCheckingUserAuth(true)
         
         let args = SdkAuthLoginArgs()
         args.userAuth = userAuth
@@ -215,9 +213,7 @@ extension LoginInitialView.ViewModel {
             return result
             
         } catch(let error) {
-            DispatchQueue.main.async {
-                self.isCreatingGuestNetwork = false
-            }
+            self.isCreatingGuestNetwork = false
             return .failure(error)
         }
         

@@ -108,16 +108,28 @@ class ConnectViewModel: ObservableObject {
     var device: SdkDeviceRemote?
     var connectViewController: SdkConnectViewController?
     
+    private var gridListenerSub: SdkSubProtocol?
+    private var connectionStatusListenerSub: SdkSubProtocol?
+    private var selectedLocationListenerSub: SdkSubProtocol?
+    private var tunnelListenerSub: SdkSubProtocol?
+    private var contractListenerSub: SdkSubProtocol?
+
     func setup(api: SdkApi?, device: SdkDeviceRemote, connectViewController: SdkConnectViewController?) {
+        gridListenerSub?.close()
+        connectionStatusListenerSub?.close()
+        selectedLocationListenerSub?.close()
+        tunnelListenerSub?.close()
+        contractListenerSub?.close()
+
         self.api = api
         self.connectViewController = connectViewController
-        
+
         self.addGridListener()
         self.addConnectionStatusListener()
         self.addSelectedLocationListener()
-        
+
         self.updateConnectionStatus()
-        
+
         self.device = device
         
         // if a user was connected and quit the app, it will reconnect this location
@@ -131,7 +143,7 @@ class ConnectViewModel: ObservableObject {
         /**
          * Add tunnel listener
          */
-        self.device?.add(TunnelChangeListener { [weak self] tunnelStarted in
+        self.tunnelListenerSub = self.device?.add(TunnelChangeListener { [weak self] tunnelStarted in
             guard let self = self else {
                 return
             }
@@ -140,19 +152,14 @@ class ConnectViewModel: ObservableObject {
                 self.tunnelConnected = tunnelStarted
             }
         })
-        
+
         self.refreshTunnelStatus()
-        
-        /**
-         * Add contract status listener for insufficient balance updates
-         */
-        device.add(ContractStatusChangeListener { [weak self] _ in
-            
-            guard let self = self else {
-                return
+
+        self.contractListenerSub = device.add(ContractStatusChangeListener { [weak self] _ in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                self.updateContractStatus()
             }
-            
-            self.updateContractStatus()
         })
         
     }
@@ -201,7 +208,7 @@ class ConnectViewModel: ObservableObject {
                 self.selectedProvider = selectedLocation
             }
         }
-        connectViewController?.add(listener)
+        selectedLocationListenerSub = connectViewController?.add(listener)
     }
     
 //    func getProviderColor(_ provider: SdkConnectLocation) -> Color {
@@ -215,24 +222,16 @@ class ConnectViewModel: ObservableObject {
 // MARK: Contract status
 extension ConnectViewModel {
     func updateContractStatus() {
-        
+
         guard let device = self.device else {
             return
         }
-        
-        if let contractStatus = device.getContractStatus() {
-            print("[DeviceManager][contract]insufficent=\(contractStatus.insufficientBalance) nopermission=\(contractStatus.noPermission) premium=\(contractStatus.premium)")
-        } else {
-            print("[DeviceManager][contract]no contract status")
-        }
-        
-        DispatchQueue.main.async {
-            self.contractStatus = device.getContractStatus()
-            
-            if (self.contractStatus?.insufficientBalance == true && self.connectionStatus != .disconnected) {
-                self.disconnect()
-            }
-            
+
+        let status = device.getContractStatus()
+        self.contractStatus = status
+
+        if status?.insufficientBalance == true && self.connectionStatus != .disconnected {
+            self.disconnect()
         }
     }
 }
@@ -252,7 +251,7 @@ extension ConnectViewModel {
             }
             
         }
-        connectViewController?.add(listener)
+        gridListenerSub = connectViewController?.add(listener)
         updateGrid()
     }
     
@@ -312,9 +311,9 @@ extension ConnectViewModel {
             }
             
         }
-        connectViewController?.add(listener)
+        connectionStatusListenerSub = connectViewController?.add(listener)
     }
-    
+
     private func updateConnectionStatus() {
         guard let statusString = self.connectViewController?.getConnectionStatus() else {
             print("no status present")

@@ -133,18 +133,17 @@ struct SolanaSignMessageSheet: View {
                         text: signButtonText,
                         action: {
                             
-                            setIsSigningMessage(true)
-                            
-                            if  (connectWalletProviderViewModel.connectedWalletProvider == ConnectedWalletProvider.phantom) {
-                                connectWalletProviderViewModel.signMessagePhantom(
-                                    message: message
-                                )
+                            guard let provider = connectWalletProviderViewModel.connectedWalletProvider else {
+                                return
                             }
-    
-                            if  (connectWalletProviderViewModel.connectedWalletProvider == ConnectedWalletProvider.solflare) {
-                                connectWalletProviderViewModel.signMessageSolflare(
-                                    message: message
-                                )
+
+                            setIsSigningMessage(true)
+
+                            switch provider {
+                            case .phantom:
+                                connectWalletProviderViewModel.signMessagePhantom(message: message)
+                            case .solflare:
+                                connectWalletProviderViewModel.signMessageSolflare(message: message)
                             }
                         },
                         enabled: !isSigningMessage,

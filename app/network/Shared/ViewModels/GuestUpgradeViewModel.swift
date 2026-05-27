@@ -25,24 +25,19 @@ class GuestUpgradeViewModel: ObservableObject {
         
         do {
             
-            let result: AuthLoginResult = try await withCheckedThrowingContinuation { [weak self] continuation in
-                
-                guard let self = self else { return }
-                
-                let callback = UpgradeGuestExistingCallback { [weak self] result, error in
-                    
-                    guard let self = self else { return }
-                    
+            let result: AuthLoginResult = try await withCheckedThrowingContinuation { continuation in
+
+                let callback = UpgradeGuestExistingCallback { result, error in
+
                     guard let result else {
-                        
-                        continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: "No result found"]))
+                        continuation.resume(throwing: error ?? NSError(domain: "[GuestUpgradeViewModel]", code: -1, userInfo: [NSLocalizedDescriptionKey: "No result found"]))
                         
                         return
                     }
                     
                     if let resultError = result.error {
                         
-                        continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: "result.error exists \(resultError.message)"]))
+                        continuation.resume(throwing: NSError(domain: "[GuestUpgradeViewModel]", code: -1, userInfo: [NSLocalizedDescriptionKey: "result.error exists \(resultError.message)"]))
                         
                         return
                     }

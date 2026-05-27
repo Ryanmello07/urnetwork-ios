@@ -28,8 +28,6 @@ struct IntroductionView: View {
         self.referralCode = referralCode
         self.meanReliabilityWeight = meanReliabilityWeight
         self.api = api
-        self.selectedPaymentOption = selectedPaymentOption
-        self.presentRedeemBalanceCodeSheet = presentRedeemBalanceCodeSheet
     }
     
     private var monthlySubscription: Product? {

@@ -47,7 +47,7 @@ extension CreateNetworkVerifyView {
         
         private var cancellables = Set<AnyCancellable>()
         
-        private let domain = "CraeteNetworkVerifyViewModel"
+        private let domain = "CreateNetworkVerifyViewModel"
         
         init(api: SdkApi?, userAuth: String) {
             self.api = api
@@ -60,13 +60,11 @@ extension CreateNetworkVerifyView {
                 return .failure(NSError(domain: domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "OTP is already being sent"]))
             }
             
-            DispatchQueue.main.async {
-                self.isSendingOtp = true
-                self.resetBtnEnabled = false
-            }
-            
+            self.isSendingOtp = true
+            self.resetBtnEnabled = false
+
             do {
-                let result: Void = try await withCheckedThrowingContinuation { continuation in
+                let result: Void = try await withCheckedThrowingContinuation { [weak self] continuation in
                     
                     let callback = AuthVerifySendCallback { result, err in
                         
@@ -80,22 +78,22 @@ extension CreateNetworkVerifyView {
                         
                     }
                     
-                    if let api = api {
-                        
-                        let args = SdkAuthVerifySendArgs()
-                        args.userAuth = self.userAuth
-                        args.useNumeric = true
-                        
-                        api.authVerifySend(args, callback: callback)
+                    guard let self = self, let api = self.api else {
+                        continuation.resume(throwing: CancellationError())
+                        return
                     }
-                    
+
+                    let args = SdkAuthVerifySendArgs()
+                    args.userAuth = self.userAuth
+                    args.useNumeric = true
+
+                    api.authVerifySend(args, callback: callback)
+
                 }
                 
                 
-                DispatchQueue.main.async {
-                    self.isSendingOtp = false
-                    self.startResendButtonTimer()
-                }
+                self.isSendingOtp = false
+                self.startResendButtonTimer()
                 
                 return .success(result)
                 
@@ -113,9 +111,9 @@ extension CreateNetworkVerifyView {
                 .autoconnect()
                 .scan(delay) { counter, _ in counter - 1 }
                 .prefix(while: { $0 > 0 })
-                .sink { _ in
-                    self.resetBtnEnabled = true
-                }
+                .sink(receiveCompletion: { [weak self] _ in
+                    self?.resetBtnEnabled = true
+                }, receiveValue: { _ in })
                 .store(in: &cancellables)
         }
         
@@ -129,17 +127,13 @@ extension CreateNetworkVerifyView {
                 return .failure(NSError(domain: domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "OTP is already being sent"]))
             }
             
-            DispatchQueue.main.async {
-                self.isSubmitting = true
-            }
-            
+            self.isSubmitting = true
+
             do {
-                
-                let result: String = try await withCheckedThrowingContinuation { continuation in
-                    
-                    let callback = AuthVerifyCallback { [weak self] result, err in
-                        
-                        guard let self = self else { return }
+
+                let result: String = try await withCheckedThrowingContinuation { [weak self] continuation in
+
+                    let callback = AuthVerifyCallback { result, err in
                         
                         if let err = err {
                             print(err.localizedDescription)
@@ -148,53 +142,49 @@ extension CreateNetworkVerifyView {
                         }
                         
                         guard let result = result else {
-                            continuation.resume(throwing: NSError(domain: domain, code: -1, userInfo: [NSLocalizedDescriptionKey: "verify result is nil"]))
+                            continuation.resume(throwing: NSError(domain: "CreateNetworkVerifyViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "verify result is nil"]))
                             return
                         }
                         
                         if let resultError = result.error {
-                            continuation.resume(throwing: NSError(domain: domain, code: -1, userInfo: [NSLocalizedDescriptionKey: resultError.message]))
-                            
+                            continuation.resume(throwing: NSError(domain: "CreateNetworkVerifyViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: resultError.message]))
+
                             return
                         }
-                        
+
                         if let network = result.network {
-                            
+
                             if network.byJwt.isEmpty == false {
                                 continuation.resume(returning: network.byJwt)
                             } else {
-                                continuation.resume(throwing: NSError(domain: domain, code: -1, userInfo: [NSLocalizedDescriptionKey: "byJWT is empty"]))
+                                continuation.resume(throwing: NSError(domain: "CreateNetworkVerifyViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "byJWT is empty"]))
                             }
-                            
+
                         } else {
-                            continuation.resume(throwing: NSError(domain: domain, code: -1, userInfo: [NSLocalizedDescriptionKey: "network is nil"]))
+                            continuation.resume(throwing: NSError(domain: "CreateNetworkVerifyViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "network is nil"]))
                         }
                         
                     }
                     
-                    if let api = api {
-                        
-                        let args = SdkAuthVerifyArgs()
-                        args.verifyCode = otp
-                        args.userAuth = userAuth
-                        
-                        api.authVerify(args, callback: callback)
+                    guard let self = self, let api = self.api else {
+                        continuation.resume(throwing: CancellationError())
+                        return
                     }
-                    
+
+                    let args = SdkAuthVerifyArgs()
+                    args.verifyCode = self.otp
+                    args.userAuth = self.userAuth
+
+                    api.authVerify(args, callback: callback)
+
                 }
-                
-                DispatchQueue.main.async {
-                    self.isSubmitting = false
-                }
-                
+
+                self.isSubmitting = false
+
                 return .success(result)
-                
+
             } catch {
-                
-                
-                DispatchQueue.main.async {
-                    self.isSubmitting = false
-                }
+                self.isSubmitting = false
                 
                 return .failure(error)
             }

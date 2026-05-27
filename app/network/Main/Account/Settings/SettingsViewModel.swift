@@ -40,11 +40,12 @@ extension SettingsView {
             
         }
         
+        private var isCheckingNotificationSettings = true
+
         @Published var canReceiveNotifications: Bool = false {
             didSet {
-                if canReceiveNotifications == true {
-                    requestNotificationAuthorization()
-                }
+                guard !isCheckingNotificationSettings, canReceiveNotifications == true else { return }
+                requestNotificationAuthorization()
             }
         }
         
@@ -85,14 +86,17 @@ extension SettingsView {
             center.getNotificationSettings { settings in
                 switch settings.authorizationStatus {
                 case .notDetermined:
-                    print("Notification permission not determined.")
+                    Task { @MainActor in
+                        self.isCheckingNotificationSettings = false
+                    }
                 case .denied:
-                    print("Notification permission denied.")
+                    Task { @MainActor in
+                        self.isCheckingNotificationSettings = false
+                    }
                 case .authorized, .provisional, .ephemeral:
-                    print("Notification permission granted.")
-                    
                     Task { @MainActor in
                         self.canReceiveNotifications = true
+                        self.isCheckingNotificationSettings = false
                     }
                     
                 @unknown default:
@@ -141,9 +145,7 @@ extension SettingsView {
                 
             }
             catch(let error) {
-                DispatchQueue.main.async {
-                    self.isDeletingNetwork = false
-                }
+                self.isDeletingNetwork = false
                 return .failure(error)
             }
             

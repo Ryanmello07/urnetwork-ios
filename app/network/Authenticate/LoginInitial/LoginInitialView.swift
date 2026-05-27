@@ -345,23 +345,25 @@ struct LoginInitialView: View {
             break
             
         case .promptPassword(let loginResult):
+            viewModel.setIsCheckingUserAuth(false)
             navigate(.password(loginResult.userAuth))
             break
-            
+
         case .create(let authLoginArgs):
+            viewModel.setIsCheckingUserAuth(false)
             navigate(.createNetwork(authLoginArgs))
             break
 
-        // verificationRequired should not be hit from this view
         case .verificationRequired(let userAuth):
-            print("verificationRequired should not be hit from this view")
+            viewModel.setIsCheckingUserAuth(false)
             navigate(.verify(userAuth))
             break
-            
+
         case .incorrectAuth(let authAllowedErr):
+            viewModel.setIsCheckingUserAuth(false)
             snackbarManager.showSnackbar(message: authAllowedErr)
             break
-        
+
         case .failure(let error):
             print("auth login error: \(error.localizedDescription)")
             viewModel.setIsCheckingUserAuth(false)

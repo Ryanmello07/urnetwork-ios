@@ -23,7 +23,7 @@ class AppStoreSubscriptionManager: ObservableObject {
     @Published private(set) var purchaseSuccess: Bool = false
     
     private var networkId: SdkId?
-    var onPurchaseSuccess: () -> Void = {}
+    var onPurchaseSuccess: (() -> Void)?
     
     private var updateListenerTask: Task<Void, Error>?
     
@@ -68,26 +68,24 @@ class AppStoreSubscriptionManager: ObservableObject {
     
     func purchase(product: Product, onSuccess: @escaping (() -> Void)) async throws {
         guard !isPurchasing else { return }
-        
+
         await setIsPurchasing(true)
-        
+
         self.onPurchaseSuccess = onSuccess
+        let callback = onSuccess
         
         do {
             var purchaseOptions: Set<Product.PurchaseOption> = []
             
             guard let networkId = self.networkId else {
-                print("no network id found")
+                await setIsPurchasing(false)
                 return
             }
-            
-            print("networkId.idStr: \(networkId.idStr)")
-            
+
             if let networkUUID = UUID(uuidString: networkId.idStr) {
-                print("setting purchase options with app account token: \(networkUUID)")
                 purchaseOptions.insert(.appAccountToken(networkUUID))
             } else {
-                print("error adding network id to purchase options")
+                await setIsPurchasing(false)
                 return
             }
             
@@ -102,8 +100,8 @@ class AppStoreSubscriptionManager: ObservableObject {
                     logTransactionDetails(transaction)
                     
                     await transaction.finish()
-                    
-                    onPurchaseSuccess()
+
+                    callback()
                     setPurchaseSuccess(true)
                     
                 case .unverified( _, let error):
@@ -147,31 +145,22 @@ class AppStoreSubscriptionManager: ObservableObject {
     
     
     private func listenForTransactions() -> Task<Void, Error> {
-        return Task.detached {
-            // Iterate through any transactions that didn't come from a direct call to `purchase()`
+        return Task.detached { [weak self] in
             for await result in Transaction.updates {
-                do {
-                    // Check if the transaction is verified
-                    switch result {
-                    case .verified(let transaction):
-                        print("✅ Verified transaction update: \(transaction.id)")
-                        
-                        // Log transaction details for debugging
-                        await self.logTransactionDetails(transaction)
-                        
-                        // Finish the transaction
-                        await transaction.finish()
-                        
-                        // If this is a new purchase notification, not just an update
-                        if transaction.revocationDate == nil {
-                            await MainActor.run {
-                                self.onPurchaseSuccess()
-                            }
+                guard let self else { break }
+                switch result {
+                case .verified(let transaction):
+                    await self.logTransactionDetails(transaction)
+                    await transaction.finish()
+
+                    if transaction.revocationDate == nil {
+                        await MainActor.run {
+                            self.onPurchaseSuccess?()
                         }
-                        
-                    case .unverified(_, let error):
-                        print("Unverified transaction: \(error.localizedDescription)")
                     }
+
+                case .unverified(_, let error):
+                    print("Unverified transaction: \(error.localizedDescription)")
                 }
             }
         }

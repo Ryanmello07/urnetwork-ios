@@ -39,9 +39,7 @@ extension LoginPasswordView {
         }
         
         func setIsLoggingIn(_ isLoggingIn: Bool) {
-            DispatchQueue.main.async {
-                self.isLoggingIn = isLoggingIn
-            }
+            self.isLoggingIn = isLoggingIn
         }
         
         func loginWithPassword(userAuth: String) async -> LoginNetworkResult {
@@ -57,9 +55,7 @@ extension LoginPasswordView {
             self.setIsLoggingIn(true)
             
             do {
-                let result: LoginNetworkResult = try await withCheckedThrowingContinuation { [weak self] continuation in
-                    
-                    guard let self = self else { return }
+                let result: LoginNetworkResult = try await withCheckedThrowingContinuation { continuation in
                     
                     let callback = AuthLoginPasswordCallback { result, err in
                         
@@ -72,7 +68,7 @@ extension LoginPasswordView {
                             
                             if let resultError = result.error {
 
-                                continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: resultError.message]))
+                                continuation.resume(throwing: NSError(domain: "LoginPassword.ViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: resultError.message]))
                                 
                                 return
                                 
@@ -90,12 +86,12 @@ extension LoginPasswordView {
                                 return
                                 
                             } else {
-                                continuation.resume(throwing: NSError(domain: self.domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "No network object found in result"]))
+                                continuation.resume(throwing: NSError(domain: "LoginPassword.ViewModel", code: 0, userInfo: [NSLocalizedDescriptionKey: "No network object found in result"]))
                                 return
                             }
                             
                         } else {
-                            continuation.resume(throwing: NSError(domain: self.domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "No error or result found"])
+                            continuation.resume(throwing: NSError(domain: "LoginPassword.ViewModel", code: 0, userInfo: [NSLocalizedDescriptionKey: "No error or result found"])
                             )
                         }
                         
@@ -116,10 +112,7 @@ extension LoginPasswordView {
                     
                 }
                 
-//                DispatchQueue.main.async {
-//                    self.isLoggingIn = false
-//                }
-                // setIsLoggingIn(false)
+                setIsLoggingIn(false)
                 return result
             } catch {
                 setIsLoggingIn(false)

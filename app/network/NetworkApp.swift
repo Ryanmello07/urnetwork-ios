@@ -22,6 +22,7 @@ struct NetworkApp: App {
     @AppStorage("showMenuBarExtra") private var showMenuBarExtra = true
     
     @State private var isWindowVisible = true
+    @State private var keyEventMonitor: Any?
     
     let themeManager = ThemeManager.shared
     
@@ -35,13 +36,12 @@ struct NetworkApp: App {
         #if os(iOS)
         // for styling NavigationTitle
         // todo - can probably be moved to top of app
-        UINavigationBar
-            .appearance()
-            .largeTitleTextAttributes = [.font : UIFont(name: "ABCGravity-Extended", size: 32)!]
-
-        UINavigationBar
-            .appearance()
-            .titleTextAttributes = [.font : UIFont(name: "PP NeueBit", size: 24)!]
+        if let largeFont = UIFont(name: "ABCGravity-Extended", size: 32) {
+            UINavigationBar.appearance().largeTitleTextAttributes = [.font: largeFont]
+        }
+        if let titleFont = UIFont(name: "PP NeueBit", size: 24) {
+            UINavigationBar.appearance().titleTextAttributes = [.font: titleFont]
+        }
         #endif
     }
     
@@ -133,13 +133,15 @@ struct NetworkApp: App {
                 }
                 .preferredColorScheme(.dark)
                 .background(themeManager.currentTheme.backgroundColor)
-                .onReceive(NSApplication.shared.publisher(for: \.isActive)) { active in
-                    NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-                        if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "q" {
-                            hideWindow()
-                            return nil
+                .onAppear {
+                    if keyEventMonitor == nil {
+                        keyEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                            if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "q" {
+                                hideWindow()
+                                return nil
+                            }
+                            return event
                         }
-                        return event
                     }
                 }
                 .onReceive(deviceManager.$device) { device in

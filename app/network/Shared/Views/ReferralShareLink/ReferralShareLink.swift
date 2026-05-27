@@ -21,10 +21,11 @@ struct ReferralShareLink<Content: View>: View {
     }
     
     var body: some View {
-        ShareLink(item: URL(string: "https://ur.io/app?bonus=\(referralLinkViewModel.referralCode ?? "")")!, subject: Text("URnetwork Referral Code"), message: Text("All the content in the world from URnetwork")) {
+        let url = URL(string: "https://ur.io/app?bonus=\(referralLinkViewModel.referralCode ?? "")") ?? URL(string: "https://ur.io/app")!
+        ShareLink(item: url, subject: Text("URnetwork Referral Code"), message: Text("All the content in the world from URnetwork")) {
             content()
         }
-        .disabled(referralLinkViewModel.isLoading)
+        .disabled(referralLinkViewModel.isLoading || referralLinkViewModel.referralCode == nil)
         .buttonStyle(.plain)
         .contentShape(Rectangle())
     }

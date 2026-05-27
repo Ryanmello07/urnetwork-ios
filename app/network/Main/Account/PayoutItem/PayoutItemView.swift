@@ -76,10 +76,12 @@ struct PayoutItemView: View {
                         UrLabel(text: "Transaction")
                         
                         
+                        let txUrl = payment.blockchain == "SOL"
+                            ? URL(string: "https://solscan.io/tx/\(payment.txHash)")
+                            : URL(string: "https://polygonscan.com/tx/\(payment.txHash)")
+
                         Link(
-                            destination: payment.blockchain == "SOL"
-                                ? URL(string: "https://solscan.io/tx/\(payment.txHash)")!
-                                : URL(string: "https://polygonscan.com/tx/\(payment.txHash)")!
+                            destination: txUrl ?? URL(string: "https://ur.io")!
                         ) {
                             Text("\(payment.txHash)")
                                 .multilineTextAlignment(.leading)

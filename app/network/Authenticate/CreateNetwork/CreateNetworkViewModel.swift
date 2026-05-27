@@ -173,17 +173,17 @@ extension CreateNetworkView {
             networkCheckWorkItem?.cancel()
             
             if networkName.count < 6 {
-                
+
                 if networkNameSupportingText != ViewModel.networkNameTooShort {
                     setNetworkNameSupportingText(ViewModel.networkNameTooShort)
                 }
-    
+
+                networkNameValidationState = .notChecked
+                validateForm()
                 return
             }
             
-            DispatchQueue.main.async {
-                self.networkNameValidationState = .validating
-            }
+            self.networkNameValidationState = .validating
             
             if networkNameValidationVc != nil {
                 
@@ -331,11 +331,11 @@ extension CreateNetworkView {
                     args.referralCode = self.bonusReferralCode
                 }
                 
-                return try await urApiService.createNetwork(args)
-                
-                
+                let result = try await urApiService.createNetwork(args)
+                self.isCreatingNetwork = false
+                return result
+
             } catch {
-                
                 self.isCreatingNetwork = false
                 
                 return .failure(error)

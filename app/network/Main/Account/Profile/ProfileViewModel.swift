@@ -28,15 +28,11 @@ extension ProfileView {
                 return .failure(SendPasswordResetLinkError.isSending)
             }
             
-            DispatchQueue.main.async {
-                self.isSendingPasswordResetLink = true
-            }
-                
+            self.isSendingPasswordResetLink = true
+
             do {
-                
-                let result: SdkAuthPasswordResetResult = try await withCheckedThrowingContinuation { [weak self] continuation in
-                
-                    guard let self = self else { return }
+
+                let result: SdkAuthPasswordResetResult = try await withCheckedThrowingContinuation { continuation in
                     
                     let callback = AuthPasswordResetCallback { result, err in
                         
@@ -61,17 +57,13 @@ extension ProfileView {
                     
                 }
                    
-                DispatchQueue.main.async {
-                    self.isSendingPasswordResetLink = false
-                }
-                
+                self.isSendingPasswordResetLink = false
+
                 return .success(())
-                
+
             }
             catch(let error) {
-                DispatchQueue.main.async {
-                    self.isSendingPasswordResetLink = false
-                }
+                self.isSendingPasswordResetLink = false
                 return .failure(error)
             }
 

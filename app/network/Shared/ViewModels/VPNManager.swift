@@ -125,7 +125,7 @@ class VPNManager {
     }
     
     func handleBackgroundUpdate(task: BGTask) {
-//        self.updateVpnService()
+        task.setTaskCompleted(success: true)
     }
     #endif
     
@@ -138,9 +138,8 @@ class VPNManager {
 //    }
     
     func close() {
-//        self.stopVpnTunnel(index: 0, reset: true)
-        
-        // UIApplication.shared.isIdleTimerDisabled = false
+        self.tunnelInstance += 1
+        self.monitor.cancel()
         self.setIdleTimerDisabled(false)
         
         self.routeLocalSub?.close()
@@ -187,31 +186,6 @@ class VPNManager {
 //            print("[VPNManager][contract]no contract status")
 //        }
 //    }
-    
-    private func allowProvideOnCurrentNetwork(
-        _ provideNetworkMode: ProvideNetworkMode,
-    ) -> Bool {
-        
-        if (!monitor.currentPath.isExpensive) {
-            // is not cell or personal hotspot
-            // should be able to provide
-            print("monitor.currentPath is \(monitor.currentPath.availableInterfaces)")
-            return true
-        } else {
-            
-            // only allow providing on cell if provideNetworkMode == .All
-            if provideNetworkMode == .All {
-                print("monitor.currentPath is expensive and provideNetworkMode == .All")
-                return true
-            } else {
-                print("monitor.currentPath is expensive and provideNetworkMode != .All")
-            }
-            
-        }
-        
-        return false
-    }
-    
     
     func updateVpnService() {
         #if os(iOS)
@@ -267,238 +241,166 @@ class VPNManager {
         let tunnelInstance = self.tunnelInstance
         
         // Load all configurations first
-        NETunnelProviderManager.loadAllFromPreferences { (managers, error) in
-            if tunnelInstance != self.tunnelInstance {
-                return
-            }
-            
-            if let _ = error {
-//                self.updateVpnService()
-                return
-            }
-            
-            let device = self.device
-            
-            var tunnelManager: NETunnelProviderManager
-            var n: Int
-            // Use existing manager or create new one
-            if let managers = managers {
-                n = managers.count
-                if index < n {
-                    tunnelManager = managers[index]
+        NETunnelProviderManager.loadAllFromPreferences { [weak self] (managers, error) in
+            DispatchQueue.main.async {
+                guard let self = self, tunnelInstance == self.tunnelInstance else { return }
+                if let _ = error { return }
+
+                let device = self.device
+
+                var tunnelManager: NETunnelProviderManager
+                var n: Int
+                if let managers = managers {
+                    n = managers.count
+                    tunnelManager = index < n ? managers[index] : NETunnelProviderManager()
                 } else {
+                    n = 0
                     tunnelManager = NETunnelProviderManager()
                 }
-            } else {
-                n = 0
-                tunnelManager = NETunnelProviderManager()
-            }
-            
-            
-            let startTunnel = {
-                if tunnelInstance != self.tunnelInstance {
-                    return
-                }
-                
-                guard let networkSpace = device.getNetworkSpace() else {
-                    return
-                }
-                
-                var err: NSError?
-                let networkSpaceJson = networkSpace.toJson(&err)
-                if let err {
-                    print("[VPNManager]error converting network space to json: \(err.localizedDescription)")
-                    return
-                }
-                
-                
-                let tunnelProtocol = NETunnelProviderProtocol()
-                // Use the same as remote address in PacketTunnelProvider
-                // value from connect resolvedHost
-                tunnelProtocol.serverAddress = networkSpace.getHostName()
-                tunnelProtocol.providerBundleIdentifier = "network.ur.extension"
-                tunnelProtocol.disconnectOnSleep = false
-                
-                // Note `includeAllNetworks` seems to break Facetime and mail sync
-                // FIXME figure out the best setting here
-                // see https://developer.apple.com/documentation/networkextension/nevpnprotocol/includeallnetworks
-    //            tunnelProtocol.includeAllNetworks = true
-                
-                // this is needed for casting, etc.
-                tunnelProtocol.excludeLocalNetworks = true
-                tunnelProtocol.excludeCellularServices = true
-                tunnelProtocol.excludeAPNs = true
-                if #available(iOS 17.4, macOS 14.4, *) {
-                    tunnelProtocol.excludeDeviceCommunication = true
-                }
-                
-    //            tunnelProtocol.enforceRoutes = true
-                
-                tunnelProtocol.providerConfiguration = [
-                    "by_jwt": device.getApi()?.getByJwt() as Any,
-                    "rpc_public_key": "test",
-                    "network_space": networkSpaceJson as Any,
-                    "instance_id": device.getInstanceId()?.string() as Any,
-                ]
-                
-                tunnelManager.protocolConfiguration = tunnelProtocol
-                tunnelManager.localizedDescription = "URnetwork [\(networkSpace.getHostName()) \(networkSpace.getEnvName())]"
-                tunnelManager.isEnabled = true
-                tunnelManager.isOnDemandEnabled = true
-                let connectRule = NEOnDemandRuleConnect()
-                connectRule.interfaceTypeMatch = NEOnDemandRuleInterfaceType.any
-                tunnelManager.onDemandRules = [connectRule]
-                
-                tunnelManager.saveToPreferences { error in
-                    if tunnelInstance != self.tunnelInstance {
+
+                let startTunnel = {
+                    guard tunnelInstance == self.tunnelInstance else { return }
+
+                    guard let networkSpace = device.getNetworkSpace() else { return }
+
+                    var err: NSError?
+                    let networkSpaceJson = networkSpace.toJson(&err)
+                    if let err {
+                        print("[VPNManager]error converting network space to json: \(err.localizedDescription)")
                         return
                     }
-                    
-                    if let _ = error {
-//                        self.updateVpnService()
-                        return
+
+                    let tunnelProtocol = NETunnelProviderProtocol()
+                    tunnelProtocol.serverAddress = networkSpace.getHostName()
+                    tunnelProtocol.providerBundleIdentifier = "network.ur.extension"
+                    tunnelProtocol.disconnectOnSleep = false
+                    tunnelProtocol.excludeLocalNetworks = true
+                    tunnelProtocol.excludeCellularServices = true
+                    tunnelProtocol.excludeAPNs = true
+                    if #available(iOS 17.4, macOS 14.4, *) {
+                        tunnelProtocol.excludeDeviceCommunication = true
                     }
-                    
-                    // see https://forums.developer.apple.com/forums/thread/25928
-                    tunnelManager.loadFromPreferences { error in
-                        if tunnelInstance != self.tunnelInstance {
-                            return
-                        }
-                        
-                        if let _ = error {
-//                            self.updateVpnService()
-                            return
-                        }
-                        
-                        do {
-                            try tunnelManager.connection.startVPNTunnel()
-                            print("[VPNManager]connection started")
-                            device.sync()
-                            
-                            if !reset || index+1<n {
-                                DispatchQueue.main.asyncAfter(deadline: .now() + TunnelCheckTimeout) {
-                                    if tunnelInstance == self.tunnelInstance && !device.getTunnelStarted() {
-                                        if !reset {
-                                            self.updateVpnServiceWithReset(index: index, reset: true)
-                                        } else if index+1<n {
-                                            self.updateVpnServiceWithReset(index: index+1, reset: false)
+
+                    tunnelProtocol.providerConfiguration = [
+                        "by_jwt": device.getApi()?.getByJwt() as Any,
+                        "rpc_public_key": "test",
+                        "network_space": networkSpaceJson as Any,
+                        "instance_id": device.getInstanceId()?.string() as Any,
+                    ]
+
+                    tunnelManager.protocolConfiguration = tunnelProtocol
+                    tunnelManager.localizedDescription = "URnetwork [\(networkSpace.getHostName()) \(networkSpace.getEnvName())]"
+                    tunnelManager.isEnabled = true
+                    tunnelManager.isOnDemandEnabled = true
+                    let connectRule = NEOnDemandRuleConnect()
+                    connectRule.interfaceTypeMatch = NEOnDemandRuleInterfaceType.any
+                    tunnelManager.onDemandRules = [connectRule]
+
+                    tunnelManager.saveToPreferences { [weak self] error in
+                        DispatchQueue.main.async {
+                            guard let self = self, tunnelInstance == self.tunnelInstance else { return }
+                            if let _ = error { return }
+
+                            tunnelManager.loadFromPreferences { [weak self] error in
+                                DispatchQueue.main.async {
+                                    guard let self = self, tunnelInstance == self.tunnelInstance else { return }
+                                    if let _ = error { return }
+
+                                    do {
+                                        try tunnelManager.connection.startVPNTunnel()
+                                        device.sync()
+
+                                        if !reset || index+1<n {
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + TunnelCheckTimeout) {
+                                                if tunnelInstance == self.tunnelInstance && !device.getTunnelStarted() {
+                                                    if !reset {
+                                                        self.updateVpnServiceWithReset(index: index, reset: true)
+                                                    } else if index+1<n {
+                                                        self.updateVpnServiceWithReset(index: index+1, reset: false)
+                                                    }
+                                                }
+                                            }
                                         }
+                                    } catch {
+                                        print("[VPNManager]Error starting VPN: \(error.localizedDescription)")
                                     }
                                 }
                             }
-                        } catch let error as NSError {
-                            print("[VPNManager]Error starting VPN connection:")
-                            print("[VPNManager]Domain: \(error.domain)")
-                            print("[VPNManager]Code: \(error.code)")
-                            print("[VPNManager]Description: \(error.localizedDescription)")
-                            print("[VPNManager]User Info: \(error.userInfo)")
                         }
                     }
                 }
-                
-            }
-            
-            if reset {
-                
-                print("resetting vpn")
-                
-                tunnelManager.removeFromPreferences() { error in
-                    if tunnelInstance != self.tunnelInstance {
-                        return
+
+                if reset {
+                    tunnelManager.removeFromPreferences() { [weak self] error in
+                        DispatchQueue.main.async {
+                            guard let self = self, tunnelInstance == self.tunnelInstance else { return }
+                            if let _ = error { return }
+                            startTunnel()
+                        }
                     }
-                    
-                    if let _ = error {
-//                        self.updateVpnService()
-                        return
-                    }
-                    
+                } else {
                     startTunnel()
                 }
-            } else {
-                // use a soft relaunch where the settings are updated but the configuration is left in place
-                startTunnel()
             }
         }
     }
-    
+
     private func stopVpnTunnel(index: Int, reset: Bool) {
-//        if !tunnelStarted {
-//            return
-//        }
-//        tunnelStarted = false
         self.tunnelInstance += 1
         let tunnelInstance = self.tunnelInstance
-        
-        NETunnelProviderManager.loadAllFromPreferences { (managers, error) in
-            if tunnelInstance != self.tunnelInstance {
-                return
-            }
-            
-            if let _ = error {
-//                self.updateVpnService()
-                return
-            }
-            
-            let device = self.device
-            
-            var tunnelManager: NETunnelProviderManager
-            var n: Int
-            // Use existing manager or create new one
-            if let managers = managers {
-                n = managers.count
-                if index < n {
-                    tunnelManager = managers[index]
+
+        NETunnelProviderManager.loadAllFromPreferences { [weak self] (managers, error) in
+            DispatchQueue.main.async {
+                guard let self = self, tunnelInstance == self.tunnelInstance else { return }
+                if let _ = error { return }
+
+                let device = self.device
+
+                var tunnelManager: NETunnelProviderManager
+                var n: Int
+                if let managers = managers {
+                    n = managers.count
+                    tunnelManager = index < n ? managers[index] : NETunnelProviderManager()
                 } else {
+                    n = 0
                     tunnelManager = NETunnelProviderManager()
                 }
-            } else {
-                n = 0
-                tunnelManager = NETunnelProviderManager()
-            }
-            
-            tunnelManager.isEnabled = false
-            tunnelManager.isOnDemandEnabled = false
-            tunnelManager.onDemandRules = nil
-            
-            tunnelManager.saveToPreferences { error in
-                if tunnelInstance != self.tunnelInstance {
-                    return
-                }
-                
-                if let _ = error {
-//                    self.updateVpnService()
-                    return
-                }
-                
-                tunnelManager.connection.stopVPNTunnel()
-                
-                let checkTunnel = {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + TunnelCheckTimeout) {
-                        if tunnelInstance == self.tunnelInstance && device.getTunnelStarted() {
-                            if !reset {
-                                self.updateVpnServiceWithReset(index: index, reset: true)
-                            } else if index+1<n {
-                                self.updateVpnServiceWithReset(index: index+1, reset: false)
+
+                tunnelManager.isEnabled = false
+                tunnelManager.isOnDemandEnabled = false
+                tunnelManager.onDemandRules = nil
+
+                tunnelManager.saveToPreferences { [weak self] error in
+                    DispatchQueue.main.async {
+                        guard let self = self, tunnelInstance == self.tunnelInstance else { return }
+                        if let _ = error { return }
+
+                        tunnelManager.connection.stopVPNTunnel()
+
+                        let checkTunnel = {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + TunnelCheckTimeout) {
+                                if tunnelInstance == self.tunnelInstance && device.getTunnelStarted() {
+                                    if !reset {
+                                        self.updateVpnServiceWithReset(index: index, reset: true)
+                                    } else if index+1<n {
+                                        self.updateVpnServiceWithReset(index: index+1, reset: false)
+                                    }
+                                }
                             }
                         }
-                    }
-                }
-                
-                if reset {
-                    tunnelManager.removeFromPreferences() { error in
-                        if tunnelInstance != self.tunnelInstance {
-                            return
+
+                        if reset {
+                            tunnelManager.removeFromPreferences() { [weak self] error in
+                                DispatchQueue.main.async {
+                                    guard let self = self, tunnelInstance == self.tunnelInstance else { return }
+                                    if let _ = error { return }
+                                    checkTunnel()
+                                }
+                            }
+                        } else if index+1<n {
+                            checkTunnel()
                         }
-                        
-                        if let _ = error {
-//                            self.updateVpnService()
-                            return
-                        }
-                        
-                        checkTunnel()
                     }
-                } else if index+1<n {
-                    checkTunnel()
                 }
             }
         }
@@ -512,25 +414,29 @@ class VPNManager {
     
     private func stopVpnTunnelOnQuitWithIndex(index: Int, completion: @escaping (Error?) -> Void) {
         self.tunnelInstance += 1
-        
-        NETunnelProviderManager.loadAllFromPreferences { (managers, error) in
-            if let error = error {
-                completion(error)
-                return
-            }
-            
-            if let managers = managers {
-                let n = managers.count
-                if index < n {
-                    let tunnelManager = managers[index]
-                    tunnelManager.removeFromPreferences() { _ in
-                        self.stopVpnTunnelOnQuitWithIndex(index: index+1, completion: completion)
-                    }
-                } else {
-                    completion(nil)
+
+        NETunnelProviderManager.loadAllFromPreferences { [weak self] (managers, error) in
+            DispatchQueue.main.async {
+                if let error = error {
+                    completion(error)
+                    return
                 }
-            } else {
-                completion(nil)
+
+                guard let managers = managers, !managers.isEmpty else {
+                    completion(nil)
+                    return
+                }
+
+                let tunnelManager = managers[0]
+                tunnelManager.removeFromPreferences() { error in
+                    DispatchQueue.main.async {
+                        if let error = error {
+                            completion(error)
+                            return
+                        }
+                        self?.stopVpnTunnelOnQuitWithIndex(index: index + 1, completion: completion)
+                    }
+                }
             }
         }
     }

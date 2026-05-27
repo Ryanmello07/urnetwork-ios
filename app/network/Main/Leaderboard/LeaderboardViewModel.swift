@@ -15,8 +15,11 @@ extension LeaderboardView {
 
         private let urApiService: UrApiServiceProtocol
 
+        private var isLoadingRanking = true
+
         @Published var networkRankingPublic: Bool = false {
             didSet {
+                guard !isLoadingRanking else { return }
                 Task {
                     await setNetworkRankingPublic(networkRankingPublic)
                 }
@@ -80,6 +83,7 @@ extension LeaderboardView {
 
                 if let networkRanking = result.networkRanking {
                     self.networkRankingPublic = networkRanking.leaderboardPublic
+                    self.isLoadingRanking = false
                     self.networkRank = networkRanking.leaderboardRank
                     self.netProvidedFormatted = formatMiB(mib: networkRanking.netMiBCount)
                 }

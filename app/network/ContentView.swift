@@ -20,6 +20,7 @@ struct ContentView: View {
     @StateObject private var connectWalletProviderViewModel = ConnectWalletProviderViewModel()
     
     @State private var opacity: Double = 0.0
+    @State private var updatePathWorkItem: DispatchWorkItem?
     
     @EnvironmentObject var themeManager: ThemeManager
     
@@ -98,20 +99,20 @@ struct ContentView: View {
     }
     
     private func updatePath() {
-        
+        updatePathWorkItem?.cancel()
+
         withAnimation {
             opacity = 0.0
         }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            
+
+        let workItem = DispatchWorkItem {
             viewModel.updatePath(deviceManager.device)
-            
             withAnimation {
                 opacity = 1.0
             }
-            
         }
+        updatePathWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
     }
     
     private func handleSuccessWithJwt(_ jwt: String) async {

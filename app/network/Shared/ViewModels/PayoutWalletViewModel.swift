@@ -32,7 +32,7 @@ class PayoutWalletViewModel: ObservableObject {
     let domain = "[PayoutWalletViewModel]"
     
     @Published private(set) var payoutWalletId: SdkId?
-    var isFetchingPayoutWallet: Bool = false
+    @Published private(set) var isFetchingPayoutWallet: Bool = false
     @Published private(set) var isUpdatingPayoutWallet: Bool = false
     
     init(api: SdkApi?) {
@@ -56,19 +56,17 @@ class PayoutWalletViewModel: ObservableObject {
         
         do {
             
-            let result: SdkGetPayoutWalletIdResult = try await withCheckedThrowingContinuation { [weak self] continuation in
-                
-                guard let self = self else { return }
-                
+            let result: SdkGetPayoutWalletIdResult = try await withCheckedThrowingContinuation { continuation in
+
                 let callback = FetchPayoutWalletCallback { result, err in
-                    
+
                     if let err = err {
                         continuation.resume(throwing: err)
                         return
                     }
-                    
+
                     guard let result = result else {
-                        continuation.resume(throwing: NSError(domain: self.domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "FetchPayoutWalletCallback result is nil"]))
+                        continuation.resume(throwing: NSError(domain: "[PayoutWalletViewModel]", code: 0, userInfo: [NSLocalizedDescriptionKey: "FetchPayoutWalletCallback result is nil"]))
                         return
                     }
                     
@@ -76,8 +74,12 @@ class PayoutWalletViewModel: ObservableObject {
                     
                 }
                 
-                api?.getPayoutWallet(callback)
-                
+                guard let api = self.api else {
+                    continuation.resume(throwing: NSError(domain: "[PayoutWalletViewModel]", code: 0, userInfo: [NSLocalizedDescriptionKey: "API not available"]))
+                    return
+                }
+                api.getPayoutWallet(callback)
+
             }
             
             if let payoutWalletId = result.walletId {
@@ -103,19 +105,17 @@ class PayoutWalletViewModel: ObservableObject {
         
         do {
             
-            let result: SdkSetPayoutWalletResult = try await withCheckedThrowingContinuation { [weak self] continuation in
-                
-                guard let self = self else { return }
-                
+            let result: SdkSetPayoutWalletResult = try await withCheckedThrowingContinuation { continuation in
+
                 let callback = UpdatePayoutWalletCallback { result, err in
-                    
+
                     if let err = err {
                         continuation.resume(throwing: err)
                         return
                     }
-                    
+
                     guard let result = result else {
-                        continuation.resume(throwing: NSError(domain: self.domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "FetchPayoutWalletCallback result is nil"]))
+                        continuation.resume(throwing: NSError(domain: "[PayoutWalletViewModel]", code: 0, userInfo: [NSLocalizedDescriptionKey: "UpdatePayoutWalletCallback result is nil"]))
                         return
                     }
                     
@@ -126,7 +126,11 @@ class PayoutWalletViewModel: ObservableObject {
                 let args = SdkSetPayoutWalletArgs()
                 args.walletId = walletId
                 
-                api?.setPayoutWallet(args, callback: callback)
+                guard let api = self.api else {
+                    continuation.resume(throwing: NSError(domain: "[PayoutWalletViewModel]", code: 0, userInfo: [NSLocalizedDescriptionKey: "API not available"]))
+                    return
+                }
+                api.setPayoutWallet(args, callback: callback)
             }
             
             isUpdatingPayoutWallet = false

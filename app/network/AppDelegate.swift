@@ -67,10 +67,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if let deviceManager = self.deviceManager {
+            var didReply = false
+
             deviceManager.closeOnQuit { _ in
+                DispatchQueue.main.async {
+                    guard !didReply else { return }
+                    didReply = true
+                    sender.reply(toApplicationShouldTerminate: true)
+                }
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                guard !didReply else { return }
+                didReply = true
                 sender.reply(toApplicationShouldTerminate: true)
             }
-            
+
             return .terminateLater
         } else {
             return .terminateNow
