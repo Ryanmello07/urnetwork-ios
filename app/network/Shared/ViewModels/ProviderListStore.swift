@@ -35,6 +35,8 @@ public final class ProviderListStore: ObservableObject {
     private var lastQuery: String?
     
     private var currentSearchTask: Task<Void, Never>?
+    private var loadingGeneration: Int = 0
+    private var activeLoadingGeneration: Int = 0
     
     private var urApiService: UrApiServiceProtocol
     
@@ -88,7 +90,6 @@ public final class ProviderListStore: ObservableObject {
             return .success(())
             
         } catch (let error) {
-            providersLoading = false
             return .failure(error)
         }
     }
@@ -109,7 +110,27 @@ public final class ProviderListStore: ObservableObject {
         
     }
     
-    func filterLocations(_ query: String) async -> Result<Void, Error> {
+    private func beginLoading() -> Int {
+        loadingGeneration += 1
+        activeLoadingGeneration = loadingGeneration
+        providersLoading = true
+        return loadingGeneration
+    }
+
+    private func finishLoading(_ generation: Int) {
+        guard activeLoadingGeneration == generation else {
+            return
+        }
+        providersLoading = false
+    }
+
+    func filterLocations(_ query: String, manageLoading: Bool = true) async -> Result<Void, Error> {
+        let loadingGeneration = manageLoading ? beginLoading() : nil
+        defer {
+            if let loadingGeneration {
+                finishLoading(loadingGeneration)
+            }
+        }
         
         if query.isEmpty {
             return await self.getAllProviders()
@@ -123,8 +144,10 @@ public final class ProviderListStore: ObservableObject {
         
         do {
             
-            providersLoading = true
-            
+            if Task.isCancelled {
+                return .success(())
+            }
+
 //            let result: SdkFilteredLocations = try await withCheckedThrowingContinuation { [weak self] continuation in
 //                
 //                guard let self = self else { return }
@@ -155,17 +178,16 @@ public final class ProviderListStore: ObservableObject {
 //            }
             
             let result = try await urApiService.getAllProviders()
+
+            if Task.isCancelled {
+                return .success(())
+            }
             
             self.handleLocations(result)
-            
-            providersLoading = false
             
             return .success(())
             
         } catch (let error) {
-            
-            providersLoading = false
-            
             return .failure(error)
         }
         
@@ -176,16 +198,16 @@ public final class ProviderListStore: ObservableObject {
             // Cancel any previous search task
             currentSearchTask?.cancel()
             
-            providersLoading = true
+            let loadingGeneration = beginLoading()
             
             // Create a new search task
             currentSearchTask = Task {
                 
-                let _ = await filterLocations(query)
+                let _ = await filterLocations(query, manageLoading: false)
                 if !Task.isCancelled {
                     self.lastQuery = query
-                    providersLoading = false
                 }
+                finishLoading(loadingGeneration)
             }
         }
     }

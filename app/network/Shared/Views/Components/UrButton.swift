@@ -119,7 +119,7 @@ struct UrButton: View {
 
 #Preview {
     
-    var themeManager = ThemeManager.shared
+    let themeManager = ThemeManager.shared
     
     VStack {
         // primary

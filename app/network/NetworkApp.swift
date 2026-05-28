@@ -26,13 +26,15 @@ struct NetworkApp: App {
     
     let themeManager = ThemeManager.shared
     
-    @StateObject var deviceManager = DeviceManager()
+    @StateObject var deviceManager: DeviceManager
     
     @StateObject var connectViewModel = ConnectViewModel()
-    
+
     init() {
+        let deviceManager = DeviceManager()
+        _deviceManager = StateObject(wrappedValue: deviceManager)
         appDelegate.deviceManager = deviceManager
-        
+
         #if os(iOS)
         // for styling NavigationTitle
         // todo - can probably be moved to top of app
@@ -55,6 +57,17 @@ struct NetworkApp: App {
             connectViewController: connectViewController
         )
         
+    }
+
+    func updateConnectViewModel(_ device: SdkDeviceRemote?) {
+        if let device = device {
+            if connectViewModel.device == device && connectViewModel.connectViewController != nil {
+                return
+            }
+            setupConnectViewModel(device)
+        } else {
+            connectViewModel.reset()
+        }
     }
     
     private var connectEnabled: Bool {
@@ -117,11 +130,7 @@ struct NetworkApp: App {
                 .preferredColorScheme(.dark)
                 .background(themeManager.currentTheme.backgroundColor)
                 .onReceive(deviceManager.$device) { device in
-                    
-                    if let device = device {
-                        setupConnectViewModel(device)
-                    }
-                    
+                    updateConnectViewModel(device)
                 }
             #elseif os(macOS)
             ContentView()
@@ -145,11 +154,7 @@ struct NetworkApp: App {
                     }
                 }
                 .onReceive(deviceManager.$device) { device in
-                    
-                    if let device = device {
-                        setupConnectViewModel(device)
-                    }
-                    
+                    updateConnectViewModel(device)
                 }
                 .onAppear {
                     if mainWindow == nil {
@@ -191,9 +196,6 @@ struct NetworkApp: App {
                         connectViewModel.disconnect()
                         
                         Task {
-                            if let vpnManager = deviceManager.vpnManager {
-                                await vpnManager.close()
-                            }
                             deviceManager.logout()
                         }
                         
@@ -282,4 +284,3 @@ struct NetworkApp: App {
     #endif
     
 }
-

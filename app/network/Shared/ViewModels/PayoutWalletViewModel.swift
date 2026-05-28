@@ -82,9 +82,7 @@ class PayoutWalletViewModel: ObservableObject {
 
             }
             
-            if let payoutWalletId = result.walletId {
-                self.payoutWalletId = payoutWalletId
-            }
+            self.payoutWalletId = result.walletId
             
             isFetchingPayoutWallet = false
             
@@ -105,7 +103,7 @@ class PayoutWalletViewModel: ObservableObject {
         
         do {
             
-            let result: SdkSetPayoutWalletResult = try await withCheckedThrowingContinuation { continuation in
+            let _: SdkSetPayoutWalletResult = try await withCheckedThrowingContinuation { continuation in
 
                 let callback = UpdatePayoutWalletCallback { result, err in
 

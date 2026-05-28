@@ -27,6 +27,7 @@ extension EnterWalletAddressView {
         private var api: UrApiServiceProtocol
         private var cancellables = Set<AnyCancellable>()
         private var debounceTimer: AnyCancellable?
+        private var validationTask: Task<Void, Never>?
         
         let domain = "[ConnectExternalWalletSheetViewModel]"
         
@@ -45,10 +46,14 @@ extension EnterWalletAddressView {
         }
         
         private func validateAddress(_ address: String) {
-            Task {
-                async let solanaValidation = validateAddress(address, chain: "SOL")
-    
-                let solanaResult = await solanaValidation
+            validationTask?.cancel()
+            let addressToValidate = address
+
+            validationTask = Task { [weak self] in
+                guard let self = self else { return }
+
+                let solanaResult = await self.validateAddress(addressToValidate, chain: "SOL")
+                guard !Task.isCancelled, self.walletAddress == addressToValidate else { return }
     
                 switch (solanaResult) {
                 case (.success(let isSolanaValid)):
@@ -67,15 +72,15 @@ extension EnterWalletAddressView {
                     self.isValidWalletAddress = false
     
                 }
-                print("is valid wallet address: \(isValidWalletAddress)")
-                print("chain is \(chain)")
+                print("is valid wallet address: \(self.isValidWalletAddress)")
+                print("chain is \(self.chain)")
             }
         }
         
         private func validateAddress(_ address: String, chain: String) async -> Result<Bool, Error> {
-    
-            if walletAddress.count < 42 {
-                return .failure(ValidationError.invalidLength)
+
+            if address.isEmpty {
+                return .success(false)
             }
     
             do {
@@ -94,4 +99,3 @@ extension EnterWalletAddressView {
     }
     
 }
-

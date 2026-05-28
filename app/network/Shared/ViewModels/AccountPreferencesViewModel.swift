@@ -24,11 +24,14 @@ private class UpdateAccountPreferencesCallback: SdkCallback<SdkAccountPreference
 class AccountPreferencesViewModel: ObservableObject {
     
     private var isLoadingPreferences = true
+    private var isApplyingPreferenceState = false
+    private var lastSavedCanReceiveProductUpdates = false
 
     @Published var canReceiveProductUpdates: Bool = false {
         didSet {
-            guard !isLoadingPreferences else { return }
-            self.updateAccountPreferences(canReceiveProductUpdates)
+            guard !isLoadingPreferences, !isApplyingPreferenceState else { return }
+            guard oldValue != canReceiveProductUpdates else { return }
+            self.updateAccountPreferences(canReceiveProductUpdates, previousValue: oldValue)
         }
     }
     
@@ -74,20 +77,29 @@ class AccountPreferencesViewModel: ObservableObject {
                     api.accountPreferencesGet(callback)
                 }
                 
-                self.canReceiveProductUpdates = result.productUpdates
+                self.lastSavedCanReceiveProductUpdates = result.productUpdates
+                self.setCanReceiveProductUpdates(result.productUpdates)
                 self.isLoadingPreferences = false
                 
             } catch(let error) {
                 print("[\(domain)] Error fetching account preferences: \(error)")
+                self.isLoadingPreferences = false
             }
             
         }
         
     }
     
-    func updateAccountPreferences(_ allowUpdates: Bool) {
+    private func setCanReceiveProductUpdates(_ value: Bool) {
+        isApplyingPreferenceState = true
+        canReceiveProductUpdates = value
+        isApplyingPreferenceState = false
+    }
+
+    func updateAccountPreferences(_ allowUpdates: Bool, previousValue: Bool? = nil) {
         
         if (isUpdatingAccountPreferences) {
+            setCanReceiveProductUpdates(previousValue ?? lastSavedCanReceiveProductUpdates)
             return
         }
         
@@ -126,12 +138,14 @@ class AccountPreferencesViewModel: ObservableObject {
 
                 }
                 
+                lastSavedCanReceiveProductUpdates = allowUpdates
                 isUpdatingAccountPreferences = false
                 
             } catch(let error) {
                 
                 print("[\(domain)] error updating account preferences: \(error.localizedDescription)")
                 
+                setCanReceiveProductUpdates(previousValue ?? lastSavedCanReceiveProductUpdates)
                 isUpdatingAccountPreferences = false
             }
             

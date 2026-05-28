@@ -68,6 +68,10 @@ class AccountPaymentsViewModel: ObservableObject {
                 api.getAccountPayments(callback)
             }
             
+            if let resultError = result.error {
+                throw NSError(domain: domain, code: -1, userInfo: [NSLocalizedDescriptionKey: resultError.message])
+            }
+
             handlePayoutResult(result)
             self.isLoadingPayments = false
             
@@ -81,6 +85,8 @@ class AccountPaymentsViewModel: ObservableObject {
     private func handlePayoutResult(_ result: SdkGetNetworkAccountPaymentsResult) {
         
         guard let accountPaymentList = result.accountPayments else {
+            self.totalPayoutsUsdc = 0
+            self.payments = []
             return
         }
         

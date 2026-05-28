@@ -28,32 +28,47 @@ struct DisconnectIntent: AppIntent {
                 dialog: "Please login to URnetwork"
             )
         }
+
+        guard let vpnManager = await deviceManager.vpnManager else {
+            return .result(dialog: "Failed to disconnect URnetwork VPN")
+        }
         
         if !device.getConnected() {
             print("RPC device is not connected")
-            return .result(
-                dialog: "Error connecting to URnetwork"
-            )
+            if let error = await vpnManager.stopVpnTunnelOnQuitAndWait() {
+                print("[DisconnectIntent] failed to remove stale VPN profiles: \(error.localizedDescription)")
+                return .result(dialog: "Failed to disconnect URnetwork VPN")
+            }
+            return .result(dialog: "URnetwork VPN disconnected")
         }
         
         guard let connectViewController = device.openConnectViewController() else {
             return .result(dialog: "Failed to connect URnetwork")
         }
+        defer {
+            connectViewController.close()
+        }
         
         var status = connectViewController.getConnectionStatus()
         print("connect status is: \(status)")
         
-        if (status == SdkDisconnected) {
-            return .result(
-                dialog: "URnetwork is disconnected"
-            )
+        if status != SdkDisconnected {
+            connectViewController.disconnect()
         }
-        
-        connectViewController.disconnect()
+
+        let vpnUpdateResult = await vpnManager.updateVpnServiceAndWait()
+        if case .failure(let error) = vpnUpdateResult {
+            print("[DisconnectIntent] failed to update VPN service: \(error.localizedDescription)")
+            return .result(dialog: "Failed to disconnect URnetwork VPN")
+        }
         
         status = connectViewController.getConnectionStatus()
         print("after disconnect status is: \(status)")
         
+        if status == SdkDisconnected {
+            return .result(dialog: "URnetwork is disconnected")
+        }
+
         return .result(dialog: "URnetwork VPN disconnected")
          
     }

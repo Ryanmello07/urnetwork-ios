@@ -16,12 +16,15 @@ extension LeaderboardView {
         private let urApiService: UrApiServiceProtocol
 
         private var isLoadingRanking = true
+        private var isApplyingRankingState = false
+        private var lastSavedNetworkRankingPublic = false
 
         @Published var networkRankingPublic: Bool = false {
             didSet {
-                guard !isLoadingRanking else { return }
+                guard !isLoadingRanking, !isApplyingRankingState else { return }
+                guard oldValue != networkRankingPublic else { return }
                 Task {
-                    await setNetworkRankingPublic(networkRankingPublic)
+                    await setNetworkRankingPublic(networkRankingPublic, previousValue: oldValue)
                 }
             }
         }
@@ -78,12 +81,15 @@ extension LeaderboardView {
         private func getRanking() async -> Result<Void, Error> {
 
             do {
+                defer {
+                    self.isLoadingRanking = false
+                }
                 
                 let result = try await urApiService.getLeaderboardRanking()
 
                 if let networkRanking = result.networkRanking {
-                    self.networkRankingPublic = networkRanking.leaderboardPublic
-                    self.isLoadingRanking = false
+                    self.lastSavedNetworkRankingPublic = networkRanking.leaderboardPublic
+                    self.applyNetworkRankingPublicState(networkRanking.leaderboardPublic)
                     self.networkRank = networkRanking.leaderboardRank
                     self.netProvidedFormatted = formatMiB(mib: networkRanking.netMiBCount)
                 }
@@ -117,8 +123,13 @@ extension LeaderboardView {
         }
 
         func setNetworkRankingPublic(_ isPublic: Bool) async -> Result<Void, Error> {
+            await setNetworkRankingPublic(isPublic, previousValue: nil)
+        }
+
+        private func setNetworkRankingPublic(_ isPublic: Bool, previousValue: Bool?) async -> Result<Void, Error> {
 
             if self.isSettingRankingVisibility {
+                applyNetworkRankingPublicState(previousValue ?? lastSavedNetworkRankingPublic)
                 return .failure(SetRankingVisibilityError.isLoading)
             }
 
@@ -127,6 +138,7 @@ extension LeaderboardView {
             do {
                 
                 try await urApiService.setNetworkRankingPublic(isPublic)
+                lastSavedNetworkRankingPublic = isPublic
                 
                 let _ = await self.getLeaderboard()
 
@@ -137,6 +149,7 @@ extension LeaderboardView {
             } catch (let error) {
                 print("set ranking visibility error \(error)")
 
+                applyNetworkRankingPublicState(previousValue ?? lastSavedNetworkRankingPublic)
                 self.isSettingRankingVisibility = false
 
                 return .failure(error)
@@ -144,7 +157,12 @@ extension LeaderboardView {
 
         }
 
+        private func applyNetworkRankingPublicState(_ value: Bool) {
+            isApplyingRankingState = true
+            networkRankingPublic = value
+            isApplyingRankingState = false
+        }
+
     }
 
 }
-

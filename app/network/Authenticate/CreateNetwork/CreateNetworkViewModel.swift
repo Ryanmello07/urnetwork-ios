@@ -186,12 +186,14 @@ extension CreateNetworkView {
             self.networkNameValidationState = .validating
             
             if networkNameValidationVc != nil {
+                let checkedNetworkName = networkName
                 
                 let callback = NetworkCheckCallback { [weak self] result, error in
                     
                     DispatchQueue.main.async {
                         
                         guard let self = self else { return }
+                        guard self.networkName == checkedNetworkName else { return }
                         
                         if let error = error {
                             print("error checking network name: \(error.localizedDescription)")
@@ -205,7 +207,7 @@ extension CreateNetworkView {
                         }
                         
                         if let result = result {
-                            print("result checking network name \(self.networkName): \(result.available)")
+                            print("result checking network name \(checkedNetworkName): \(result.available)")
                             self.networkNameValidationState = result.available ? .valid : .invalid
                             
                             
@@ -224,7 +226,7 @@ extension CreateNetworkView {
                 networkCheckWorkItem = DispatchWorkItem { [weak self] in
                     guard let self = self else { return }
                     
-                    self.networkNameValidationVc?.networkCheck(networkName, callback: callback)
+                    self.networkNameValidationVc?.networkCheck(checkedNetworkName, callback: callback)
                 }
                 
                 if let workItem = networkCheckWorkItem {

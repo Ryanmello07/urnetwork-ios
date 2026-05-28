@@ -54,8 +54,13 @@ class GuestUpgradeViewModel: ObservableObject {
                     /**
                      * JWT exists, proceed to authenticate network
                      */
-                    if let jwt = result.network?.byJwt {
-                        continuation.resume(returning: .login(jwt))
+                    if let network = result.network {
+                        guard !network.byJwt.isEmpty else {
+                            continuation.resume(throwing: NSError(domain: "[GuestUpgradeViewModel]", code: -1, userInfo: [NSLocalizedDescriptionKey: "byJWT is empty"]))
+                            return
+                        }
+
+                        continuation.resume(returning: .login(network.byJwt))
                         return
                     }
                     

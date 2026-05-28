@@ -147,6 +147,7 @@ extension BlockedLocationsView {
                 if result.error != nil {
                     print(
                         "block location result error: \(String(describing: result.error?.message))")
+                    self.blockedLocations.removeAll(where: { locationId.cmp($0.locationId) == 0 })
                     self.setProcessingError(blockLocationErrorMsg)
                     isProcessingLocation = false
                     return

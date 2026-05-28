@@ -231,7 +231,7 @@ extension AccountWalletsViewModel {
         isRemovingWallet = true
 
         do {
-            let _: SdkRemoveWalletResult = try await withCheckedThrowingContinuation { continuation in
+            let result: SdkRemoveWalletResult = try await withCheckedThrowingContinuation { continuation in
 
                 let callback = RemoveWalletCallback { result, err in
 
@@ -257,6 +257,14 @@ extension AccountWalletsViewModel {
                 }
                 api.removeWallet(args, callback: callback)
 
+            }
+
+            if let resultError = result.error {
+                throw NSError(domain: domain, code: -1, userInfo: [NSLocalizedDescriptionKey: resultError.message])
+            }
+
+            guard result.success else {
+                throw NSError(domain: domain, code: -1, userInfo: [NSLocalizedDescriptionKey: "Remove wallet failed"])
             }
 
             await fetchAccountWallets()
@@ -316,6 +324,10 @@ extension AccountWalletsViewModel {
                     return
                 }
                 api.createAccountWallet(args, callback: callback)
+            }
+
+            guard result.walletId != nil else {
+                throw CreateWalletError.invalidResult
             }
 
             isCreatingWallet = false
@@ -380,9 +392,17 @@ extension AccountWalletsViewModel {
 
             isVerifyingSeekerOrSagaOwnership = false
 
+            if let resultError = result.error {
+                return .failure(SeekerSagaVerificationError.unknown(resultError.message))
+            }
+
+            guard result.success else {
+                return .failure(SeekerSagaVerificationError.invalidSignature)
+            }
+
             await self.fetchAccountWallets()
 
-            return .success(result.success)
+            return .success(true)
 
         } catch(let error) {
             isVerifyingSeekerOrSagaOwnership = false
@@ -419,9 +439,22 @@ enum CreateWalletError: Error {
     case invalidAddress
 }
 
-enum SeekerSagaVerificationError: Error {
+enum SeekerSagaVerificationError: LocalizedError {
     case alreadyProcessing
     case invalidResult
     case invalidSignature
     case unknown(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .alreadyProcessing:
+            return "Verification is already in progress."
+        case .invalidResult:
+            return "Verification returned an invalid result."
+        case .invalidSignature:
+            return "Wallet ownership could not be verified."
+        case .unknown(let message):
+            return message
+        }
+    }
 }

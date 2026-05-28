@@ -263,70 +263,73 @@ struct UrTextField: View {
     }
 }
 
-#Preview {
+private struct UrTextFieldPreview: View {
+    @State private var emptyValue = ""
+    @State private var sampleValue = "lorem@ipsum.com"
     
-    var themeManager = ThemeManager.shared
+    private let themeManager = ThemeManager.shared
+    
+    var body: some View {
+        VStack {
+            // empty text field
+            UrTextField(
+                text: $emptyValue,
+                label: "Your email",
+                placeholder: "Placeholder"
+            )
 
-    
-    @State var emptyValue = ""
-    @State var sampleValue = "lorem@ipsum.com"
-    
-    VStack {
-        // empty text field
-        UrTextField(
-            text: $emptyValue,
-            label: "Your email",
-            placeholder: "Placeholder"
-        )
-        
-        Spacer()
-            .frame(height: 32)
-        
-        // populated
-        UrTextField(
-            text: $sampleValue,
-            label: "Your email",
-            placeholder: "Placeholder"
-        )
-        
-        Spacer()
-            .frame(height: 32)
-        
-        // populated with supporting text
-        UrTextField(
-            text: $sampleValue,
-            label: "Your email",
-            placeholder: "Placeholder",
-            supportingText: "Network names must be 6 characters or more"
-        )
-        
-        Spacer()
-            .frame(height: 32)
-        
-        // error exists
-        UrTextField(
-            text: $sampleValue,
-            label: "Your email",
-            placeholder: "Placeholder",
-            supportingText: "Network name is too short. Try one with at least 6 characters",
-            validationState: ValidationState.invalid
-        )
-        
-        Spacer()
-            .frame(height: 32)
-        
-        // disabled input
-        UrTextField(
-            text: $sampleValue,
-            label: "Your email",
-            placeholder: "Placeholder",
-            isEnabled: false,
-            validationState: ValidationState.valid
-        )
+            Spacer()
+                .frame(height: 32)
+
+            // populated
+            UrTextField(
+                text: $sampleValue,
+                label: "Your email",
+                placeholder: "Placeholder"
+            )
+
+            Spacer()
+                .frame(height: 32)
+
+            // populated with supporting text
+            UrTextField(
+                text: $sampleValue,
+                label: "Your email",
+                placeholder: "Placeholder",
+                supportingText: "Network names must be 6 characters or more"
+            )
+
+            Spacer()
+                .frame(height: 32)
+
+            // error exists
+            UrTextField(
+                text: $sampleValue,
+                label: "Your email",
+                placeholder: "Placeholder",
+                supportingText: "Network name is too short. Try one with at least 6 characters",
+                validationState: ValidationState.invalid
+            )
+
+            Spacer()
+                .frame(height: 32)
+
+            // disabled input
+            UrTextField(
+                text: $sampleValue,
+                label: "Your email",
+                placeholder: "Placeholder",
+                isEnabled: false,
+                validationState: ValidationState.valid
+            )
+        }
+        .environmentObject(themeManager)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
+        .background(themeManager.currentTheme.backgroundColor)
     }
-    .environmentObject(themeManager)
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .padding()
-    .background(themeManager.currentTheme.backgroundColor)
 }
 
+#Preview {
+    UrTextFieldPreview()
+}

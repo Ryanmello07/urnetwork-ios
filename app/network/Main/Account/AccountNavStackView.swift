@@ -214,7 +214,7 @@ struct AccountNavStackView: View {
         Task {
             let result = await accountWalletsViewModel.removeWallet()
             
-            if case .failure(let error) = result {
+            if case .failure = result {
                 
                 // TODO: snackbar error
                 

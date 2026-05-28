@@ -32,7 +32,7 @@ extension ProfileView {
 
             do {
 
-                let result: SdkAuthPasswordResetResult = try await withCheckedThrowingContinuation { continuation in
+                let _: SdkAuthPasswordResetResult = try await withCheckedThrowingContinuation { continuation in
                     
                     let callback = AuthPasswordResetCallback { result, err in
                         

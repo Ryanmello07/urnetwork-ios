@@ -55,11 +55,6 @@ struct ContentView: View {
                                 
                                 Task {
                                     connectViewModel.disconnect()
-                                    
-                                    if let vpnManager = deviceManager.vpnManager {
-                                        vpnManager.close()
-                                    }
-                                    
                                     deviceManager.logout()
                                 }
                                 

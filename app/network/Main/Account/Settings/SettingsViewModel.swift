@@ -56,10 +56,13 @@ extension SettingsView {
         @Published var isDeletingNetwork: Bool = false
         
         #if os(macOS)
+        private var isApplyingLaunchAtStartupState = false
+
         @Published var launchAtStartupEnabled: Bool {
             didSet {
-                // update here
-                setLaunchAtStartup(launchAtStartupEnabled)
+                guard !isApplyingLaunchAtStartupState else { return }
+                guard oldValue != launchAtStartupEnabled else { return }
+                setLaunchAtStartup(launchAtStartupEnabled, previousValue: oldValue)
             }
         }
         #endif
@@ -173,7 +176,7 @@ extension SettingsView {
         }
         
         #if os(macOS)
-        private func setLaunchAtStartup(_ enabled: Bool) {
+        private func setLaunchAtStartup(_ enabled: Bool, previousValue: Bool) {
             print("setLaunchAtStartup hit with enabled value: \(enabled)")
             
             if (enabled == (SMAppService.mainApp.status == .enabled)) {
@@ -191,6 +194,9 @@ extension SettingsView {
                 }
             } catch {
                 print("Failed to set launch at startup: \(error)")
+                isApplyingLaunchAtStartupState = true
+                launchAtStartupEnabled = previousValue
+                isApplyingLaunchAtStartupState = false
             }
         }
         #endif

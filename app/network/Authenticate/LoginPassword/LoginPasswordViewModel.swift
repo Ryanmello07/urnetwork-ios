@@ -81,7 +81,11 @@ extension LoginPasswordView {
                             }
                             
                             if let network = result.network {
-                                
+                                guard !network.byJwt.isEmpty else {
+                                    continuation.resume(throwing: NSError(domain: "LoginPassword.ViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "byJWT is empty"]))
+                                    return
+                                }
+
                                 continuation.resume(returning: .successWithJwt(network.byJwt))
                                 return
                                 

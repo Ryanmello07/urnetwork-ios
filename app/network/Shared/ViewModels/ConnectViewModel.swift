@@ -115,13 +115,11 @@ class ConnectViewModel: ObservableObject {
     private var contractListenerSub: SdkSubProtocol?
 
     func setup(api: SdkApi?, device: SdkDeviceRemote, connectViewController: SdkConnectViewController?) {
-        gridListenerSub?.close()
-        connectionStatusListenerSub?.close()
-        selectedLocationListenerSub?.close()
-        tunnelListenerSub?.close()
-        contractListenerSub?.close()
+        closeListeners()
+        closeConnectViewController()
 
         self.api = api
+        self.device = device
         self.connectViewController = connectViewController
 
         self.addGridListener()
@@ -130,16 +128,14 @@ class ConnectViewModel: ObservableObject {
 
         self.updateConnectionStatus()
 
-        self.device = device
-        
         // if a user was connected and quit the app, it will reconnect this location
         self.selectedProvider = device.getConnectLocation()
-        
+
         // if a user had selected a location, but wasn't connected, it will re-select that location
         if (self.selectedProvider == nil) {
             self.selectedProvider = device.getDefaultLocation()
         }
-        
+
         /**
          * Add tunnel listener
          */
@@ -147,7 +143,7 @@ class ConnectViewModel: ObservableObject {
             guard let self = self else {
                 return
             }
-            
+
             DispatchQueue.main.async {
                 self.tunnelConnected = tunnelStarted
             }
@@ -161,7 +157,43 @@ class ConnectViewModel: ObservableObject {
                 self.updateContractStatus()
             }
         })
-        
+    }
+
+    func reset() {
+        closeListeners()
+        closeConnectViewController()
+
+        self.api = nil
+        self.device = nil
+
+        self.connectionStatus = nil
+        self.windowCurrentSize = 0
+        self.gridPoints = [:]
+        self.gridWidth = 0
+        self.selectedProvider = nil
+        self.tunnelConnected = false
+        self.contractStatus = nil
+        self.isPresentedCreateAccount = false
+        self.isPresentedUpgradeSheet = false
+    }
+
+    private func closeListeners() {
+        gridListenerSub?.close()
+        connectionStatusListenerSub?.close()
+        selectedLocationListenerSub?.close()
+        tunnelListenerSub?.close()
+        contractListenerSub?.close()
+
+        gridListenerSub = nil
+        connectionStatusListenerSub = nil
+        selectedLocationListenerSub = nil
+        tunnelListenerSub = nil
+        contractListenerSub = nil
+    }
+
+    private func closeConnectViewController() {
+        connectViewController?.close()
+        connectViewController = nil
     }
     
     func refreshTunnelStatus() {

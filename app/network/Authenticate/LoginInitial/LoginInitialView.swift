@@ -222,6 +222,7 @@ struct LoginInitialView: View {
                     onSignature: { signature in
                         
                         guard let pk = connectWalletProviderViewModel.connectedPublicKey else {
+                            viewModel.setIsSigningMessage(false)
                             snackbarManager.showSnackbar(message: "Couldn't parse public key, please try again later.")
                             return
                         }
@@ -234,6 +235,10 @@ struct LoginInitialView: View {
                             )
                         }
                         
+                    },
+                    onError: { _ in
+                        viewModel.setIsSigningMessage(false)
+                        snackbarManager.showSnackbar(message: "There was an error logging in")
                     }
                 )
         }
@@ -266,6 +271,7 @@ struct LoginInitialView: View {
         
         case .failure(let error):
             print("error create args result: \(error.localizedDescription)")
+            viewModel.setIsSigningMessage(false)
             snackbarManager.showSnackbar(message: "There was an error logging in")
         }
     }

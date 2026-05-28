@@ -34,6 +34,9 @@ struct ConnectIntent: AppIntent {
         guard let connectViewController = device.openConnectViewController() else {
             return .result(dialog: "Failed to connect")
         }
+        defer {
+            connectViewController.close()
+        }
         
         var status = connectViewController.getConnectionStatus()
         if (status != SdkDisconnected) {
@@ -45,6 +48,16 @@ struct ConnectIntent: AppIntent {
             connectViewController.connect(location)
         } else {
             connectViewController.connectBestAvailable()
+        }
+
+        guard let vpnManager = await deviceManager.vpnManager else {
+            return .result(dialog: "Failed to start URnetwork VPN")
+        }
+
+        let vpnUpdateResult = await vpnManager.updateVpnServiceAndWait()
+        if case .failure(let error) = vpnUpdateResult {
+            print("[ConnectIntent] failed to update VPN service: \(error.localizedDescription)")
+            return .result(dialog: "Failed to start URnetwork VPN")
         }
         
         status = connectViewController.getConnectionStatus()

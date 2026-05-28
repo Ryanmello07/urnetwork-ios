@@ -17,6 +17,14 @@ class UrApiService: UrApiServiceProtocol {
     init(api: SdkApi) {
         self.api = api
     }
+
+    private func nonEmptyJwt(_ jwt: String, context: String) -> Result<String, Error> {
+        guard !jwt.isEmpty else {
+            return .failure(NSError(domain: domain, code: -1, userInfo: [NSLocalizedDescriptionKey: "\(context) returned empty byJWT"]))
+        }
+
+        return .success(jwt)
+    }
         
 }
 
@@ -288,8 +296,13 @@ extension UrApiService {
                 }
                 
                 // JWT exists, proceed to authenticate network
-                if let jwt = result.network?.byJwt {
-                    continuation.resume(returning: .login(jwt))
+                if let network = result.network {
+                    switch self.nonEmptyJwt(network.byJwt, context: "authLogin") {
+                    case .success(let jwt):
+                        continuation.resume(returning: .login(jwt))
+                    case .failure(let error):
+                        continuation.resume(throwing: error)
+                    }
                     return
                 }
                 
@@ -366,7 +379,12 @@ extension UrApiService {
                 }
 
                 if let network = result.network {
-                    continuation.resume(returning: .successWithJwt(network.byJwt))
+                    switch self.nonEmptyJwt(network.byJwt, context: "createNetwork") {
+                    case .success(let jwt):
+                        continuation.resume(returning: .successWithJwt(jwt))
+                    case .failure(let error):
+                        continuation.resume(throwing: error)
+                    }
                     return
                 } else {
                     continuation.resume(throwing: NSError(domain: "UrApiService", code: 0, userInfo: [NSLocalizedDescriptionKey: "No network object found in result"]))
@@ -406,7 +424,12 @@ extension UrApiService {
                 }
 
                 if let network = result.network {
-                    continuation.resume(returning: .successWithJwt(network.byJwt))
+                    switch self.nonEmptyJwt(network.byJwt, context: "upgradeGuest") {
+                    case .success(let jwt):
+                        continuation.resume(returning: .successWithJwt(jwt))
+                    case .failure(let error):
+                        continuation.resume(throwing: error)
+                    }
                     return
                 } else {
                     continuation.resume(throwing: NSError(domain: "UrApiService", code: 0, userInfo: [NSLocalizedDescriptionKey: "No network found in result"]))
@@ -473,6 +496,11 @@ extension UrApiService {
                     continuation.resume(throwing: NSError(domain: "UrApiService", code: 0, userInfo: [NSLocalizedDescriptionKey: "Error in result"]))
                     return
                     
+                }
+
+                guard !result.jwt.isEmpty else {
+                    continuation.resume(throwing: NSError(domain: "UrApiService", code: 0, userInfo: [NSLocalizedDescriptionKey: "authCodeLogin returned empty JWT"]))
+                    return
                 }
                 
                 continuation.resume(returning: result)
@@ -587,6 +615,11 @@ extension UrApiService {
                 
                 guard let result = result else {
                     continuation.resume(throwing: NSError(domain: "UrApiService", code: 0, userInfo: [NSLocalizedDescriptionKey: "GetNetworkRedeemedBalanceCodesCallback result is nil"]))
+                    return
+                }
+
+                if let resultError = result.error {
+                    continuation.resume(throwing: UrApiError.resultError(message: resultError.message))
                     return
                 }
                 
@@ -1011,9 +1044,18 @@ private class AuthCodeLoginCallback: SdkCallback<SdkAuthCodeLoginResult, SdkAuth
  */
 
 // general errors
-enum UrApiError: Error {
+enum UrApiError: LocalizedError {
     case resultEmpty
     case resultError(message: String)
+
+    var errorDescription: String? {
+        switch self {
+        case .resultEmpty:
+            return "Result was empty."
+        case .resultError(let message):
+            return message
+        }
+    }
 }
 
 
@@ -1074,5 +1116,3 @@ enum UpdateReferralNetworkError: Error {
     case resultInvalid
     case unknown
 }
-
-

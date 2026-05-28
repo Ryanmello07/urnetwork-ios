@@ -38,7 +38,7 @@ extension ResetPasswordView {
 
             do {
 
-                let result: Void = try await withCheckedThrowingContinuation { continuation in
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                     
                     let callback = AuthPasswordResetCallback { result, error in
                         
@@ -47,13 +47,13 @@ extension ResetPasswordView {
                             return
                         }
                         
-                        guard let result = result else {
+                        guard result != nil else {
                             continuation.resume(throwing: NSError(domain: "ResetPasswordViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "No result found"]))
                             
                             return
                         }
                         
-                        return continuation.resume(returning: ())
+                        continuation.resume(returning: ())
                         
                     }
                     
@@ -67,7 +67,7 @@ extension ResetPasswordView {
                 
                 self.sendInProgress = false
 
-                return .success(result)
+                return .success(())
 
             } catch(let error) {
                 self.sendInProgress = false

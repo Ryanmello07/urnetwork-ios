@@ -54,65 +54,108 @@ class ConnectWalletProviderViewModel: ObservableObject {
         let privateKey = Curve25519.KeyAgreement.PrivateKey()
         dappKeyPair = (privateKey, privateKey.publicKey)
     }
+
+    private func clearConnectionState() {
+        connectedPublicKey = nil
+        sharedSecret = nil
+        session = nil
+        walletEncryptionPublicKey = nil
+        connectedWalletProvider = nil
+    }
+
+    private func prepareForWalletConnection() {
+        clearConnectionState()
+        createKeyPair()
+    }
     
-    func connectSolflareWallet() {
+    @discardableResult
+    func connectSolflareWallet(onOpenFailed: (() -> Void)? = nil) -> Bool {
+        prepareForWalletConnection()
+
         let queryStringResult = self.buildConnectQueryString(redirectLink: solflareConnectRedirectLink)
         
         guard case .success(let queryString) = queryStringResult else {
             print("Failed to build query string: \(queryStringResult)")
-            return
+            return false
         }
         
         if let url = URL(string: "https://\(self.solflareHostname)/ul/v1/connect?\(queryString)") {
-            
-            self.openURL(url)
-            
+            return self.openURL(url) { success in
+                if !success {
+                    self.clearConnectionState()
+                    onOpenFailed?()
+                }
+            }
         }
+
+        return false
     }
     
-    func connectPhantomWallet() {
+    @discardableResult
+    func connectPhantomWallet(onOpenFailed: (() -> Void)? = nil) -> Bool {
+        prepareForWalletConnection()
+
         let queryStringResult = self.buildConnectQueryString(redirectLink: phantomConnectRedirectLink)
         
         guard case .success(let queryString) = queryStringResult else {
             print("Failed to build query string: \(queryStringResult)")
-            return
+            return false
         }
         
         if let url = URL(string: "https://\(self.phantomHostname)/ul/v1/connect?\(queryString)") {
-            self.openURL(url)
+            return self.openURL(url) { success in
+                if !success {
+                    self.clearConnectionState()
+                    onOpenFailed?()
+                }
+            }
         }
+
+        return false
     }
     
-    func signMessagePhantom(message: String) {
+    @discardableResult
+    func signMessagePhantom(message: String, onOpenFailed: (() -> Void)? = nil) -> Bool {
         let queryStringResult = buildSignMessageQueryString(message: message, redirectLink: phantomSignMessageRedirectLink)
         
         guard case .success(let queryString) = queryStringResult else {
             print("Failed to build query string: \(queryStringResult)")
-            return
+            return false
         }
         
         // Construct the URL string
         let urlString = "https://\(self.phantomHostname)/ul/v1/signMessage?\(queryString)"
         
         if let url = URL(string: urlString) {
-            self.openURL(url)
+            return self.openURL(url) { success in
+                if !success {
+                    onOpenFailed?()
+                }
+            }
         } else {
             print("Failed to create URL from: \(urlString)")
+            return false
         }
     }
     
-    func signMessageSolflare(message: String) {
+    @discardableResult
+    func signMessageSolflare(message: String, onOpenFailed: (() -> Void)? = nil) -> Bool {
         let queryStringResult = buildSignMessageQueryString(message: message, redirectLink: solflareSignMessageRedirectLink)
         
         guard case .success(let queryString) = queryStringResult else {
             print("Failed to build query string: \(queryStringResult)")
-            return
+            return false
         }
         
         if let url = URL(string: "https://\(self.solflareHostname)/ul/v1/signMessage?\(queryString)") {
-            self.openURL(url)
+            return self.openURL(url) { success in
+                if !success {
+                    onOpenFailed?()
+                }
+            }
         }
         
+        return false
     }
     
     /**
@@ -224,7 +267,8 @@ class ConnectWalletProviderViewModel: ObservableObject {
     func handleDeepLink(
         _ url: URL,
         onPublicKeyRetrieved: ((_ publicKey: String, _ wallet: ConnectedWalletProvider) -> Void)? = nil,
-        onSignature: ((_ signature: String) -> Void)? = nil
+        onSignature: ((_ signature: String) -> Void)? = nil,
+        onError: ((_ error: Error) -> Void)? = nil
     ) {
         
         // todo - handle disconnect
@@ -246,7 +290,8 @@ class ConnectWalletProviderViewModel: ObservableObject {
             self.handleConnect(
                 queryItems: queryItems,
                 connectedWalletProvider: connectedWalletProvider,
-                onPublicKeyRetrieved: onPublicKeyRetrieved
+                onPublicKeyRetrieved: onPublicKeyRetrieved,
+                onError: onError
             )
         }
         
@@ -256,7 +301,8 @@ class ConnectWalletProviderViewModel: ObservableObject {
             self.handleSignMessage(
                 queryItems: queryItems,
                 connectedWalletProvider: connectedWalletProvider,
-                onSignature: onSignature
+                onSignature: onSignature,
+                onError: onError
             )
         }
         
@@ -265,20 +311,19 @@ class ConnectWalletProviderViewModel: ObservableObject {
     private func handleSignMessage(
         queryItems: [URLQueryItem],
         connectedWalletProvider: ConnectedWalletProvider,
-        onSignature: ((_ signature: String) -> Void)? = nil
+        onSignature: ((_ signature: String) -> Void)? = nil,
+        onError: ((_ error: Error) -> Void)? = nil
     ) {
         
         // First check for errors
         if let errorCode = queryItems.first(where: { $0.name == "errorCode" })?.value,
            let errorMessage = queryItems.first(where: { $0.name == "errorMessage" })?.value {
             print("Wallet signing error: Code \(errorCode) - \(errorMessage)")
+            onError?(walletDeepLinkError("Wallet signing error: \(errorMessage)"))
             return
         }
         
-        let params: [String: String] = Dictionary(uniqueKeysWithValues: queryItems.compactMap { item in
-            guard let value = item.value else { return nil }
-            return (item.name, value)
-        })
+        let params = queryParameters(from: queryItems)
         
         guard let nonce = params["nonce"],
             let data = params["data"],
@@ -289,6 +334,7 @@ class ConnectWalletProviderViewModel: ObservableObject {
             print("data: \(params["data"] != nil)")
             print("keyPair: \(dappKeyPair != nil)")
             print("walletEncryptionPublicKey: \(self.walletEncryptionPublicKey != nil)")
+            onError?(walletDeepLinkError("Missing required parameters for signature verification"))
             return
         }
               
@@ -312,6 +358,7 @@ class ConnectWalletProviderViewModel: ObservableObject {
                         }
                     } else {
                         print("Failed to decode base58 signature")
+                        onError?(walletDeepLinkError("Failed to decode wallet signature"))
                     }
                     
                 } catch {
@@ -319,33 +366,44 @@ class ConnectWalletProviderViewModel: ObservableObject {
                     if let responseString = String(data: decryptedData, encoding: .utf8) {
                         print("Raw response: \(responseString)")
                     }
+                    onError?(error)
                 }
             } else {
                 print("Failed to decrypt signature data")
+                onError?(walletDeepLinkError("Failed to decrypt wallet signature"))
             }
         } else {
             print("Failed to generate shared secret for signature verification")
+            onError?(walletDeepLinkError("Failed to verify wallet signature"))
         }
     }
     
     private func handleConnect(
         queryItems: [URLQueryItem],
         connectedWalletProvider: ConnectedWalletProvider,
-        onPublicKeyRetrieved: ((_ publicKey: String, _ wallet: ConnectedWalletProvider) -> Void)? = nil
+        onPublicKeyRetrieved: ((_ publicKey: String, _ wallet: ConnectedWalletProvider) -> Void)? = nil,
+        onError: ((_ error: Error) -> Void)? = nil
     ) {
+        if let errorCode = queryItems.first(where: { $0.name == "errorCode" })?.value,
+           let errorMessage = queryItems.first(where: { $0.name == "errorMessage" })?.value {
+            print("Wallet connect error: Code \(errorCode) - \(errorMessage)")
+            clearConnectionState()
+            onError?(walletDeepLinkError("Wallet connect error: \(errorMessage)"))
+            return
+        }
+
         let publicKeyParamKey = connectedWalletProvider == ConnectedWalletProvider.solflare ? "solflare_encryption_public_key" : "phantom_encryption_public_key"
         
-        let params: [String: String] = Dictionary(uniqueKeysWithValues: queryItems.compactMap { item in
-            guard let value = item.value else { return nil }
-            return (item.name, value)
-        })
+        let params = queryParameters(from: queryItems)
         
         guard let walletEncryptionPublicKey = params[publicKeyParamKey],
               let nonce = params["nonce"],
               let data = params["data"],
-              let keyPair = dappKeyPair else { return }
-        
-        self.walletEncryptionPublicKey = walletEncryptionPublicKey
+              let keyPair = dappKeyPair else {
+            clearConnectionState()
+            onError?(walletDeepLinkError("Missing required parameters for wallet connection"))
+            return
+        }
               
         if let sharedSecret = generateSharedSecret(
             privateKey: keyPair.privateKey,
@@ -355,6 +413,7 @@ class ConnectWalletProviderViewModel: ObservableObject {
             
             if let decryptedData = SdkDecryptData(data, nonce, sharedSecretBase58, nil),
                let json = try? JSONDecoder().decode(ConnectApproveResponse.self, from: decryptedData) {
+                self.walletEncryptionPublicKey = walletEncryptionPublicKey
                 self.connectedPublicKey = json.public_key
                 self.session = json.session
                 self.connectedWalletProvider = connectedWalletProvider
@@ -365,7 +424,22 @@ class ConnectWalletProviderViewModel: ObservableObject {
                 
             } else {
                 print("Decryption failed")
+                clearConnectionState()
+                onError?(walletDeepLinkError("Failed to decrypt wallet connection"))
             }
+        } else {
+            clearConnectionState()
+            onError?(walletDeepLinkError("Failed to verify wallet connection"))
+        }
+    }
+
+    private func queryParameters(from queryItems: [URLQueryItem]) -> [String: String] {
+        queryItems.reduce(into: [:]) { params, item in
+            guard params[item.name] == nil, let value = item.value else {
+                return
+            }
+
+            params[item.name] = value
         }
     }
     
@@ -405,7 +479,9 @@ class ConnectWalletProviderViewModel: ObservableObject {
     
     private func buildDisconnectQueryString(redirectLink: String) -> Result<String, WalletDeepLinkError> {
         guard let keyPair = self.dappKeyPair, let session = self.session else { return .failure(WalletDeepLinkError.missingParams) }
-        let nonce = self.generateNonce()
+        guard case .success(let nonce) = self.generateNonce() else {
+            return .failure(WalletDeepLinkError.failedGeneratingNonce)
+        }
         
         let payload = DisconnectPayload(session: session)
         guard let jsonData = try? JSONEncoder().encode(payload),
@@ -432,17 +508,67 @@ class ConnectWalletProviderViewModel: ObservableObject {
     /**
      * Used for created a disconnect nonce
      */
-    private func generateNonce() -> String {
+    private func generateNonce() -> Result<String, WalletDeepLinkError> {
         var randomBytes = [UInt8](repeating: 0, count: 32)
-        SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes)
-        return SdkEncodeBase58(Data(randomBytes))
+        let status = SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes)
+        guard status == errSecSuccess else {
+            return .failure(.failedGeneratingNonce)
+        }
+        return .success(SdkEncodeBase58(Data(randomBytes)))
     }
     
-    func openURL(_ url: URL) {
+    private func walletDeepLinkError(_ message: String) -> Error {
+        NSError(domain: "ConnectWalletProviderViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: message])
+    }
+
+    #if canImport(AppKit)
+    private func nativeWalletURL(from universalLink: URL) -> URL? {
+        guard var components = URLComponents(url: universalLink, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+
+        let walletScheme: String
+        switch components.host {
+        case phantomHostname:
+            walletScheme = "phantom"
+        case solflareHostname:
+            walletScheme = "solflare"
+        default:
+            return nil
+        }
+
+        guard components.path.hasPrefix("/ul/") else {
+            return nil
+        }
+
+        components.scheme = walletScheme
+        components.host = "ul"
+        components.path = String(components.path.dropFirst("/ul".count))
+        return components.url
+    }
+    #endif
+
+    @discardableResult
+    func openURL(_ url: URL, completion: ((Bool) -> Void)? = nil) -> Bool {
         #if canImport(UIKit)
-        UIApplication.shared.open(url, options: [:], completionHandler: nil)
+        UIApplication.shared.open(url, options: [.universalLinksOnly: true]) { success in
+            DispatchQueue.main.async {
+                completion?(success)
+            }
+        }
+        return true
         #elseif canImport(AppKit)
-        NSWorkspace.shared.open(url)
+        guard let nativeURL = nativeWalletURL(from: url) else {
+            completion?(false)
+            return false
+        }
+
+        let success = NSWorkspace.shared.open(nativeURL)
+        completion?(success)
+        return success
+        #else
+        completion?(false)
+        return false
         #endif
     }
     
@@ -485,6 +611,7 @@ private struct DisconnectPayload: Encodable {
 enum WalletDeepLinkError: Error {
     case missingDappKeyPair
     case failedCreatingPayload
+    case failedGeneratingNonce
     case missingParams
     case invalidParameters
 }

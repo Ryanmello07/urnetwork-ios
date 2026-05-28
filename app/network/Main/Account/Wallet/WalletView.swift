@@ -167,8 +167,12 @@ struct WalletView: View {
         }
         
         Task {
-            let _ = await payoutWalletViewModel.updatePayoutWallet(walletId)
-            snackbarManager.showSnackbar(message: "Payout wallet updated")
+            switch await payoutWalletViewModel.updatePayoutWallet(walletId) {
+            case .success:
+                snackbarManager.showSnackbar(message: "Payout wallet updated")
+            case .failure(let error):
+                snackbarManager.showSnackbar(message: "Error setting default wallet: \(error.localizedDescription)")
+            }
         }
     }
 }

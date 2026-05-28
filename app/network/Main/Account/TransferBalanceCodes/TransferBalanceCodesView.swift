@@ -144,7 +144,15 @@ struct TransferBalanceCodesView: View {
                     .background(themeManager.currentTheme.backgroundColor)
                 }
                 
-                if (viewModel.redeemedBalanceCodes.isEmpty) {
+                if let loadErrorMessage = viewModel.loadErrorMessage {
+                    VStack {
+                        Text(loadErrorMessage)
+                            .font(themeManager.currentTheme.bodyFont)
+                            .foregroundStyle(themeManager.currentTheme.textMutedColor)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(themeManager.currentTheme.backgroundColor.ignoresSafeArea())
+                } else if (viewModel.redeemedBalanceCodes.isEmpty) {
                     VStack {
                         Text("No balance codes found")
                             .font(themeManager.currentTheme.bodyFont)

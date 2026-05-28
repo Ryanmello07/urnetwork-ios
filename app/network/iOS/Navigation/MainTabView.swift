@@ -15,7 +15,6 @@ struct MainTabView: View {
     let urApiService: UrApiServiceProtocol
     let device: SdkDeviceRemote
     let logout: () -> Void
-    let connectViewController: SdkConnectViewController?
     let introductionComplete: Binding<Bool>
     let isPro: Bool
     
@@ -50,11 +49,6 @@ struct MainTabView: View {
         self.urApiService = urApiService
         self.logout = logout
         self.device = device
-        
-        // todo: investigate why we need this?
-        // we're launching this in NetworkApp
-        // but without it, disconnect isn't triggered
-        self.connectViewController = device.openConnectViewController()
         self.providerListStore = providerStore
         self.isPro = isPro
         
