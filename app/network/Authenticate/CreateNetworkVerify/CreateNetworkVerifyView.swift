@@ -80,7 +80,7 @@ struct CreateNetworkVerifyView: View {
                                     viewModel.otp = String(newValue.prefix(viewModel.codeCount))
                                 }
                                 
-                                if viewModel.otp.count == viewModel.codeCount && !viewModel.isSubmitting {
+                                if viewModel.otp.count == viewModel.codeCount && !viewModel.isSubmitting && !viewModel.isSendingOtp {
                                     
                                     Task {
                                         let result = await viewModel.submit()
@@ -97,6 +97,7 @@ struct CreateNetworkVerifyView: View {
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
                             .textContentType(.oneTimeCode)
+                            .disabled(viewModel.isSubmitting || viewModel.isSendingOtp)
                         
                         #elseif os(macOS)
                     
@@ -107,7 +108,7 @@ struct CreateNetworkVerifyView: View {
                                     viewModel.otp = String(newValue.prefix(viewModel.codeCount))
                                 }
                                 
-                                if viewModel.otp.count == viewModel.codeCount && !viewModel.isSubmitting {
+                                if viewModel.otp.count == viewModel.codeCount && !viewModel.isSubmitting && !viewModel.isSendingOtp {
                                     
                                     Task {
                                         let result = await viewModel.submit()
@@ -122,13 +123,27 @@ struct CreateNetworkVerifyView: View {
                             .focused($isKeyboardShowing)
                             .autocorrectionDisabled()
                             .textContentType(.oneTimeCode)
+                            .disabled(viewModel.isSubmitting || viewModel.isSendingOtp)
                     
                         #endif
                     }
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        isKeyboardShowing.toggle()
+                        if !viewModel.isSubmitting && !viewModel.isSendingOtp {
+                            isKeyboardShowing.toggle()
+                        }
                     }
+                    
+                    if viewModel.isSubmitting {
+                        Spacer().frame(height: 12)
+                        
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle())
+                    }
+                    
+                    Spacer().frame(height: 8)
+                    
+                    UrInlineErrorText(message: viewModel.otpErrorMessage)
                     
                     Spacer().frame(height: 40)
                     
@@ -140,29 +155,44 @@ struct CreateNetworkVerifyView: View {
                         
                         
                         Button(action: {
-                            Task {
-                                let result = await viewModel.resendOtp()
-                                
-                                switch result {
-                                case .success:
-                                    snackbarManager.showSnackbar(message: "Verification code sent.")
-                                    break
-                                case .failure(let error):
-                                    print("error resending OTP \(error.localizedDescription)")
+                            if viewModel.resetBtnEnabled && !viewModel.isSendingOtp && !viewModel.isSubmitting {
+                                Task {
+                                    let result = await viewModel.resendOtp()
                                     
-                                    snackbarManager.showSnackbar(message: "There was an error sending the verification code.")
-                                    
-                                    break
-                                    
+                                    switch result {
+                                    case .success:
+                                        snackbarManager.showSnackbar(message: "Verification code sent.")
+                                        break
+                                    case .failure(let error):
+                                        print("error resending OTP \(error.localizedDescription)")
+                                        viewModel.setResendErrorMessage("There was an error sending the verification code.")
+                                        
+                                        break
+                                        
+                                    }
                                 }
                             }
                         }) {
-                            Text("Resend code")
-                                .foregroundColor(themeManager.currentTheme.textColor)
-                                .font(themeManager.currentTheme.secondaryBodyFont)
+                            HStack(spacing: 6) {
+                                Text("Resend code")
+                                    .foregroundColor(themeManager.currentTheme.textColor)
+                                    .font(themeManager.currentTheme.secondaryBodyFont)
+                                
+                                if viewModel.isSendingOtp {
+                                    ProgressView()
+                                        .tint(themeManager.currentTheme.textColor)
+                                        .controlSize(.small)
+                                }
+                            }
                         }
+                        .buttonStyle(.plain)
+                        .disabled(!viewModel.resetBtnEnabled || viewModel.isSendingOtp || viewModel.isSubmitting)
                         
                     }
+                    
+                    Spacer().frame(height: 8)
+                    
+                    UrInlineErrorText(message: viewModel.resendErrorMessage)
                     
                 }
                 .toolbar {
@@ -216,8 +246,7 @@ struct CreateNetworkVerifyView: View {
          
         case .failure(let error):
             print("[CreateNetworkVerifyView] handleOptSubmitResult: \(error.localizedDescription)")
-            
-            snackbarManager.showSnackbar(message: "There was an error authenticating, please try again later.")
+            viewModel.setOtpErrorMessage("There was an error authenticating, please try again later.")
             
             // TODO: clear viewmodel loading state
             

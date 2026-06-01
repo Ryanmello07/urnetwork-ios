@@ -88,7 +88,13 @@ class VPNManager: ObservableObject {
     
     private var deviceProvideSub: SdkSubProtocol?
     private var deviceProvidePausedSub: SdkSubProtocol?
-    
+
+    // per-session rpc transport (client/server self-signed material + listen port)
+    private var rpcRemoteChangeSub: SdkSubProtocol?
+    private var rpcConnectTimeoutWork: DispatchWorkItem?
+    private var currentRpcSession: RpcSession?
+    private let rpcConnectTimeout: TimeInterval = 15
+
 //    private var tunnelStarted: Bool = false
     private var tunnelInstance: Int = 0
     
@@ -207,6 +213,11 @@ class VPNManager: ObservableObject {
         
         self.deviceProvidePausedSub?.close()
         self.deviceProvidePausedSub = nil
+
+        self.rpcRemoteChangeSub?.close()
+        self.rpcRemoteChangeSub = nil
+        self.rpcConnectTimeoutWork?.cancel()
+        self.rpcConnectTimeoutWork = nil
     }
     
     
@@ -328,6 +339,87 @@ class VPNManager: ObservableObject {
         #elseif canImport(AppKit)
         ProcessInfo.processInfo.automaticTerminationSupportEnabled = !disabled
         #endif
+    }
+
+    // prepareRpcSession returns the rpc session to use for this start: the
+    // in-flight session if one is pending (so internal retries are stable), the
+    // last known good session if present, or fresh mTLS material on a random
+    // listen port.
+    private func prepareRpcSession() -> RpcSession? {
+        if let session = self.currentRpcSession {
+            return session
+        }
+        if let session = RpcSessionStore.load() {
+            self.currentRpcSession = session
+            return session
+        }
+        var err: NSError?
+        guard let keyMaterial = SdkGenerateDeviceRpcKeyMaterial(&err), err == nil else {
+            return nil
+        }
+        // the getters return non-optional strings (Go string); validate non-empty
+        let clientPem = keyMaterial.getClientPem()
+        let clientCertPem = keyMaterial.getClientCertPem()
+        let serverPem = keyMaterial.getServerPem()
+        let serverCertPem = keyMaterial.getServerCertPem()
+        guard !clientPem.isEmpty, !clientCertPem.isEmpty, !serverPem.isEmpty, !serverCertPem.isEmpty else {
+            return nil
+        }
+        let session = RpcSession(
+            clientPem: clientPem,
+            clientCertPem: clientCertPem,
+            serverPem: serverPem,
+            serverCertPem: serverCertPem,
+            host: "127.0.0.1",
+            port: Int.random(in: 12000...12100)
+        )
+        self.currentRpcSession = session
+        return session
+    }
+
+    // applyRpcSession resets the app device's rpc transport to dial the
+    // extension's listener with this session, then arms an observer: on a
+    // successful rpc connection the session is persisted as last known good.
+    // Only fresh (never-connected) material is put on a connect deadline; a
+    // session that already connected before is kept and reused, so repeated
+    // restarts (e.g. switching locations) never discard known-good material.
+    private func applyRpcSession(_ session: RpcSession, device: SdkDeviceRemote, tunnelInstance: Int) {
+        do {
+            try device.setRpcServer(session.clientPem, serverCertPem: session.serverCertPem, hostPort: session.hostPort)
+        } catch {
+            print("[VPNManager]setRpcServer failed: \(error.localizedDescription)")
+        }
+
+        self.rpcRemoteChangeSub?.close()
+        self.rpcConnectTimeoutWork?.cancel()
+
+        self.rpcRemoteChangeSub = device.add(RemoteChangeListener { [weak self] remoteConnected in
+            DispatchQueue.main.async {
+                guard let self = self, tunnelInstance == self.tunnelInstance else { return }
+                guard remoteConnected else { return }
+                // this material connected; persist it as last-known-good and stop the timeout
+                self.rpcConnectTimeoutWork?.cancel()
+                self.rpcConnectTimeoutWork = nil
+                RpcSessionStore.save(session)
+            }
+        })
+
+        // Only fresh, never-connected material is put on a connect deadline. If a
+        // session is already the persisted last-known-good it has connected
+        // before, so keep reusing it — a transient timeout while the tunnel keeps
+        // restarting (e.g. switching locations repeatedly, which calls
+        // updateVpnService over and over) must not discard good key material or
+        // force a new port on the next start.
+        guard RpcSessionStore.load() == nil else { return }
+
+        let timeoutWork = DispatchWorkItem { [weak self] in
+            guard let self = self, tunnelInstance == self.tunnelInstance else { return }
+            // the rpc channel never came up with this fresh material; drop it so
+            // the next start generates new material on a new port
+            self.currentRpcSession = nil
+        }
+        self.rpcConnectTimeoutWork = timeoutWork
+        DispatchQueue.main.asyncAfter(deadline: .now() + self.rpcConnectTimeout, execute: timeoutWork)
     }
 
     private func clearVpnError() {
@@ -496,14 +588,31 @@ class VPNManager: ObservableObject {
                         tunnelProtocol.excludeDeviceCommunication = true
                     }
 
+                    guard let rpcSession = self.prepareRpcSession() else {
+                        self.failVpnUpdate(
+                            makeVPNManagerError("Failed to generate rpc key material", code: 9),
+                            operation: "start.buildProviderConfiguration",
+                            tunnelInstance: tunnelInstance,
+                            completion: completion
+                        )
+                        return
+                    }
+
                     tunnelProtocol.providerConfiguration = [
                         "by_jwt": byJwt,
-                        "rpc_public_key": "test",
+                        // self-signed server cert + private key the extension presents
+                        "rpc_server_pem": rpcSession.serverPem,
+                        // client cert (public only) the extension pins for mTLS;
+                        // the client private key stays in the app
+                        "rpc_client_pem": rpcSession.clientCertPem,
+                        // host:port the extension listens on and the app dials
+                        "rpc_listen_hostport": rpcSession.hostPort,
                         "network_space": networkSpaceJson,
                         "instance_id": instanceId,
                     ]
 
                     tunnelManager.protocolConfiguration = tunnelProtocol
+
                     tunnelManager.localizedDescription = "URnetwork [\(networkSpace.getHostName()) \(networkSpace.getEnvName())]"
                     tunnelManager.isEnabled = true
                     tunnelManager.isOnDemandEnabled = false
@@ -546,6 +655,10 @@ class VPNManager: ObservableObject {
                                     do {
                                         try tunnelManager.connection.startVPNTunnel()
                                         self.clearVpnError()
+                                        // point the app's rpc transport at the extension's listener
+                                        // (pinning the matching client cert) and watch for a
+                                        // successful connection
+                                        self.applyRpcSession(rpcSession, device: device, tunnelInstance: tunnelInstance)
                                         device.sync()
                                         completion?(nil)
 
@@ -722,6 +835,8 @@ class VPNManager: ObservableObject {
     }
 
     static func clearTunnelLocalStateAndRemoveAllVpnProfiles(completion: @escaping (Error?) -> Void) {
+        // forget the rpc transport material so the next login regenerates it
+        RpcSessionStore.clear()
         sendLogoutMessageToTunnelProviders {
             removeAllVpnProfiles(completion: completion)
         }
@@ -882,5 +997,42 @@ private class ProvidePausedChangeListener: NSObject, SdkProvidePausedChangeListe
     
     func providePausedChanged(_ providePaused: Bool) {
         c(providePaused)
+    }
+}
+
+// RpcSession is the per-vpn-session rpc transport material: the self-signed
+// client cert (pinned by the app), the server cert+key (presented by the
+// extension), and the loopback host/port the extension listens on.
+// The PEM values are opaque strings produced by the SDK; the app stores and
+// forwards them verbatim and never manipulates the material itself.
+struct RpcSession: Codable {
+    let clientPem: String       // client cert + private key (app presents; stays in app)
+    let clientCertPem: String   // client cert only (public; sent to the extension to pin)
+    let serverPem: String       // server cert + private key (sent to the extension to present)
+    let serverCertPem: String   // server cert only (public; the app pins)
+    let host: String
+    let port: Int
+
+    var hostPort: String { "\(host):\(port)" }
+}
+
+// RpcSessionStore persists the last known good RpcSession in the app process so
+// reconnects reuse the same material/port (avoiding an extension device
+// recreation) until a connection fails.
+enum RpcSessionStore {
+    private static let key = "network.ur.rpcSessionLastGood"
+
+    static func load() -> RpcSession? {
+        guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
+        return try? JSONDecoder().decode(RpcSession.self, from: data)
+    }
+
+    static func save(_ session: RpcSession) {
+        guard let data = try? JSONEncoder().encode(session) else { return }
+        UserDefaults.standard.set(data, forKey: key)
+    }
+
+    static func clear() {
+        UserDefaults.standard.removeObject(forKey: key)
     }
 }

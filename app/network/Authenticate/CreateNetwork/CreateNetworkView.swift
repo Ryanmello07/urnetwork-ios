@@ -118,6 +118,7 @@ struct CreateNetworkView: View {
                         label: "Network name",
                         placeholder: "Enter a name for your network",
                         supportingText: viewModel.networkNameSupportingText,
+                        isEnabled: !viewModel.isCreatingNetwork,
                         validationState: viewModel.networkNameValidationState,
                         submitLabel: .next,
                         disableCapitalization: true
@@ -140,6 +141,7 @@ struct CreateNetworkView: View {
                             label: "Password",
                             placeholder: "************",
                             supportingText: "Password must be at least 12 characters long",
+                            isEnabled: !viewModel.isCreatingNetwork,
                             submitLabel: .done,
                             isSecure: true
                         )
@@ -149,7 +151,7 @@ struct CreateNetworkView: View {
                     
                     Spacer().frame(height: 32)
                     
-                    UrSwitchToggle(isOn: $viewModel.termsAgreed) {
+                    UrSwitchToggle(isOn: $viewModel.termsAgreed, isEnabled: !viewModel.isCreatingNetwork) {
                         Text("I agree to URnetwork's [Terms and Services](https://ur.io/terms) and [Privacy Policy](https://ur.io/privacy)")
                             .foregroundColor(themeManager.currentTheme.textMutedColor)
                             .font(themeManager.currentTheme.secondaryBodyFont)
@@ -210,6 +212,10 @@ struct CreateNetworkView: View {
                         isProcessing: viewModel.isCreatingNetwork
                     )
                     
+                    Spacer().frame(height: 8)
+                    
+                    UrInlineErrorText(message: viewModel.createNetworkErrorMessage)
+                    
                     Spacer().frame(height: 32)
                     
                     Button(action: {
@@ -228,6 +234,7 @@ struct CreateNetworkView: View {
                         }
                             
                     }
+                    .disabled(viewModel.isCreatingNetwork)
                     
                 }
                 .padding()
@@ -320,6 +327,7 @@ struct CreateNetworkView: View {
             break
         case .failure(let error):
             print("CreateNetworkView: handleResult: \(error.localizedDescription)")
+            viewModel.setCreateNetworkErrorMessage("There was an error creating your network. Please try again.")
             break
             
         }

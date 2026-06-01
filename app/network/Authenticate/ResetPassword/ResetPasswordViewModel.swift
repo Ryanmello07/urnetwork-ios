@@ -22,6 +22,12 @@ extension ResetPasswordView {
 
         @Published var sendInProgress: Bool = false
         
+        @Published private(set) var errorMessage: String?
+        
+        func setErrorMessage(_ message: String?) {
+            errorMessage = message
+        }
+        
         let domain = "ResetPasswordViewModel"
         
         init(api: SdkApi) {
@@ -34,6 +40,7 @@ extension ResetPasswordView {
                 return .failure(SendPasswordResetError.inProgress)
             }
             
+            self.errorMessage = nil
             self.sendInProgress = true
 
             do {

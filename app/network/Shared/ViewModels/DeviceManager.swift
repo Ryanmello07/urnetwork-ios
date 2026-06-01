@@ -636,6 +636,17 @@ extension DeviceManager {
             return false
         }
 
+        // point the rpc transport at the last known good session (if any) so the
+        // device can connect to an already-running extension immediately, instead
+        // of the default 127.0.0.1:12025 ws until the vpn is (re)started
+        if let rpcSession = RpcSessionStore.load() {
+            do {
+                try device.setRpcServer(rpcSession.clientPem, serverCertPem: rpcSession.serverCertPem, hostPort: rpcSession.hostPort)
+            } catch {
+                print("[DeviceManager]setRpcServer failed: \(error.localizedDescription)")
+            }
+        }
+
         if let providerSecretKeys = localState.getProvideSecretKeys() {
             device.loadProvideSecretKeys(providerSecretKeys)
         } else {

@@ -37,11 +37,19 @@ extension CreateNetworkVerifyView {
         
         let codeCount = 6
         
-        @Published var otp: String = ""
+        @Published var otp: String = "" {
+            didSet {
+                otpErrorMessage = nil
+            }
+        }
         
         @Published private(set) var isSubmitting: Bool = false
         
         @Published private(set) var isSendingOtp: Bool = false
+        
+        @Published private(set) var otpErrorMessage: String?
+        
+        @Published private(set) var resendErrorMessage: String?
         
         @Published private(set) var resetBtnEnabled: Bool = true
         
@@ -54,12 +62,21 @@ extension CreateNetworkVerifyView {
             self.userAuth = userAuth
         }
         
+        func setOtpErrorMessage(_ message: String?) {
+            otpErrorMessage = message
+        }
+        
+        func setResendErrorMessage(_ message: String?) {
+            resendErrorMessage = message
+        }
+        
         func resendOtp() async -> Result<Void, Error> {
             
             if isSendingOtp {
                 return .failure(NSError(domain: domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "OTP is already being sent"]))
             }
             
+            self.resendErrorMessage = nil
             self.isSendingOtp = true
             self.resetBtnEnabled = false
 
@@ -127,6 +144,7 @@ extension CreateNetworkVerifyView {
                 return .failure(NSError(domain: domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "OTP is already being sent"]))
             }
             
+            self.otpErrorMessage = nil
             self.isSubmitting = true
 
             do {

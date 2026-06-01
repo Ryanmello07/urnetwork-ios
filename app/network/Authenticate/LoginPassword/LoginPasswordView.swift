@@ -11,7 +11,6 @@ import URnetworkSdk
 struct LoginPasswordView: View {
     
     @EnvironmentObject var themeManager: ThemeManager
-    @EnvironmentObject var snackbarManager: UrSnackbarManager
     @EnvironmentObject var deviceManager: DeviceManager
     @StateObject private var viewModel: ViewModel
     @ObservedObject var guestUpgradeViewModel: GuestUpgradeViewModel
@@ -37,9 +36,6 @@ struct LoginPasswordView: View {
     }
 
     var body: some View {
-        
-        let deviceExists = deviceManager.device != nil
-        
         GeometryReader { geometry in
             ScrollView(.vertical) {
                 VStack {
@@ -62,12 +58,12 @@ struct LoginPasswordView: View {
                         text: $viewModel.password,
                         label: "Password",
                         placeholder: "************",
+                        isEnabled: !isLoginInProgress,
                         submitLabel: .continue,
                         onSubmit: {
-                            if !viewModel.password.isEmpty {
+                            if viewModel.isValid && !isLoginInProgress {
                                 Task {
-                                    let result = await viewModel.loginWithPassword(userAuth: self.userAuth)
-                                    await handleLoginResult(result)
+                                    await submitPasswordLogin()
                                 }
                             }
                         },
@@ -84,34 +80,20 @@ struct LoginPasswordView: View {
                             hideKeyboard()
                             #endif
                             
-                            if !viewModel.password.isEmpty {
+                            if viewModel.isValid && !isLoginInProgress {
                                 Task {
-                                    
-                                    if deviceExists {
-                                        // in guest mode
-                                        // merge user auth account and login
-                                        
-                                        let args = SdkUpgradeGuestExistingArgs()
-                                        args.userAuth = self.userAuth
-                                        args.password = self.viewModel.password
-                                    
-                                        let result = await guestUpgradeViewModel.linkGuestToExistingLogin(args: args)
-                                        await handleUpgradeLoginResult(result)
-                                        
-                                        
-                                    } else {
-                                        // normal login
-                                        let result = await viewModel.loginWithPassword(userAuth: self.userAuth)
-                                        await handleLoginResult(result)
-                                    }
-
+                                    await submitPasswordLogin()
                                 }
                             }
                         },
-                        enabled: !viewModel.isLoggingIn && viewModel.isValid,
-                        isProcessing: viewModel.isLoggingIn
+                        enabled: !isLoginInProgress && viewModel.isValid,
+                        isProcessing: isLoginInProgress
                         // todo add icon
                     )
+                    
+                    Spacer().frame(height: 8)
+                    
+                    UrInlineErrorText(message: viewModel.errorMessage)
                     
                     Spacer().frame(height: 32)
                     
@@ -128,6 +110,7 @@ struct LoginPasswordView: View {
                             )
                                 .foregroundColor(themeManager.currentTheme.textColor)
                         }
+                        .disabled(isLoginInProgress)
                     }
                 }
                 .padding()
@@ -137,6 +120,31 @@ struct LoginPasswordView: View {
             }
         }
     
+    }
+    
+    private var isLoginInProgress: Bool {
+        viewModel.isLoggingIn || guestUpgradeViewModel.isUpgrading
+    }
+    
+    private func submitPasswordLogin() async {
+        if isLoginInProgress || !viewModel.isValid {
+            return
+        }
+        
+        viewModel.setErrorMessage(nil)
+        
+        if deviceManager.device != nil {
+            // in guest mode; merge user auth account and login
+            let args = SdkUpgradeGuestExistingArgs()
+            args.userAuth = self.userAuth
+            args.password = self.viewModel.password
+        
+            let result = await guestUpgradeViewModel.linkGuestToExistingLogin(args: args)
+            await handleUpgradeLoginResult(result)
+        } else {
+            let result = await viewModel.loginWithPassword(userAuth: self.userAuth)
+            await handleLoginResult(result)
+        }
     }
     
     private func handleUpgradeLoginResult(_ result: AuthLoginResult) async {
@@ -149,6 +157,7 @@ struct LoginPasswordView: View {
         case .failure(let error):
             print("auth login error: \(error.localizedDescription)")
             viewModel.setIsLoggingIn(false)
+            viewModel.setErrorMessage(snackbarErrorMessage)
             break
             
         case .verificationRequired(let userAuth):
@@ -158,6 +167,7 @@ struct LoginPasswordView: View {
             
         default:
             viewModel.setIsLoggingIn(false)
+            viewModel.setErrorMessage(snackbarErrorMessage)
             print("upgrade login result does not match any case")
             return
             
@@ -181,7 +191,7 @@ struct LoginPasswordView: View {
             print("LoginPasswordView: handleResult: \(error.localizedDescription)")
             
             viewModel.setIsLoggingIn(false)
-            snackbarManager.showSnackbar(message: snackbarErrorMessage)
+            viewModel.setErrorMessage(snackbarErrorMessage)
             
             break
             

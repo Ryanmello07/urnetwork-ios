@@ -26,9 +26,12 @@ extension LoginPasswordView {
         
         @Published private(set) var isLoggingIn: Bool = false
         
+        @Published private(set) var errorMessage: String?
+        
         @Published var password: String = "" {
             didSet {
                 isValid = !password.isEmpty
+                errorMessage = nil
             }
         }
         
@@ -40,6 +43,10 @@ extension LoginPasswordView {
         
         func setIsLoggingIn(_ isLoggingIn: Bool) {
             self.isLoggingIn = isLoggingIn
+        }
+        
+        func setErrorMessage(_ message: String?) {
+            self.errorMessage = message
         }
         
         func loginWithPassword(userAuth: String) async -> LoginNetworkResult {

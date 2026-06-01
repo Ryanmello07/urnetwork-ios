@@ -31,23 +31,27 @@ struct UrButton: View {
         Button(action: {
             action()
         }) {
-            HStack {
-                
-                if isProcessing {
-                    ProgressView()
-                        .tint(.white)
+            Group {
+                if isFullWidth {
+                    ZStack {
+                        buttonText
+                        
+                        if isProcessing {
+                            HStack {
+                                Spacer()
+                                processingIndicator
+                            }
+                        }
+                    }
                 } else {
-                    Text(text)
-                        .foregroundColor(foregroundColor)
-                        .font(
-                            themeManager.currentTheme.toolbarTitleFont.bold()
-                        )
-                    
-                    if let trailingIcon {
-                        Image(trailingIcon)
+                    HStack(spacing: 8) {
+                        buttonText
+                        
+                        if isProcessing {
+                            processingIndicator
+                        }
                     }
                 }
-                
             }
             .frame(maxWidth: isFullWidth ? .infinity : nil)
             .frame(height: 48)
@@ -62,7 +66,28 @@ struct UrButton: View {
                 .stroke(borderColor, lineWidth: borderWidth)
         )
         .opacity(opacity)
-        .disabled(!enabled)
+        .disabled(!enabled || isProcessing)
+    }
+    
+    private var buttonText: some View {
+        HStack(spacing: 8) {
+            Text(text)
+                .foregroundColor(foregroundColor)
+                .font(
+                    themeManager.currentTheme.toolbarTitleFont.bold()
+                )
+            
+            if let trailingIcon {
+                Image(trailingIcon)
+            }
+        }
+    }
+    
+    private var processingIndicator: some View {
+        ProgressView()
+            .tint(foregroundColor)
+            .controlSize(.small)
+            .frame(width: 18, height: 18)
     }
     
     private var backgroundColor: Color {
@@ -98,7 +123,7 @@ struct UrButton: View {
     }
     
     private var opacity: Double {
-        if enabled {
+        if enabled || isProcessing {
             1
         } else {
             0.3
@@ -112,6 +137,26 @@ struct UrButton: View {
             themeManager.currentTheme.borderEmphasisColor
         } else {
             .clear
+        }
+    }
+}
+
+struct UrInlineErrorText: View {
+    
+    @EnvironmentObject var themeManager: ThemeManager
+    
+    let message: String?
+    
+    var body: some View {
+        if let message, !message.isEmpty {
+            HStack(alignment: .top) {
+                Text(message)
+                    .font(themeManager.currentTheme.secondaryBodyFont)
+                    .foregroundColor(themeManager.currentTheme.dangerColor)
+                    .fixedSize(horizontal: false, vertical: true)
+                
+                Spacer()
+            }
         }
     }
 }

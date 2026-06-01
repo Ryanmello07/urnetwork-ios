@@ -11,6 +11,7 @@ struct GuestModeSheet: View {
     
     @Binding var termsAgreed: Bool
     let isCreatingGuestNetwork: Bool
+    let errorMessage: String?
     let onCreateGuestNetwork: () -> Void
     
     
@@ -30,7 +31,7 @@ struct GuestModeSheet: View {
             
             Spacer().frame(height: 24)
             
-            UrSwitchToggle(isOn: $termsAgreed) {
+            UrSwitchToggle(isOn: $termsAgreed, isEnabled: !isCreatingGuestNetwork) {
                 Text("I agree to URnetwork's [Terms and Services](https://ur.io/terms) and [Privacy Policy](https://ur.io/privacy)")
                     .foregroundColor(themeManager.currentTheme.textMutedColor)
                     .font(themeManager.currentTheme.secondaryBodyFont)
@@ -43,8 +44,13 @@ struct GuestModeSheet: View {
                 action: {
                     onCreateGuestNetwork()
                 },
-                enabled: termsAgreed && !isCreatingGuestNetwork
+                enabled: termsAgreed && !isCreatingGuestNetwork,
+                isProcessing: isCreatingGuestNetwork
             )
+            
+            Spacer().frame(height: 8)
+            
+            UrInlineErrorText(message: errorMessage)
             
         }
         .padding()
@@ -55,6 +61,7 @@ struct GuestModeSheet: View {
     GuestModeSheet(
         termsAgreed: .constant(false),
         isCreatingGuestNetwork: false,
+        errorMessage: nil,
         onCreateGuestNetwork: {}
     )
 }

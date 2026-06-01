@@ -50,6 +50,7 @@ extension CreateNetworkView {
         @Published var networkName: String = "" {
             didSet {
                 if oldValue != networkName {
+                    createNetworkErrorMessage = nil
                     checkNetworkName()
                 }
             }
@@ -61,6 +62,7 @@ extension CreateNetworkView {
         
         @Published var password: String = "" {
             didSet {
+                createNetworkErrorMessage = nil
                 validateForm()
             }
         }
@@ -71,11 +73,18 @@ extension CreateNetworkView {
         
         @Published var termsAgreed: Bool = false {
             didSet {
+                createNetworkErrorMessage = nil
                 validateForm()
             }
         }
         
         @Published private(set) var isCreatingNetwork: Bool = false
+        
+        @Published private(set) var createNetworkErrorMessage: String?
+        
+        func setCreateNetworkErrorMessage(_ message: String?) {
+            createNetworkErrorMessage = message
+        }
         
         @Published var isPresentedAddBonusSheet: Bool = false
         
@@ -254,6 +263,7 @@ extension CreateNetworkView {
             }
                 
             
+            self.createNetworkErrorMessage = nil
             self.isCreatingNetwork = true
             
             do {
@@ -304,6 +314,7 @@ extension CreateNetworkView {
                 return .failure(NSError(domain: domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "Network creation already in progress"]))
             }
             
+            self.createNetworkErrorMessage = nil
             self.isCreatingNetwork = true
             
             do {

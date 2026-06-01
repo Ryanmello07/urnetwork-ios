@@ -47,9 +47,11 @@ struct AuthCodeLoginSheet: View {
                 validationState: viewModel.loginFailed ? .invalid : .valid,
                 submitLabel: .done,
                 onSubmit: {
-                    Task {
-                        let result = await viewModel.authCodeLogin()
-                        self.handleAuthCodeLoginResult(result)
+                    if !viewModel.isLoading {
+                        Task {
+                            let result = await viewModel.authCodeLogin()
+                            self.handleAuthCodeLoginResult(result)
+                        }
                     }
                 },
                 isSecure: true
@@ -65,7 +67,7 @@ struct AuthCodeLoginSheet: View {
                         handleAuthCodeLoginResult(result)
                     }
                 },
-                enabled: !viewModel.authCode.isEmpty,
+                enabled: !viewModel.authCode.isEmpty && !viewModel.isLoading,
                 isProcessing: viewModel.isLoading
             )
             

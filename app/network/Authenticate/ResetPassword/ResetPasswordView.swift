@@ -64,8 +64,13 @@ struct ResetPasswordView: View {
                                 await handleResendLink()
                             }
                         },
-                        enabled: !viewModel.sendInProgress
+                        enabled: !viewModel.sendInProgress,
+                        isProcessing: viewModel.sendInProgress
                     )
+                    
+                    Spacer().frame(height: 8)
+                    
+                    UrInlineErrorText(message: viewModel.errorMessage)
                 }
                 .padding()
                 .frame(minHeight: geometry.size.height)
@@ -90,8 +95,7 @@ struct ResetPasswordView: View {
             
         case .failure(let error):
             print("error sending reset link: \(error.localizedDescription)")
-            
-            snackbarManager.showSnackbar(message: "There was an error sending a password reset link to \(userAuth).")
+            viewModel.setErrorMessage("There was an error sending a password reset link to \(userAuth).")
             
             break
         }

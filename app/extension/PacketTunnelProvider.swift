@@ -103,8 +103,20 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             return
         }
 
-        guard let rpcPublicKey = providerConfiguration["rpc_public_key"] as? String else {
-            completionHandler(NSError(domain: "network.ur.extension", code: 4, userInfo: [NSLocalizedDescriptionKey: "Missing rpc_public_key"]))
+        // opaque PEM strings from the app, used verbatim (mTLS server cert+key
+        // and pinned client cert)
+        guard let rpcServerPem = providerConfiguration["rpc_server_pem"] as? String else {
+            completionHandler(NSError(domain: "network.ur.extension", code: 4, userInfo: [NSLocalizedDescriptionKey: "Missing rpc_server_pem"]))
+            return
+        }
+
+        guard let rpcClientPem = providerConfiguration["rpc_client_pem"] as? String else {
+            completionHandler(NSError(domain: "network.ur.extension", code: 10, userInfo: [NSLocalizedDescriptionKey: "Missing rpc_client_pem"]))
+            return
+        }
+
+        guard let rpcListenHostPort = providerConfiguration["rpc_listen_hostport"] as? String else {
+            completionHandler(NSError(domain: "network.ur.extension", code: 9, userInfo: [NSLocalizedDescriptionKey: "Missing rpc_listen_hostport"]))
             return
         }
 
@@ -122,10 +134,14 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
 
 
+        // include the rpc material (cert + listen host/port) so a change across
+        // launches recreates the device
         let deviceConfiguration = [
             "by_jwt": byJwt,
             "network_space": networkSpaceJson,
-            "rpc_public_key": rpcPublicKey,
+            "rpc_server_pem": rpcServerPem,
+            "rpc_client_pem": rpcClientPem,
+            "rpc_listen_hostport": rpcListenHostPort,
             "instance_id": instanceId.string(),
         ]
 
@@ -144,6 +160,11 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
 
         // create new device with latest config
+        
+        self.connected = false
+        self.close?()
+        self.close = nil
+        
 
 
         let documentsPath = FileManager.default.urls(
@@ -183,7 +204,8 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             deviceModel() ?? "ios-unknown",
             "\(appVersionString)-\(buildNumber)",
             instanceId,
-            true,
+            // rpc is started explicitly below with the per-session server pem
+            false,
             keyMaterial,
             &err
         )
@@ -197,15 +219,24 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             return
         }
 
-        self.connected = false
+        // start the rpc server listening on the per-session host/port,
+        // presenting the self-signed server certificate and requiring + pinning
+        // the client certificate (mTLS) from the app
+        do {
+            try device.setRpcServer(rpcServerPem, clientCertPem: rpcClientPem, hostPort: rpcListenHostPort)
+        } catch {
+            completionHandler(error)
+            return
+        }
+
+        
         let packetReadGeneration = self.beginPacketReads()
         self.reasserting = true
 
         if localStateIsStale {
             self.shouldSaveKeyMaterial = false
         }
-        self.close?()
-        self.close = nil
+        
 
         prepareLocalStateForStart(localState, byJwt: byJwt, instanceId: instanceId, hasStaleLocalState: localStateIsStale)
 

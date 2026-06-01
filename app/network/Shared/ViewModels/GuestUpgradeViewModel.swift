@@ -23,6 +23,15 @@ class GuestUpgradeViewModel: ObservableObject {
     
     func linkGuestToExistingLogin(args: SdkUpgradeGuestExistingArgs) async -> AuthLoginResult {
         
+        if isUpgrading {
+            return .failure(LoginError.inProgress)
+        }
+        
+        isUpgrading = true
+        defer {
+            isUpgrading = false
+        }
+        
         do {
             
             let result: AuthLoginResult = try await withCheckedThrowingContinuation { continuation in
