@@ -329,11 +329,14 @@ extension UrApiService {
                             acceptedAuthMethods.append(authAllowed.get(i))
                         }
 
-                        let errMessage = acceptedAuthMethods.isEmpty
-                            ? "No supported authentication methods available."
-                            : "Please login with one of: \(acceptedAuthMethods.joined(separator: ", "))."
-
-                        continuation.resume(returning: .incorrectAuth(errMessage))
+                        if acceptedAuthMethods.isEmpty {
+                            // no existing auth methods for this user auth —
+                            // treat as a brand new network (create flow)
+                            continuation.resume(returning: .create(args))
+                        } else {
+                            let errMessage = "Please login with one of: \(acceptedAuthMethods.joined(separator: ", "))."
+                            continuation.resume(returning: .incorrectAuth(errMessage))
+                        }
 
                     }
 

@@ -16,6 +16,7 @@ struct LoginInitialView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var deviceManager: DeviceManager
     @EnvironmentObject var connectWalletProviderViewModel: ConnectWalletProviderViewModel
+    @EnvironmentObject var snackbarManager: UrSnackbarManager
     @StateObject private var viewModel: ViewModel
     @State private var initialIsLandscape: Bool = false
     
@@ -399,12 +400,21 @@ struct LoginInitialView: View {
         case .incorrectAuth(let authAllowedErr):
             viewModel.setIsCheckingUserAuth(false)
             viewModel.setLoginErrorMessage(authAllowedErr)
+            // in the guest-upgrade flow this view is presented as a sheet over the
+            // app, where the inline error can be obscured — also surface a snackbar
+            // (device is non-nil only during guest upgrade, nil for initial login)
+            if deviceManager.device != nil {
+                snackbarManager.showSnackbar(message: authAllowedErr)
+            }
             break
 
         case .failure(let error):
             print("auth login error: \(error.localizedDescription)")
             viewModel.setIsCheckingUserAuth(false)
             viewModel.setLoginErrorMessage("There was an error logging in")
+            if deviceManager.device != nil {
+                snackbarManager.showSnackbar(message: "There was an error logging in")
+            }
             break
             
         }

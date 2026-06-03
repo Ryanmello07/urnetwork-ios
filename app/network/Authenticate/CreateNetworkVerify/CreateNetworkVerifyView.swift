@@ -246,6 +246,10 @@ struct CreateNetworkVerifyView: View {
          
         case .failure(let error):
             print("[CreateNetworkVerifyView] handleOptSubmitResult: \(error.localizedDescription)")
+            // clear the entered code so the user can retype to resubmit — auto-submit
+            // only fires when the field changes back to full length. (setting otp first
+            // triggers its didSet which clears the error, so set the message afterwards.)
+            viewModel.otp = ""
             viewModel.setOtpErrorMessage("There was an error authenticating, please try again later.")
             
             // TODO: clear viewmodel loading state

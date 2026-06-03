@@ -116,6 +116,9 @@ extension CreateNetworkVerifyView {
                 
             } catch {
                 isSendingOtp = false
+                // re-enable the resend button so the user can retry — a failed resend
+                // otherwise leaves it permanently disabled (no timer re-enables it)
+                resetBtnEnabled = true
                 return .failure(error)
             }
                 

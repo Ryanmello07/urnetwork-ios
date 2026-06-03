@@ -36,7 +36,12 @@ class AccountPreferencesViewModel: ObservableObject {
     }
     
     @Published var isUpdatingAccountPreferences: Bool = false
-    
+    @Published private(set) var saveErrorMessage: String?
+
+    func clearSaveErrorMessage() {
+        saveErrorMessage = nil
+    }
+
     let domain = "AccountPreferencesViewModel"
     
     var api: SdkApi?
@@ -147,6 +152,8 @@ class AccountPreferencesViewModel: ObservableObject {
                 
                 setCanReceiveProductUpdates(previousValue ?? lastSavedCanReceiveProductUpdates)
                 isUpdatingAccountPreferences = false
+                // the toggle silently snapped back to its saved value — tell the user why
+                saveErrorMessage = "Couldn't update your preferences. Please try again."
             }
             
         }

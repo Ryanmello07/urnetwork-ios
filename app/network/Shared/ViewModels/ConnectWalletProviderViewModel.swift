@@ -552,18 +552,36 @@ class ConnectWalletProviderViewModel: ObservableObject {
     func openURL(_ url: URL, completion: ((Bool) -> Void)? = nil) -> Bool {
         #if canImport(UIKit)
         UIApplication.shared.open(url, options: [.universalLinksOnly: true]) { success in
-            DispatchQueue.main.async {
-                completion?(success)
+            if success {
+                DispatchQueue.main.async {
+                    completion?(true)
+                }
+                return
+            }
+
+            // the universal link wasn't claimed by an installed wallet app
+            // (e.g. the wallet's app-site association hasn't resolved yet) —
+            // fall back to opening the link normally so it still reaches the
+            // wallet (or the browser) instead of hard-failing
+            UIApplication.shared.open(url, options: [:]) { fallbackSuccess in
+                DispatchQueue.main.async {
+                    completion?(fallbackSuccess)
+                }
             }
         }
         return true
         #elseif canImport(AppKit)
-        guard let nativeURL = nativeWalletURL(from: url) else {
-            completion?(false)
-            return false
+        // prefer the wallet's custom scheme so the link deep-links straight
+        // into the installed desktop wallet
+        if let nativeURL = nativeWalletURL(from: url), NSWorkspace.shared.open(nativeURL) {
+            completion?(true)
+            return true
         }
 
-        let success = NSWorkspace.shared.open(nativeURL)
+        // fall back to the original universal/https link (resolves via the
+        // wallet's site association, or opens the browser) so connect/sign
+        // still works when the custom scheme isn't registered
+        let success = NSWorkspace.shared.open(url)
         completion?(success)
         return success
         #else

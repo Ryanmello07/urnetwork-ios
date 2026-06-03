@@ -21,11 +21,19 @@ struct ReferralShareLink<Content: View>: View {
     }
     
     var body: some View {
-        let url = URL(string: "https://ur.io/app?bonus=\(referralLinkViewModel.referralCode ?? "")") ?? URL(string: "https://ur.io/app")!
+        // share a clean app link until the referral code loads (the poller keeps
+        // retrying), instead of permanently disabling sharing on a failed/slow
+        // fetch or appending an empty `bonus=`
+        let url: URL = {
+            if let code = referralLinkViewModel.referralCode, !code.isEmpty {
+                return URL(string: "https://ur.io/app?bonus=\(code)") ?? URL(string: "https://ur.io/app")!
+            }
+            return URL(string: "https://ur.io/app")!
+        }()
         ShareLink(item: url, subject: Text("URnetwork Referral Code"), message: Text("All the content in the world from URnetwork")) {
             content()
         }
-        .disabled(referralLinkViewModel.isLoading || referralLinkViewModel.referralCode == nil)
+        .disabled(referralLinkViewModel.isLoading)
         .buttonStyle(.plain)
         .contentShape(Rectangle())
     }

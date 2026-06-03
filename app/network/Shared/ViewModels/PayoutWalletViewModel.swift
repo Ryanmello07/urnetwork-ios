@@ -82,7 +82,11 @@ class PayoutWalletViewModel: ObservableObject {
 
             }
             
-            self.payoutWalletId = result.walletId
+            // preserve the current selection when the backend returns no wallet id
+            // (e.g. a transient nil) so the default-wallet marker isn't dropped
+            if let walletId = result.walletId {
+                self.payoutWalletId = walletId
+            }
             
             isFetchingPayoutWallet = false
             

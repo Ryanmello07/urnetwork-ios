@@ -81,6 +81,12 @@ struct SettingsView: View {
                 canReceiveProductUpdates: $accountPreferencesViewModel.canReceiveProductUpdates,
             )
             .background(themeManager.currentTheme.backgroundColor)
+            .onChange(of: accountPreferencesViewModel.saveErrorMessage) { newValue in
+                if let newValue {
+                    snackbarManager.showSnackbar(message: newValue)
+                    accountPreferencesViewModel.clearSaveErrorMessage()
+                }
+            }
             .confirmationDialog(
                 "Are you sure you want to delete your account?",
                 isPresented: $viewModel.isPresentedDeleteAccountConfirmation,
@@ -184,6 +190,12 @@ struct SettingsView: View {
                 canReceiveProductUpdates: $accountPreferencesViewModel.canReceiveProductUpdates,
                 launchAtStartupEnabled: $viewModel.launchAtStartupEnabled
             )
+            .onChange(of: accountPreferencesViewModel.saveErrorMessage) { newValue in
+                if let newValue {
+                    snackbarManager.showSnackbar(message: newValue)
+                    accountPreferencesViewModel.clearSaveErrorMessage()
+                }
+            }
             .confirmationDialog(
                 "Are you sure you want to delete your account?",
                 isPresented: $viewModel.isPresentedDeleteAccountConfirmation,

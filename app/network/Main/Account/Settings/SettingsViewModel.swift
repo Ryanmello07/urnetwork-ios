@@ -104,6 +104,9 @@ extension SettingsView {
                     
                 @unknown default:
                     print("Unknown notification settings.")
+                    Task { @MainActor in
+                        self.isCheckingNotificationSettings = false
+                    }
                 }
             }
         }
