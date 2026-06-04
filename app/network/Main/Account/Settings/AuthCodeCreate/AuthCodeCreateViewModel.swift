@@ -33,7 +33,6 @@ extension AuthCodeCreate {
             
             do {
                 let createAuthCodeResult = try await urApiService.createAuthCode()
-                print("createAuthCodeResult.authCode: \(createAuthCodeResult.authCode)")
                 self.authCode = createAuthCodeResult.authCode
                 self.isLoading = false
             } catch (let error) {

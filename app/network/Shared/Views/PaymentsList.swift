@@ -14,10 +14,14 @@ struct PaymentsList: View {
     var payments: [SdkAccountPayment]
     var navigate: (AccountNavigationPath) -> Void
     
-    private var currentDateFormatted: String {
+    private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d"
-        return formatter.string(from: Date())
+        return formatter
+    }()
+
+    private var currentDateFormatted: String {
+        Self.dateFormatter.string(from: Date())
     }
 
     

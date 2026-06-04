@@ -50,7 +50,7 @@ struct MainTabView: View {
         self.urApiService = urApiService
         self.logout = logout
         self.device = device
-        
+
         // todo: investigate why we need this?
         // we're launching this in NetworkApp
         // but without it, disconnect isn't triggered

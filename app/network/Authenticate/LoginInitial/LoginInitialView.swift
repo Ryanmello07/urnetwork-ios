@@ -14,9 +14,9 @@ import GoogleSignIn
 struct LoginInitialView: View {
     
     @EnvironmentObject var themeManager: ThemeManager
-    @EnvironmentObject var snackbarManager: UrSnackbarManager
     @EnvironmentObject var deviceManager: DeviceManager
     @EnvironmentObject var connectWalletProviderViewModel: ConnectWalletProviderViewModel
+    @EnvironmentObject var snackbarManager: UrSnackbarManager
     @StateObject private var viewModel: ViewModel
     @State private var initialIsLandscape: Bool = false
     
@@ -69,7 +69,9 @@ struct LoginInitialView: View {
                             handleAppleLoginResult: handleAppleLoginResult,
                             handleGoogleSignInButton: handleGoogleSignInButton,
                             isValidUserAuth: viewModel.isValidUserAuth,
-                            isCheckingUserAuth: viewModel.isCheckingUserAuth,
+                            activeLoginAction: viewModel.activeLoginAction,
+                            isLoginActionInFlight: viewModel.isLoginActionInFlight || guestUpgradeViewModel.isUpgrading,
+                            loginErrorMessage: viewModel.loginErrorMessage,
                             deviceExists: deviceExists,
                             presentSignInWithSolanaSheet: {
                                 viewModel.setPresentSigninWithSolanaSheet(true)
@@ -98,7 +100,9 @@ struct LoginInitialView: View {
                             handleAppleLoginResult: handleAppleLoginResult,
                             handleGoogleSignInButton: handleGoogleSignInButton,
                             isValidUserAuth: viewModel.isValidUserAuth,
-                            isCheckingUserAuth: viewModel.isCheckingUserAuth,
+                            activeLoginAction: viewModel.activeLoginAction,
+                            isLoginActionInFlight: viewModel.isLoginActionInFlight || guestUpgradeViewModel.isUpgrading,
+                            loginErrorMessage: viewModel.loginErrorMessage,
                             deviceExists: deviceExists,
                             presentSignInWithSolanaSheet: {
                                 viewModel.setPresentSigninWithSolanaSheet(true)
@@ -142,6 +146,7 @@ struct LoginInitialView: View {
                 GuestModeSheet(
                     termsAgreed: $viewModel.termsAgreed,
                     isCreatingGuestNetwork: viewModel.isCreatingGuestNetwork,
+                    errorMessage: viewModel.guestNetworkErrorMessage,
                     onCreateGuestNetwork: {
                         Task {
                             let result = await viewModel.createGuestNetwork()
@@ -222,9 +227,10 @@ struct LoginInitialView: View {
                     onSignature: { signature in
                         
                         guard let pk = connectWalletProviderViewModel.connectedPublicKey else {
-                            snackbarManager.showSnackbar(message: "Couldn't parse public key, please try again later.")
-                            return
-                        }
+                        viewModel.setIsSigningMessage(false)
+                        viewModel.setLoginErrorMessage("There was an error logging in")
+                        return
+                    }
                         
                         Task {
                             await handleSolanaWalletResult(
@@ -234,6 +240,10 @@ struct LoginInitialView: View {
                             )
                         }
                         
+                    },
+                    onError: { _ in
+                        viewModel.setIsSigningMessage(false)
+                        viewModel.setLoginErrorMessage("There was an error logging in")
                     }
                 )
         }
@@ -242,6 +252,15 @@ struct LoginInitialView: View {
     
     private func handleSolanaWalletResult(message: String, signature: String, publicKey: String) async {
         print("handleSolanaWalletResult")
+        
+        guard viewModel.beginLoginAction(.solana) else {
+            return
+        }
+        
+        defer {
+            viewModel.endLoginAction(.solana)
+        }
+        
         let createArgsResult = viewModel.createSolanaAuthLoginArgs(message: message, signature: signature, publicKey: publicKey)
         switch createArgsResult {
         case .success(let args):
@@ -266,7 +285,8 @@ struct LoginInitialView: View {
         
         case .failure(let error):
             print("error create args result: \(error.localizedDescription)")
-            snackbarManager.showSnackbar(message: "There was an error logging in")
+            viewModel.setIsSigningMessage(false)
+            viewModel.setLoginErrorMessage("There was an error logging in")
         }
     }
     
@@ -279,15 +299,25 @@ struct LoginInitialView: View {
             break
         case .failure(let error):
             print("CreateNetworkView: handleResult: \(error.localizedDescription)")
+            viewModel.setGuestNetworkErrorMessage("There was an error creating your guest network. Please try again.")
             break
         default:
             print("neither success with jwt or failure")
+            viewModel.setGuestNetworkErrorMessage("There was an error creating your guest network. Please try again.")
             break
             
         }
     }
     
     private func handleAppleLoginResult(_ result: Result<ASAuthorization, any Error>) async {
+        
+        guard viewModel.beginLoginAction(.apple) else {
+            return
+        }
+        
+        defer {
+            viewModel.endLoginAction(.apple)
+        }
 
         let createArgsResult = viewModel.createAppleAuthLoginArgs(result)
         switch createArgsResult {
@@ -314,7 +344,7 @@ struct LoginInitialView: View {
         
         case .failure(let error):
             print("error create args result: \(error.localizedDescription)")
-            snackbarManager.showSnackbar(message: "There was an error logging in")
+            viewModel.setLoginErrorMessage("There was an error logging in")
         }
         
      }
@@ -326,12 +356,20 @@ struct LoginInitialView: View {
         switch createArgsResult {
         case .success(let args):
             
+            guard viewModel.beginLoginAction(.userAuth) else {
+                return
+            }
+            
+            defer {
+                viewModel.endLoginAction(.userAuth)
+            }
+            
             let result = await viewModel.authLogin(args: args)
             await self.handleAuthLoginResult(result)
         
         case .failure(let error):
             print("error create args result: \(error.localizedDescription)")
-            snackbarManager.showSnackbar(message: "There was an error logging in")
+            viewModel.setLoginErrorMessage("There was an error logging in")
         }
         
     }
@@ -345,26 +383,38 @@ struct LoginInitialView: View {
             break
             
         case .promptPassword(let loginResult):
+            viewModel.setIsCheckingUserAuth(false)
             navigate(.password(loginResult.userAuth))
             break
-            
+
         case .create(let authLoginArgs):
+            viewModel.setIsCheckingUserAuth(false)
             navigate(.createNetwork(authLoginArgs))
             break
 
-        // verificationRequired should not be hit from this view
         case .verificationRequired(let userAuth):
-            print("verificationRequired should not be hit from this view")
+            viewModel.setIsCheckingUserAuth(false)
             navigate(.verify(userAuth))
             break
-            
+
         case .incorrectAuth(let authAllowedErr):
-            snackbarManager.showSnackbar(message: authAllowedErr)
+            viewModel.setIsCheckingUserAuth(false)
+            viewModel.setLoginErrorMessage(authAllowedErr)
+            // in the guest-upgrade flow this view is presented as a sheet over the
+            // app, where the inline error can be obscured — also surface a snackbar
+            // (device is non-nil only during guest upgrade, nil for initial login)
+            if deviceManager.device != nil {
+                snackbarManager.showSnackbar(message: authAllowedErr)
+            }
             break
-        
+
         case .failure(let error):
             print("auth login error: \(error.localizedDescription)")
             viewModel.setIsCheckingUserAuth(false)
+            viewModel.setLoginErrorMessage("There was an error logging in")
+            if deviceManager.device != nil {
+                snackbarManager.showSnackbar(message: "There was an error logging in")
+            }
             break
             
         }
@@ -385,11 +435,20 @@ struct LoginInitialView: View {
     
     private func handleGoogleSignInButton() async {
         
+        guard viewModel.beginLoginAction(.google) else {
+            return
+        }
+        
+        defer {
+            viewModel.endLoginAction(.google)
+        }
+        
         do {
             #if os(iOS)
             
             guard let rootViewController = getRootViewController() else {
                 print("no root view controller found")
+                viewModel.setLoginErrorMessage("There was an error logging in")
                 return
             }
             
@@ -398,6 +457,7 @@ struct LoginInitialView: View {
             
             guard let presentingWindow = NSApplication.shared.windows.first else {
               print("There is no presenting window!")
+              viewModel.setLoginErrorMessage("There was an error logging in")
               return
             }
             
@@ -430,12 +490,12 @@ struct LoginInitialView: View {
             
             case .failure(let error):
                 print("error create args result: \(error.localizedDescription)")
-                snackbarManager.showSnackbar(message: "There was an error logging in")
+                viewModel.setLoginErrorMessage("There was an error logging in")
             }
             
          } catch {
              print("Error signing in: \(error.localizedDescription)")
-             snackbarManager.showSnackbar(message: "There was an error logging in")
+             viewModel.setLoginErrorMessage("There was an error logging in")
          }
         
         
@@ -453,7 +513,9 @@ private struct LoginInitialFormView: View {
     let handleAppleLoginResult: (_ result: Result<ASAuthorization, any Error>) async -> Void
     let handleGoogleSignInButton: () async -> Void
     let isValidUserAuth: Bool
-    let isCheckingUserAuth: Bool
+    let activeLoginAction: LoginInitialView.LoginAction?
+    let isLoginActionInFlight: Bool
+    let loginErrorMessage: String?
     let deviceExists: Bool
     let presentSignInWithSolanaSheet: () -> Void
     let presentAuthCodeLoginSheet: () -> Void
@@ -469,6 +531,7 @@ private struct LoginInitialFormView: View {
                 text: $userAuth,
                 label: "Email or phone number",
                 placeholder: "Enter your phone number or email",
+                isEnabled: !isLoginActionInFlight,
                 onTextChange: { newValue in
                     // Filter whitespace
                     if newValue.contains(" ") {
@@ -478,9 +541,10 @@ private struct LoginInitialFormView: View {
                 keyboardType: .emailAddress,
                 submitLabel: .continue,
                 onSubmit: {
-                 
-                    Task {
-                        await handleUserAuth()
+                    if !isLoginActionInFlight {
+                        Task {
+                            await handleUserAuth()
+                        }
                     }
                     
                 }
@@ -490,6 +554,7 @@ private struct LoginInitialFormView: View {
                 text: $userAuth,
                 label: "Email or phone number",
                 placeholder: "Enter your phone number or email",
+                isEnabled: !isLoginActionInFlight,
                 onTextChange: { newValue in
                     // Filter whitespace
                     if newValue.contains(" ") {
@@ -498,9 +563,10 @@ private struct LoginInitialFormView: View {
                 },
                 submitLabel: .continue,
                 onSubmit: {
-                 
-                    Task {
-                        await handleUserAuth()
+                    if !isLoginActionInFlight {
+                        Task {
+                            await handleUserAuth()
+                        }
                     }
                     
                 }
@@ -517,8 +583,8 @@ private struct LoginInitialFormView: View {
                         await handleUserAuth()
                     }
                 },
-                enabled: isValidUserAuth && !isCheckingUserAuth,
-                isProcessing: isCheckingUserAuth
+                enabled: isValidUserAuth && !isLoginActionInFlight,
+                isProcessing: activeLoginAction == .userAuth
             )
             
             Spacer()
@@ -535,7 +601,14 @@ private struct LoginInitialFormView: View {
                 handleGoogleSignInButton: handleGoogleSignInButton,
                 presentSignInWithSolanaSheet: presentSignInWithSolanaSheet,
                 presentAuthCodeLoginSheet: presentAuthCodeLoginSheet,
+                activeLoginAction: activeLoginAction,
+                isLoginActionInFlight: isLoginActionInFlight
             )
+            
+            Spacer()
+                .frame(height: 8)
+            
+            UrInlineErrorText(message: loginErrorMessage)
             
             Spacer()
                 .frame(height: 24)
@@ -559,6 +632,7 @@ private struct LoginInitialFormView: View {
                             .foregroundColor(themeManager.currentTheme.textColor)
                     }
                     .buttonStyle(.plain)
+                    .disabled(isLoginActionInFlight)
                     
                 }
                 
@@ -581,6 +655,8 @@ private struct SSOButtons: View {
     let handleGoogleSignInButton: () async -> Void
     let presentSignInWithSolanaSheet: () -> Void
     let presentAuthCodeLoginSheet: () -> Void
+    let activeLoginAction: LoginInitialView.LoginAction?
+    let isLoginActionInFlight: Bool
     
     var body: some View {
         
@@ -597,12 +673,25 @@ private struct SSOButtons: View {
             .clipShape(Capsule())
             .signInWithAppleButtonStyle(.white)
             .buttonStyle(.plain)
+            .overlay(alignment: .trailing) {
+                if activeLoginAction == .apple {
+                    ProgressView()
+                        .tint(.urBlack)
+                        .controlSize(.small)
+                        .padding(.trailing, 16)
+                }
+            }
+            .opacity(isLoginActionInFlight && activeLoginAction != .apple ? 0.3 : 1)
+            .disabled(isLoginActionInFlight)
+            .allowsHitTesting(!isLoginActionInFlight)
             
             Spacer()
                 .frame(height: 24)
             
             UrGoogleSignInButton(
-                action: handleGoogleSignInButton
+                action: handleGoogleSignInButton,
+                enabled: !isLoginActionInFlight,
+                isProcessing: activeLoginAction == .google
             )
             .buttonStyle(.plain)
             
@@ -615,23 +704,38 @@ private struct SSOButtons: View {
                     .frame(height: 24)
              
                 Button(action: presentSignInWithSolanaSheet) {
-                    HStack {
-                        Image("solana.gradient.logo")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 16)
-                        Spacer().frame(width: 8)
-                        Text("Sign in with Solana")
-                            .foregroundColor(themeManager.currentTheme.inverseTextColor)
-                            .font(
-                                Font.system(size: 19, weight: .medium)
-                            )
+                    ZStack {
+                        HStack {
+                            Image("solana.gradient.logo")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 16)
+                            Spacer().frame(width: 8)
+                            Text("Sign in with Solana")
+                                .foregroundColor(themeManager.currentTheme.inverseTextColor)
+                                .font(
+                                    Font.system(size: 19, weight: .medium)
+                                )
+                        }
+                        
+                        if activeLoginAction == .solana {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                    .tint(.urBlack)
+                                    .controlSize(.small)
+                                    .padding(.trailing, 16)
+                            }
+                        }
                     }
                     .frame(maxWidth: .infinity)
                 }
                 .frame(height: 48)
                 .background(.white)
                 .clipShape(Capsule())
+                .buttonStyle(.plain)
+                .opacity(isLoginActionInFlight && activeLoginAction != .solana ? 0.3 : 1)
+                .disabled(isLoginActionInFlight)
                 
             }
             
@@ -656,6 +760,9 @@ private struct SSOButtons: View {
             .frame(height: 48)
             .background(.white)
             .clipShape(Capsule())
+            .buttonStyle(.plain)
+            .opacity(isLoginActionInFlight ? 0.3 : 1)
+            .disabled(isLoginActionInFlight)
             
             Spacer()
                 .frame(height: 24)
@@ -672,6 +779,8 @@ private struct SSOButtons: View {
     var handleGoogleSignInButton: () async -> Void
     var presentSignInWithSolanaSheet: () -> Void
     let presentAuthCodeLoginSheet: () -> Void
+    let activeLoginAction: LoginInitialView.LoginAction?
+    let isLoginActionInFlight: Bool
     
     var body: some View {
         
@@ -689,9 +798,22 @@ private struct SSOButtons: View {
                 .frame(maxWidth: .infinity)
                 .signInWithAppleButtonStyle(.white)
                 .buttonStyle(.plain)
+                .overlay(alignment: .trailing) {
+                    if activeLoginAction == .apple {
+                        ProgressView()
+                            .tint(.urBlack)
+                            .controlSize(.small)
+                            .padding(.trailing, 12)
+                    }
+                }
+                .opacity(isLoginActionInFlight && activeLoginAction != .apple ? 0.3 : 1)
+                .disabled(isLoginActionInFlight)
+                .allowsHitTesting(!isLoginActionInFlight)
                 
                 UrGoogleSignInButton(
-                    action: handleGoogleSignInButton
+                    action: handleGoogleSignInButton,
+                    enabled: !isLoginActionInFlight,
+                    isProcessing: activeLoginAction == .google
                 )
                 .buttonStyle(.plain)
                 
@@ -722,6 +844,8 @@ private struct SSOButtons: View {
                 .background(.white)
                 .cornerRadius(6)
                 .buttonStyle(.plain)
+                .opacity(isLoginActionInFlight ? 0.3 : 1)
+                .disabled(isLoginActionInFlight)
                 
                 // nudge to account for padding
                 Spacer().frame(width: 8)

@@ -15,7 +15,11 @@ extension AuthCodeLoginSheet {
         
         private var urApiService: UrApiServiceProtocol
         
-        @Published var authCode: String = ""
+        @Published var authCode: String = "" {
+            didSet {
+                loginFailed = false
+            }
+        }
         
         @Published private(set) var isLoading: Bool = false
         

@@ -18,6 +18,7 @@ extension TransferBalanceCodesView {
         @Published var displayRedeemSheet: Bool = false
         @Published private(set) var isInitializing: Bool = true
         @Published private(set) var redeemedBalanceCodes: [SdkRedeemedBalanceCode] = []
+        @Published private(set) var loadErrorMessage: String?
         
         init(
             api: UrApiServiceProtocol
@@ -37,6 +38,7 @@ extension TransferBalanceCodesView {
             }
             
             isLoading = true
+            loadErrorMessage = nil
             
             do {
 
@@ -61,6 +63,7 @@ extension TransferBalanceCodesView {
                 
             } catch (let error) {
                 print("error fetching redeemed balance codes: \(error)")
+                self.loadErrorMessage = "Couldn't load balance codes."
                 self.isLoading = false
             }
             

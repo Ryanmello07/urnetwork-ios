@@ -20,7 +20,7 @@ class AccountPointsStore: ObservableObject {
     @Published private(set) var referralPoints: Double = 0
     @Published private(set) var reliabilityPoints: Double = 0
     
-    private(set) var isLoading: Bool = false
+    @Published private(set) var isLoading: Bool = false
     
     
     init(api: SdkApi?) {
@@ -57,9 +57,7 @@ class AccountPointsStore: ObservableObject {
         
         do {
             
-            let result: SdkAccountPointsResult = try await withCheckedThrowingContinuation { [weak self] continuation in
-                
-                guard let self = self else { return }
+            let result: SdkAccountPointsResult = try await withCheckedThrowingContinuation { continuation in
                 
                 let callback = GetAccountPointsCallback { result, err in
                     
@@ -77,7 +75,11 @@ class AccountPointsStore: ObservableObject {
                     
                 }
                 
-                api?.getAccountPoints(callback)
+                guard let api = self.api else {
+                    continuation.resume(throwing: GetAccountPointsError.resultEmpty)
+                    return
+                }
+                api.getAccountPoints(callback)
             }
             
             let n = result.accountPoints?.len()
@@ -90,7 +92,7 @@ class AccountPointsStore: ObservableObject {
             var accountPoints: [SdkAccountPoint] = []
             
             guard let n = n else {
-                print("account points length is nil")
+                self.isLoading = false
                 return
             }
             

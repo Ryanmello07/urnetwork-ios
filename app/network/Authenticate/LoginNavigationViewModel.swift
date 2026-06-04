@@ -18,6 +18,7 @@ enum LoginInitialNavigationPath: Hashable {
 
 extension LoginNavigationView {
     
+    @MainActor
     class ViewModel: ObservableObject {
         
         @Published var navigationPath: [LoginInitialNavigationPath] = []

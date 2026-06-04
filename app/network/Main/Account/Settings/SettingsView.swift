@@ -81,6 +81,12 @@ struct SettingsView: View {
                 canReceiveProductUpdates: $accountPreferencesViewModel.canReceiveProductUpdates,
             )
             .background(themeManager.currentTheme.backgroundColor)
+            .onChange(of: accountPreferencesViewModel.saveErrorMessage) { newValue in
+                if let newValue {
+                    snackbarManager.showSnackbar(message: newValue)
+                    accountPreferencesViewModel.clearSaveErrorMessage()
+                }
+            }
             .confirmationDialog(
                 "Are you sure you want to delete your account?",
                 isPresented: $viewModel.isPresentedDeleteAccountConfirmation,
@@ -118,6 +124,7 @@ struct SettingsView: View {
                         onSignature: { signature in
                             
                             guard let pk = connectWalletProviderViewModel.connectedPublicKey else {
+                                viewModel.setIsSigningMessage(false)
                                 snackbarManager.showSnackbar(message: "Couldn't parse public key, please try again later.")
                                 return
                             }
@@ -130,6 +137,10 @@ struct SettingsView: View {
                                 )
                             }
                             
+                        },
+                        onError: { _ in
+                            viewModel.setIsSigningMessage(false)
+                            snackbarManager.showSnackbar(message: "Sorry, there was an error claiming multiplier.")
                         }
                     )
             }
@@ -179,6 +190,12 @@ struct SettingsView: View {
                 canReceiveProductUpdates: $accountPreferencesViewModel.canReceiveProductUpdates,
                 launchAtStartupEnabled: $viewModel.launchAtStartupEnabled
             )
+            .onChange(of: accountPreferencesViewModel.saveErrorMessage) { newValue in
+                if let newValue {
+                    snackbarManager.showSnackbar(message: newValue)
+                    accountPreferencesViewModel.clearSaveErrorMessage()
+                }
+            }
             .confirmationDialog(
                 "Are you sure you want to delete your account?",
                 isPresented: $viewModel.isPresentedDeleteAccountConfirmation,
@@ -215,6 +232,9 @@ struct SettingsView: View {
     }
     
     private func handleSolanaWalletSignature(message: String, signature: String, publicKey: String) async {
+        defer {
+            viewModel.setIsSigningMessage(false)
+        }
         
         let result = await accountWalletsViewModel.verifySeekerOrSagaOwnership(
             publicKey: publicKey,
@@ -223,9 +243,11 @@ struct SettingsView: View {
         )
         
         switch result {
-        case .success:
+        case .success(true):
             snackbarManager.showSnackbar(message: "Successfully claimed multiplier!")
             viewModel.presentSigninWithSolanaSheet = false
+        case .success(false):
+            snackbarManager.showSnackbar(message: "Sorry, there was an error claiming multiplier.")
         case .failure(let error):
             snackbarManager.showSnackbar(message: "Sorry, there was an error claiming multiplier: \(error)")
         }

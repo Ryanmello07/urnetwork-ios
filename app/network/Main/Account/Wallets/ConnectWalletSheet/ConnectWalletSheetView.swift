@@ -11,6 +11,7 @@ struct ConnectWalletSheetView: View {
     
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var connectWalletProviderViewModel: ConnectWalletProviderViewModel
+    @EnvironmentObject var snackbarManager: UrSnackbarManager
     
     var navigate: (ConnectWalletNavigationPath) -> Void
     
@@ -20,7 +21,12 @@ struct ConnectWalletSheetView: View {
             HStack(spacing: 12) {
                 
                 Button(action: {
-                    connectWalletProviderViewModel.connectPhantomWallet()
+                    let didOpen = connectWalletProviderViewModel.connectPhantomWallet(
+                        onOpenFailed: showWalletOpenFailed
+                    )
+                    if !didOpen {
+                        showWalletOpenFailed()
+                    }
                 }) {
                     
                     VStack {
@@ -39,9 +45,16 @@ struct ConnectWalletSheetView: View {
                     }
                     
                 }
+                .buttonStyle(.plain)
+                .disabled(!connectWalletProviderViewModel.isWalletAppInstalled(.phantom))
                 
                 Button(action: {
-                    connectWalletProviderViewModel.connectSolflareWallet()
+                    let didOpen = connectWalletProviderViewModel.connectSolflareWallet(
+                        onOpenFailed: showWalletOpenFailed
+                    )
+                    if !didOpen {
+                        showWalletOpenFailed()
+                    }
                 }) {
                     
                     VStack {
@@ -60,6 +73,8 @@ struct ConnectWalletSheetView: View {
                     }
                     
                 }
+                .buttonStyle(.plain)
+                .disabled(!connectWalletProviderViewModel.isWalletAppInstalled(.solflare))
                 
                 Button(action: {
                     navigate(ConnectWalletNavigationPath.external)
@@ -107,6 +122,10 @@ struct ConnectWalletSheetView: View {
         #endif
         .padding(.horizontal)
     }
+
+    private func showWalletOpenFailed() {
+        snackbarManager.showSnackbar(message: "Couldn't open wallet. Please install it and try again.")
+    }
 }
 
 #Preview {
@@ -119,6 +138,8 @@ struct ConnectWalletSheetView: View {
         )
     }
     .environmentObject(themeManager)
+    .environmentObject(ConnectWalletProviderViewModel())
+    .environmentObject(UrSnackbarManager())
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(themeManager.currentTheme.backgroundColor)
         

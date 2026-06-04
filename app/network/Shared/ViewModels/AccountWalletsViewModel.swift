@@ -83,9 +83,7 @@ class AccountWalletsViewModel: ObservableObject {
         isLoadingAccountWallets = true
 
         do {
-            let result: SdkGetAccountWalletsResult = try await withCheckedThrowingContinuation { [weak self] continuation in
-
-                guard let self = self else { return }
+            let result: SdkGetAccountWalletsResult = try await withCheckedThrowingContinuation { continuation in
 
                 let callback = GetAccountWalletsCallback { result, err in
 
@@ -95,7 +93,7 @@ class AccountWalletsViewModel: ObservableObject {
                     }
 
                     guard let result = result else {
-                        continuation.resume(throwing: NSError(domain: self.domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "SdkGetAccountWalletsResult result is nil"]))
+                        continuation.resume(throwing: NSError(domain: "[AccountWalletsViewModel]", code: 0, userInfo: [NSLocalizedDescriptionKey: "SdkGetAccountWalletsResult result is nil"]))
                         return
                     }
 
@@ -103,7 +101,11 @@ class AccountWalletsViewModel: ObservableObject {
 
                 }
 
-                api?.getAccountWallets(callback)
+                guard let api = self.api else {
+                    continuation.resume(throwing: NSError(domain: "[AccountWalletsViewModel]", code: 0, userInfo: [NSLocalizedDescriptionKey: "API not available"]))
+                    return
+                }
+                api.getAccountWallets(callback)
             }
 
             wallets = handleAccountWalletsList(result)
@@ -121,6 +123,7 @@ class AccountWalletsViewModel: ObservableObject {
         guard let walletsList = result.wallets else { return [] }
 
         var accountWallets: [SdkAccountWallet] = []
+        var hasSeekerToken = false
         let n = walletsList.len()
 
         for i in 0..<n {
@@ -129,12 +132,13 @@ class AccountWalletsViewModel: ObservableObject {
             if let wallet = wallet {
                 accountWallets.append(wallet)
 
-                if (wallet.hasSeekerToken && !self.isSeekerOrSagaHolder) {
-                    self.isSeekerOrSagaHolder = true
+                if wallet.hasSeekerToken {
+                    hasSeekerToken = true
                 }
-
             }
         }
+
+        self.isSeekerOrSagaHolder = hasSeekerToken
 
         return accountWallets
 
@@ -159,9 +163,7 @@ class AccountWalletsViewModel: ObservableObject {
 
         do {
 
-            let result: SdkTransferStatsResult = try await withCheckedThrowingContinuation { [weak self] continuation in
-
-                guard let self = self else { return }
+            let result: SdkTransferStatsResult = try await withCheckedThrowingContinuation { continuation in
 
                 let callback = TransferStatsCallback { result, err in
 
@@ -171,14 +173,18 @@ class AccountWalletsViewModel: ObservableObject {
                     }
 
                     guard let result = result else {
-                        continuation.resume(throwing: NSError(domain: self.domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "TransferStatsCallback result is nil"]))
+                        continuation.resume(throwing: NSError(domain: "[AccountWalletsViewModel]", code: 0, userInfo: [NSLocalizedDescriptionKey: "TransferStatsCallback result is nil"]))
                         return
                     }
 
                     continuation.resume(returning: result)
                 }
 
-                api?.getTransferStats(callback)
+                guard let api = self.api else {
+                    continuation.resume(throwing: NSError(domain: "[AccountWalletsViewModel]", code: 0, userInfo: [NSLocalizedDescriptionKey: "API not available"]))
+                    return
+                }
+                api.getTransferStats(callback)
 
             }
 
@@ -225,9 +231,7 @@ extension AccountWalletsViewModel {
         isRemovingWallet = true
 
         do {
-            let _: SdkRemoveWalletResult = try await withCheckedThrowingContinuation { [weak self] continuation in
-
-                guard let self = self else { return }
+            let result: SdkRemoveWalletResult = try await withCheckedThrowingContinuation { continuation in
 
                 let callback = RemoveWalletCallback { result, err in
 
@@ -237,7 +241,7 @@ extension AccountWalletsViewModel {
                     }
 
                     guard let result = result else {
-                        continuation.resume(throwing: NSError(domain: self.domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "SdkRemoveWalletResult result is nil"]))
+                        continuation.resume(throwing: NSError(domain: "[AccountWalletsViewModel]", code: 0, userInfo: [NSLocalizedDescriptionKey: "SdkRemoveWalletResult result is nil"]))
                         return
                     }
 
@@ -247,8 +251,20 @@ extension AccountWalletsViewModel {
                 let args = SdkRemoveWalletArgs()
                 args.walletId = walletId.idStr
 
-                api?.removeWallet(args, callback: callback)
+                guard let api = self.api else {
+                    continuation.resume(throwing: NSError(domain: "[AccountWalletsViewModel]", code: 0, userInfo: [NSLocalizedDescriptionKey: "API not available"]))
+                    return
+                }
+                api.removeWallet(args, callback: callback)
 
+            }
+
+            if let resultError = result.error {
+                throw NSError(domain: domain, code: -1, userInfo: [NSLocalizedDescriptionKey: resultError.message])
+            }
+
+            guard result.success else {
+                throw NSError(domain: domain, code: -1, userInfo: [NSLocalizedDescriptionKey: "Remove wallet failed"])
             }
 
             await fetchAccountWallets()
@@ -282,9 +298,7 @@ extension AccountWalletsViewModel {
 
         do {
 
-            let result: SdkCreateAccountWalletResult = try await withCheckedThrowingContinuation { [weak self] continuation in
-
-                guard let self = self else { return }
+            let result: SdkCreateAccountWalletResult = try await withCheckedThrowingContinuation { continuation in
 
                 let callback = CreateAccountWalletCallback { result, err in
 
@@ -294,7 +308,7 @@ extension AccountWalletsViewModel {
                     }
 
                     guard let result = result else {
-                        continuation.resume(throwing: NSError(domain: self.domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "SdkCreateAccountWalletResult result is nil"]))
+                        continuation.resume(throwing: NSError(domain: "[AccountWalletsViewModel]", code: 0, userInfo: [NSLocalizedDescriptionKey: "SdkCreateAccountWalletResult result is nil"]))
                         return
                     }
 
@@ -305,7 +319,15 @@ extension AccountWalletsViewModel {
                 args.blockchain = chain.rawValue
                 args.walletAddress = walletAddress
 
-                api?.createAccountWallet(args, callback: callback)
+                guard let api = self.api else {
+                    continuation.resume(throwing: NSError(domain: "[AccountWalletsViewModel]", code: 0, userInfo: [NSLocalizedDescriptionKey: "API not available"]))
+                    return
+                }
+                api.createAccountWallet(args, callback: callback)
+            }
+
+            guard result.walletId != nil else {
+                throw CreateWalletError.invalidResult
             }
 
             isCreatingWallet = false
@@ -338,9 +360,7 @@ extension AccountWalletsViewModel {
 
         do {
 
-            let result: SdkVerifySeekerNftHolderResult = try await withCheckedThrowingContinuation { [weak self] continuation in
-
-                guard let self = self else { return }
+            let result: SdkVerifySeekerNftHolderResult = try await withCheckedThrowingContinuation { continuation in
 
                 let callback = VerifySeekerNftHolderCallback { result, err in
 
@@ -363,14 +383,26 @@ extension AccountWalletsViewModel {
                 args.message = message
 
 
-                api?.verifySeekerHolder(args, callback: callback)
+                guard let api = self.api else {
+                    continuation.resume(throwing: SeekerSagaVerificationError.invalidResult)
+                    return
+                }
+                api.verifySeekerHolder(args, callback: callback)
             }
 
             isVerifyingSeekerOrSagaOwnership = false
 
+            if let resultError = result.error {
+                return .failure(SeekerSagaVerificationError.unknown(resultError.message))
+            }
+
+            guard result.success else {
+                return .failure(SeekerSagaVerificationError.invalidSignature)
+            }
+
             await self.fetchAccountWallets()
 
-            return .success(result.success)
+            return .success(true)
 
         } catch(let error) {
             isVerifyingSeekerOrSagaOwnership = false
@@ -407,9 +439,22 @@ enum CreateWalletError: Error {
     case invalidAddress
 }
 
-enum SeekerSagaVerificationError: Error {
+enum SeekerSagaVerificationError: LocalizedError {
     case alreadyProcessing
     case invalidResult
     case invalidSignature
     case unknown(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .alreadyProcessing:
+            return "Verification is already in progress."
+        case .invalidResult:
+            return "Verification returned an invalid result."
+        case .invalidSignature:
+            return "Wallet ownership could not be verified."
+        case .unknown(let message):
+            return message
+        }
+    }
 }

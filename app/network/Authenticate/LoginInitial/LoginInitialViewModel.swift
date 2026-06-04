@@ -13,6 +13,13 @@ import GoogleSignIn
 
 extension LoginInitialView {
     
+    enum LoginAction: Equatable {
+        case userAuth
+        case apple
+        case google
+        case solana
+    }
+    
     @MainActor
     class ViewModel: ObservableObject {
         
@@ -21,19 +28,48 @@ extension LoginInitialView {
         @Published var userAuth: String = "" {
             didSet {
                 isValidUserAuth = ValidationUtils.isValidUserAuth(userAuth)
+                loginErrorMessage = nil
             }
         }
 
         @Published private(set) var isValidUserAuth: Bool = false
         
-        @Published private(set) var isCheckingUserAuth: Bool = false
+        @Published private(set) var activeLoginAction: LoginAction?
+        
+        var isCheckingUserAuth: Bool {
+            activeLoginAction == .userAuth
+        }
+        
+        var isLoginActionInFlight: Bool {
+            activeLoginAction != nil
+        }
         
         func setIsCheckingUserAuth(_ isChecking: Bool) -> Void {
-            isCheckingUserAuth = isChecking
+            activeLoginAction = isChecking ? .userAuth : nil
+        }
+        
+        func beginLoginAction(_ action: LoginAction) -> Bool {
+            if activeLoginAction != nil {
+                return false
+            }
+            
+            loginErrorMessage = nil
+            activeLoginAction = action
+            return true
+        }
+        
+        func endLoginAction(_ action: LoginAction) -> Void {
+            if activeLoginAction == action {
+                activeLoginAction = nil
+            }
         }
         
         // TODO: deprecate this
         @Published private(set) var loginErrorMessage: String?
+        
+        func setLoginErrorMessage(_ message: String?) -> Void {
+            loginErrorMessage = message
+        }
         
         /**
          * Guest mode
@@ -41,6 +77,11 @@ extension LoginInitialView {
         @Published private(set) var isCreatingGuestNetwork: Bool = false
         @Published var presentGuestNetworkSheet: Bool = false
         @Published var termsAgreed: Bool = false
+        @Published private(set) var guestNetworkErrorMessage: String?
+        
+        func setGuestNetworkErrorMessage(_ message: String?) -> Void {
+            guestNetworkErrorMessage = message
+        }
         
         /**
          * Auth code login
@@ -84,9 +125,6 @@ extension LoginInitialView {
                         
             do {
                 let result = try await urApiService.authLogin(args)
-                
-                self.setIsCheckingUserAuth(false)
-                
                 return result
                 
             } catch {
@@ -103,16 +141,12 @@ extension LoginInitialView.ViewModel {
     // func getStarted() async -> AuthLoginResult {
     func getStarted() -> Result<SdkAuthLoginArgs, Error> {
         
-        if isCheckingUserAuth {
+        if isLoginActionInFlight {
             return .failure(NSError(domain: domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "Auth login already in progress"]))
         }
         
         if !isValidUserAuth {
             return .failure(NSError(domain: domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "Form invalid"]))
-        }
-        
-        DispatchQueue.main.async {
-            self.setIsCheckingUserAuth(true)
         }
         
         let args = SdkAuthLoginArgs()
@@ -200,6 +234,7 @@ extension LoginInitialView.ViewModel {
         }
         
         self.isCreatingGuestNetwork = true
+        self.guestNetworkErrorMessage = nil
         
         do {
             
@@ -215,9 +250,7 @@ extension LoginInitialView.ViewModel {
             return result
             
         } catch(let error) {
-            DispatchQueue.main.async {
-                self.isCreatingGuestNetwork = false
-            }
+            self.isCreatingGuestNetwork = false
             return .failure(error)
         }
         
@@ -242,4 +275,3 @@ extension LoginInitialView.ViewModel {
         
     }
 }
-

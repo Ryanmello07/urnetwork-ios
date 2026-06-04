@@ -15,11 +15,18 @@ enum SendPasswordResetError: Error {
 
 extension ResetPasswordView {
     
+    @MainActor
     class ViewModel: ObservableObject {
-        
+
         private var api: SdkApi
-        
+
         @Published var sendInProgress: Bool = false
+        
+        @Published private(set) var errorMessage: String?
+        
+        func setErrorMessage(_ message: String?) {
+            errorMessage = message
+        }
         
         let domain = "ResetPasswordViewModel"
         
@@ -33,15 +40,12 @@ extension ResetPasswordView {
                 return .failure(SendPasswordResetError.inProgress)
             }
             
-            DispatchQueue.main.async {
-                self.sendInProgress = true
-            }
-            
+            self.errorMessage = nil
+            self.sendInProgress = true
+
             do {
-                
-                let result: Void = try await withCheckedThrowingContinuation { [weak self] continuation in
-                    
-                    guard let self = self else { return }
+
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                     
                     let callback = AuthPasswordResetCallback { result, error in
                         
@@ -50,13 +54,13 @@ extension ResetPasswordView {
                             return
                         }
                         
-                        guard let result = result else {
-                            continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: "No result found"]))
+                        guard result != nil else {
+                            continuation.resume(throwing: NSError(domain: "ResetPasswordViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "No result found"]))
                             
                             return
                         }
                         
-                        return continuation.resume(returning: ())
+                        continuation.resume(returning: ())
                         
                     }
                     
@@ -68,13 +72,12 @@ extension ResetPasswordView {
                     
                 }
                 
-                DispatchQueue.main.async {
-                    self.sendInProgress = false
-                }
-                
-                return .success(result)
-                
+                self.sendInProgress = false
+
+                return .success(())
+
             } catch(let error) {
+                self.sendInProgress = false
                 return .failure(error)
             }
             

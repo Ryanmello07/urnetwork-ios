@@ -20,8 +20,11 @@ class NetworkReliabilityStore: ObservableObject {
     
     init(api: UrApiServiceProtocol) {
         self.api = api
-        
         startPolling()
+    }
+
+    deinit {
+        pollingTimer?.invalidate()
     }
     
     private func startPolling() {
@@ -57,6 +60,7 @@ class NetworkReliabilityStore: ObservableObject {
             let result = try await api.getNetworkReliability()
             
             if result.error != nil {
+                isFetchingReliabilityWindow = false
                 return
             }
             

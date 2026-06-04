@@ -43,9 +43,7 @@ class AccountPaymentsViewModel: ObservableObject {
         
         do {
             
-            let result: SdkGetNetworkAccountPaymentsResult = try await withCheckedThrowingContinuation { [weak self] continuation in
-                
-                guard let self = self else { return }
+            let result: SdkGetNetworkAccountPaymentsResult = try await withCheckedThrowingContinuation { continuation in
                 
                 let callback = GetAccountPaymentsCallback { result, err in
                     
@@ -55,7 +53,7 @@ class AccountPaymentsViewModel: ObservableObject {
                     }
                     
                     guard let result = result else {
-                        continuation.resume(throwing: NSError(domain: self.domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "GetAccountPaymentsCallback result is nil"]))
+                        continuation.resume(throwing: NSError(domain: "[AccountPaymentsViewModel]", code: 0, userInfo: [NSLocalizedDescriptionKey: "GetAccountPaymentsCallback result is nil"]))
                         return
                     }
                     
@@ -63,9 +61,17 @@ class AccountPaymentsViewModel: ObservableObject {
                     
                 }
                 
-                api?.getAccountPayments(callback)
+                guard let api = self.api else {
+                    continuation.resume(throwing: NSError(domain: "[AccountPaymentsViewModel]", code: 0, userInfo: [NSLocalizedDescriptionKey: "API not available"]))
+                    return
+                }
+                api.getAccountPayments(callback)
             }
             
+            if let resultError = result.error {
+                throw NSError(domain: domain, code: -1, userInfo: [NSLocalizedDescriptionKey: resultError.message])
+            }
+
             handlePayoutResult(result)
             self.isLoadingPayments = false
             
@@ -79,6 +85,8 @@ class AccountPaymentsViewModel: ObservableObject {
     private func handlePayoutResult(_ result: SdkGetNetworkAccountPaymentsResult) {
         
         guard let accountPaymentList = result.accountPayments else {
+            self.totalPayoutsUsdc = 0
+            self.payments = []
             return
         }
         
@@ -101,8 +109,7 @@ class AccountPaymentsViewModel: ObservableObject {
         
         self.totalPayoutsUsdc = totalPayments
         
-        self.payments.removeAll()
-        self.payments.append(contentsOf: payouts)
+        self.payments = payouts
         
     }
     

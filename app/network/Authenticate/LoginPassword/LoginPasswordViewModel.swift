@@ -26,9 +26,12 @@ extension LoginPasswordView {
         
         @Published private(set) var isLoggingIn: Bool = false
         
+        @Published private(set) var errorMessage: String?
+        
         @Published var password: String = "" {
             didSet {
                 isValid = !password.isEmpty
+                errorMessage = nil
             }
         }
         
@@ -39,9 +42,11 @@ extension LoginPasswordView {
         }
         
         func setIsLoggingIn(_ isLoggingIn: Bool) {
-            DispatchQueue.main.async {
-                self.isLoggingIn = isLoggingIn
-            }
+            self.isLoggingIn = isLoggingIn
+        }
+        
+        func setErrorMessage(_ message: String?) {
+            self.errorMessage = message
         }
         
         func loginWithPassword(userAuth: String) async -> LoginNetworkResult {
@@ -57,9 +62,7 @@ extension LoginPasswordView {
             self.setIsLoggingIn(true)
             
             do {
-                let result: LoginNetworkResult = try await withCheckedThrowingContinuation { [weak self] continuation in
-                    
-                    guard let self = self else { return }
+                let result: LoginNetworkResult = try await withCheckedThrowingContinuation { continuation in
                     
                     let callback = AuthLoginPasswordCallback { result, err in
                         
@@ -72,7 +75,7 @@ extension LoginPasswordView {
                             
                             if let resultError = result.error {
 
-                                continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: resultError.message]))
+                                continuation.resume(throwing: NSError(domain: "LoginPassword.ViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: resultError.message]))
                                 
                                 return
                                 
@@ -85,17 +88,21 @@ extension LoginPasswordView {
                             }
                             
                             if let network = result.network {
-                                
+                                guard !network.byJwt.isEmpty else {
+                                    continuation.resume(throwing: NSError(domain: "LoginPassword.ViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "byJWT is empty"]))
+                                    return
+                                }
+
                                 continuation.resume(returning: .successWithJwt(network.byJwt))
                                 return
                                 
                             } else {
-                                continuation.resume(throwing: NSError(domain: self.domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "No network object found in result"]))
+                                continuation.resume(throwing: NSError(domain: "LoginPassword.ViewModel", code: 0, userInfo: [NSLocalizedDescriptionKey: "No network object found in result"]))
                                 return
                             }
                             
                         } else {
-                            continuation.resume(throwing: NSError(domain: self.domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "No error or result found"])
+                            continuation.resume(throwing: NSError(domain: "LoginPassword.ViewModel", code: 0, userInfo: [NSLocalizedDescriptionKey: "No error or result found"])
                             )
                         }
                         
@@ -116,10 +123,7 @@ extension LoginPasswordView {
                     
                 }
                 
-//                DispatchQueue.main.async {
-//                    self.isLoggingIn = false
-//                }
-                // setIsLoggingIn(false)
+                setIsLoggingIn(false)
                 return result
             } catch {
                 setIsLoggingIn(false)

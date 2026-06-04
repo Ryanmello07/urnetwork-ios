@@ -48,14 +48,17 @@ class SubscriptionBalanceViewModel: ObservableObject {
         refreshJwt: @escaping () -> Void
     ) {
         self.urApiService = urApiService
-        
         self.refreshJwt = refreshJwt
         self.isPro = isPro
-        
+
         if (!isPro) {
             startBackgroundPolling()
         }
+    }
 
+    deinit {
+        pollingTimer?.invalidate()
+        backgroundPollingTimer?.invalidate()
     }
     
     func updateIsPro(_ isPro: Bool) {
@@ -67,19 +70,16 @@ class SubscriptionBalanceViewModel: ObservableObject {
 
         // If user becomes Pro, stop background polling; if they revert, start it
         if isPro {
-            print("stopping polling from updateIsPro")
             stopPolling()
         } else {
-            print("start background polling from updateIsPro")
+            stopPolling()
             startBackgroundPolling()
         }
         
     }
     
     private func setIsPolling(_ isPolling: Bool) {
-        DispatchQueue.main.async {
-            self.isPolling = isPolling
-        }
+        self.isPolling = isPolling
     }
     
 //    func setCurrentPlan(_ plan: Plan) {
@@ -132,9 +132,7 @@ class SubscriptionBalanceViewModel: ObservableObject {
     }
     
     func setPollingInterval(_ interval: TimeInterval) {
-        DispatchQueue.main.async {
-            self.pollingInterval = interval
-        }
+        self.pollingInterval = interval
     }
     
     private func startBackgroundPolling() {
@@ -168,14 +166,16 @@ class SubscriptionBalanceViewModel: ObservableObject {
     }
     
     func startPolling(interval: TimeInterval = 5.0) {
-        
+
         guard !isPolling else { return }
-        
-        // Perform initial fetch
+
+        backgroundPollingTimer?.invalidate()
+        backgroundPollingTimer = nil
+
+        self.setPollingInterval(interval)
+        self.setIsPolling(true)
+
         Task {
-            
-            self.setPollingInterval(interval)
-            self.setIsPolling(true)
             
             await fetchSubscriptionBalance()
             

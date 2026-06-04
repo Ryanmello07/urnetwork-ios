@@ -147,7 +147,7 @@ struct ProviderListSheetView: View {
     
     let themeManager = ThemeManager.shared
     
-    var providerCountries: [SdkConnectLocation] = [
+    let providerCountries: [SdkConnectLocation] = [
         {
             let p = SdkConnectLocation()
             p.name = "United States"
@@ -177,7 +177,7 @@ struct ProviderListSheetView: View {
         }()
     ]
     
-    var providerCities: [SdkConnectLocation] = [
+    let providerCities: [SdkConnectLocation] = [
         {
             let p = SdkConnectLocation()
             p.name = "New York City"

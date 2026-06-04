@@ -144,7 +144,15 @@ struct TransferBalanceCodesView: View {
                     .background(themeManager.currentTheme.backgroundColor)
                 }
                 
-                if (viewModel.redeemedBalanceCodes.isEmpty) {
+                if let loadErrorMessage = viewModel.loadErrorMessage {
+                    VStack {
+                        Text(loadErrorMessage)
+                            .font(themeManager.currentTheme.bodyFont)
+                            .foregroundStyle(themeManager.currentTheme.textMutedColor)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(themeManager.currentTheme.backgroundColor.ignoresSafeArea())
+                } else if (viewModel.redeemedBalanceCodes.isEmpty) {
                     VStack {
                         Text("No balance codes found")
                             .font(themeManager.currentTheme.bodyFont)
@@ -160,13 +168,17 @@ struct TransferBalanceCodesView: View {
         .background(themeManager.currentTheme.backgroundColor.ignoresSafeArea())
     }
     
-    private func formatShortDate(unixMilli: Int64) -> String {
-        let date = Date(timeIntervalSince1970: TimeInterval(unixMilli) / 1000)
+    private static let shortDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
         formatter.timeStyle = .none
         formatter.locale = .current
-        return formatter.string(from: date)
+        return formatter
+    }()
+
+    private func formatShortDate(unixMilli: Int64) -> String {
+        let date = Date(timeIntervalSince1970: TimeInterval(unixMilli) / 1000)
+        return Self.shortDateFormatter.string(from: date)
     }
     
 }

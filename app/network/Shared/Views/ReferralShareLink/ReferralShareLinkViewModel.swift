@@ -24,10 +24,12 @@ class ReferralLinkViewModel: ObservableObject {
     let api: SdkApi?
     
     init(api: SdkApi) {
-        
         self.api = api
-        
         startPolling()
+    }
+
+    deinit {
+        pollingTimer?.invalidate()
     }
     
     private func startPolling() {
@@ -61,9 +63,7 @@ class ReferralLinkViewModel: ObservableObject {
         
         do {
             
-            let result: SdkGetNetworkReferralCodeResult = try await withCheckedThrowingContinuation { [weak self] continuation in
-                
-                guard let self = self else { return }
+            let result: SdkGetNetworkReferralCodeResult = try await withCheckedThrowingContinuation { continuation in
                 
                 let callback = GetNetworkReferralCodeCallback { result, err in
                     
@@ -75,7 +75,7 @@ class ReferralLinkViewModel: ObservableObject {
                     if let result = result {
                         
                         if let resultErr = result.error {
-                            continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: resultErr.message]))
+                            continuation.resume(throwing: NSError(domain: "ReferralLinkViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: resultErr.message]))
                             return
                         }
                         
@@ -83,7 +83,7 @@ class ReferralLinkViewModel: ObservableObject {
                         return
                         
                     } else {
-                        continuation.resume(throwing: NSError(domain: self.domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "result is nil"]))
+                        continuation.resume(throwing: NSError(domain: "ReferralLinkViewModel", code: 0, userInfo: [NSLocalizedDescriptionKey: "result is nil"]))
                     }
                 }
                 

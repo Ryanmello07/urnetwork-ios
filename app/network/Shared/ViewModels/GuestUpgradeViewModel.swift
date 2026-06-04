@@ -23,26 +23,30 @@ class GuestUpgradeViewModel: ObservableObject {
     
     func linkGuestToExistingLogin(args: SdkUpgradeGuestExistingArgs) async -> AuthLoginResult {
         
+        if isUpgrading {
+            return .failure(LoginError.inProgress)
+        }
+        
+        isUpgrading = true
+        defer {
+            isUpgrading = false
+        }
+        
         do {
             
-            let result: AuthLoginResult = try await withCheckedThrowingContinuation { [weak self] continuation in
-                
-                guard let self = self else { return }
-                
-                let callback = UpgradeGuestExistingCallback { [weak self] result, error in
-                    
-                    guard let self = self else { return }
-                    
+            let result: AuthLoginResult = try await withCheckedThrowingContinuation { continuation in
+
+                let callback = UpgradeGuestExistingCallback { result, error in
+
                     guard let result else {
-                        
-                        continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: "No result found"]))
+                        continuation.resume(throwing: error ?? NSError(domain: "[GuestUpgradeViewModel]", code: -1, userInfo: [NSLocalizedDescriptionKey: "No result found"]))
                         
                         return
                     }
                     
                     if let resultError = result.error {
                         
-                        continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: "result.error exists \(resultError.message)"]))
+                        continuation.resume(throwing: NSError(domain: "[GuestUpgradeViewModel]", code: -1, userInfo: [NSLocalizedDescriptionKey: "result.error exists \(resultError.message)"]))
                         
                         return
                     }
@@ -59,8 +63,13 @@ class GuestUpgradeViewModel: ObservableObject {
                     /**
                      * JWT exists, proceed to authenticate network
                      */
-                    if let jwt = result.network?.byJwt {
-                        continuation.resume(returning: .login(jwt))
+                    if let network = result.network {
+                        guard !network.byJwt.isEmpty else {
+                            continuation.resume(throwing: NSError(domain: "[GuestUpgradeViewModel]", code: -1, userInfo: [NSLocalizedDescriptionKey: "byJWT is empty"]))
+                            return
+                        }
+
+                        continuation.resume(returning: .login(network.byJwt))
                         return
                     }
                     

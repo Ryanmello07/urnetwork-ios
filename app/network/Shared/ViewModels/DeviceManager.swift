@@ -48,6 +48,7 @@ class DeviceManager: ObservableObject {
     }
     
     @Published private(set) var vpnManager: VPNManager? = nil
+    private var isLoggingOut = false
     
     
     @Published var provideControlMode: ProvideControlMode = ProvideControlMode.Auto {
@@ -56,7 +57,7 @@ class DeviceManager: ObservableObject {
         }
     }
     
-    @Published var routeLocal: Bool = false {
+    @Published var routeLocal: Bool = true {
         didSet {
             setRouteLocalInternal(routeLocal)
         }
@@ -186,6 +187,14 @@ class DeviceManager: ObservableObject {
     private var deviceProvideSub: SdkSubProtocol?
     private var deviceProvidePausedSub: SdkSubProtocol?
     private var deviceJwtRefreshSub: SdkSubProtocol?
+    private var deviceCanShowRatingDialogSub: SdkSubProtocol?
+    private var deviceCanPromptIntroFunnelSub: SdkSubProtocol?
+    private var deviceAllowForegroundSub: SdkSubProtocol?
+    private var deviceCanReferSub: SdkSubProtocol?
+    private var deviceProvideModeSub: SdkSubProtocol?
+    private var deviceProvideNetworkModeSub: SdkSubProtocol?
+    private var deviceVpnInterfaceWhileOfflineSub: SdkSubProtocol?
+    private var deviceDefaultLocationSub: SdkSubProtocol?
 
     private func updateAllowProvidingCell(_ allow: Bool) {
         #if os(iOS)
@@ -206,36 +215,31 @@ class DeviceManager: ObservableObject {
         if self.device != device {
             
             cleanupDeviceListeners()
+            self.vpnManager?.close()
+            self.vpnManager = nil
             
             self.device?.close()
             self.device = device
             
-            Task {
-            
-                self.vpnManager?.close()
-                self.vpnManager = nil
-                
-                if let device = device {
-                    print("set device hit: device exists: resetting vpn manager")
-                    
-                    if let provideControlMode = ProvideControlMode(rawValue: device.getProvideControlMode()) {
-                        self.provideControlMode = provideControlMode
-                    }
-                    
-                    if let provideNetworkMode = ProvideNetworkMode(rawValue: device.getProvideNetworkMode()) {
-                        self.allowProvidingCell = provideNetworkMode == .All
-                    }
+            if let device = device {
+                print("set device hit: device exists: resetting vpn manager")
 
-                    loadPerformanceProfileFromDevice(device)
-                    
-                    self.deviceInitialized = true
-                    self.vpnManager = VPNManager(device: device)
-                } else {
-                    self.provideControlMode = ProvideControlMode.Auto
-                    self.deviceInitialized = false
-                    self.allowProvidingCell = false
+                if let provideControlMode = ProvideControlMode(rawValue: device.getProvideControlMode()) {
+                    self.provideControlMode = provideControlMode
                 }
+
+                if let provideNetworkMode = ProvideNetworkMode(rawValue: device.getProvideNetworkMode()) {
+                    self.allowProvidingCell = provideNetworkMode == .All
+                }
+
+                loadPerformanceProfileFromDevice(device)
                 
+                self.deviceInitialized = true
+                self.vpnManager = VPNManager(device: device)
+            } else {
+                self.provideControlMode = ProvideControlMode.Auto
+                self.deviceInitialized = false
+                self.allowProvidingCell = false
             }
             
         }
@@ -288,14 +292,10 @@ class DeviceManager: ObservableObject {
      * used in app intents
      */
     func waitForDeviceInitialization() async {
-        // Return early if already initialized
-        if deviceInitialized { return }
-        
-        // Wait for deviceInitialized to become true
-        for await value in $deviceInitialized.values {
-            if value == true {
-                return
-            }
+        do {
+            try await waitUntilDeviceInitialized()
+        } catch {
+            print("[\(domain)] Timed out waiting for device initialization: \(error)")
         }
     }
     
@@ -418,6 +418,8 @@ private class GetJwtInitDeviceCallback: NSObject, SdkGetByClientJwtCallbackProto
 // MARK: Device initialized utils
 extension DeviceManager {
     func waitUntilDeviceInitialized(timeout: TimeInterval = 30) async throws {
+        if deviceInitialized { return }
+
         try await withTimeout(timeout) {
             for await initialized in self.$deviceInitialized.values {
                 if initialized {
@@ -428,6 +430,8 @@ extension DeviceManager {
     }
     
     func waitUntilDeviceUninitialized(timeout: TimeInterval = 30) async throws {
+        if !deviceInitialized { return }
+
         try await withTimeout(timeout) {
             for await initialized in self.$deviceInitialized.values {
                 if !initialized {
@@ -461,6 +465,53 @@ extension DeviceManager {
 
 // MARK: Network space handlers
 extension DeviceManager {
+    private func markInitializedWithoutDevice() {
+        if self.device != nil {
+            self.clearDevice()
+        } else {
+            cleanupDeviceListeners()
+            self.vpnManager?.close()
+            self.vpnManager = nil
+        }
+
+        self.provideControlMode = ProvideControlMode.Auto
+        self.allowProvidingCell = false
+        self.provideEnabled = false
+        self.providePaused = false
+        self.deviceInitialized = true
+        self.updateParsedJwt()
+    }
+
+    private func clearAuthStateAndMarkInitialized() {
+        self.api?.setByJwt(nil)
+
+        guard let asyncLocalState = self.asyncLocalState else {
+            self.removeVpnProfilesAndMarkInitializedWithoutDevice()
+            return
+        }
+
+        let callback = SdkCommitCallback { success in
+            DispatchQueue.main.async {
+                if !success {
+                    print("[\(self.domain)] failed to clear local auth state during initialization")
+                }
+                self.removeVpnProfilesAndMarkInitializedWithoutDevice()
+            }
+        }
+
+        asyncLocalState.logout(callback)
+    }
+
+    private func removeVpnProfilesAndMarkInitializedWithoutDevice() {
+        VPNManager.clearTunnelLocalStateAndRemoveAllVpnProfiles { error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("[\(self.domain)] failed to remove VPN profiles during auth cleanup: \(error.localizedDescription)")
+                }
+                self.markInitializedWithoutDevice()
+            }
+        }
+    }
     
     func initializeNetworkSpace() async {
         
@@ -497,28 +548,26 @@ extension DeviceManager {
             deviceSpecs: deviceSpecs,
             onResult: { result, ok in
                 if ok {
-                    
-                    guard let result else {
-                        self.logout()
-                        
+                    guard let result, !result.isEmpty else {
+                        print("[\(self.domain)] stored client JWT is missing or empty")
+                        self.clearAuthStateAndMarkInitialized()
                         return
                     }
-                    
-                    if result == "" {
-                        print("result is empty")
-                        self.logout()
-                    } else {
-                        self.initDevice(clientJwt: result, deviceSpec: deviceSpecs)
+
+                    if !self.initDevice(clientJwt: result, deviceSpec: deviceSpecs) {
+                        self.clearAuthStateAndMarkInitialized()
                     }
-                    
                 } else {
-                    
-                    self.deviceInitialized = true
-                    
+                    self.markInitializedWithoutDevice()
                 }
             }
         )
-        self.asyncLocalState?.getByClientJwt(getJwtCallback)
+        guard let asyncLocalState = self.asyncLocalState else {
+            self.markInitializedWithoutDevice()
+            return
+        }
+
+        asyncLocalState.getByClientJwt(getJwtCallback)
         
     }
     
@@ -531,104 +580,117 @@ extension DeviceManager {
     func initDevice(
         clientJwt: String,
         deviceSpec: String
-    ) {
-        
-        if let networkSpace = networkSpace {
-            
-            let localState = asyncLocalState?.getLocalState()
-            
-            if let localState = localState {
-                
-                let routeLocal = localState.getRouteLocal()
-                let connectLocation = localState.getConnectLocation()
-                let defaultLocation = localState.getDefaultLocation()
-                let canShowRatingDialog = localState.getCanShowRatingDialog()
-                let performanceProfile = localState.getPerformanceProfile()
-            
-                let provideControlModeStr = localState.getProvideControlMode()
-                let provideControlMode = ProvideControlMode(rawValue: provideControlModeStr)
-                
-                let provideNetworkModeStr = localState.getProvideNetworkMode()
-                let provideNetworkMode = ProvideNetworkMode(rawValue: provideNetworkModeStr)
-                
-                let provideMode = provideControlMode == ProvideControlMode.Always ? SdkProvideModePublic : localState.getProvideMode()
-                let canRefer = localState.getCanRefer()
-                // note ios does not allow VPN interface while offline, due to the existing interface conditions
-                // ignore `vpnInterfaceWhileOffline`
-                
-                var instanceId = localState.getInstanceId()
-                if instanceId == nil {
-                    instanceId = SdkNewId()
-                    try? localState.setInstanceId(instanceId)
-                }
-                
-                var newDeviceError: NSError?
-                
-                
-                let device = SdkNewDeviceRemoteWithDefaults(
-                    networkSpace,
-                    clientJwt,
-                    instanceId,
-                    &newDeviceError
-                )
-                
-                if let error = newDeviceError {
-                    print("Error occurred: \(error.localizedDescription)")
-                } else {
-                    print("Device created successfully")
-                }
-                
-                guard let device = device else {
-                    return
-                }
-                
-                if let providerSecretKeys = localState.getProvideSecretKeys() {
-                    device.loadProvideSecretKeys(providerSecretKeys)
-                } else {
-                    var providerSecretKeysSub: SdkSubProtocol?
-                    providerSecretKeysSub = device.add(ProvideSecretKeysListener { provideSecretKeysList in
-                        try? localState.setProvideSecretKeys(provideSecretKeysList)
-                        providerSecretKeysSub?.close()
-                    })
-                    device.initProvideSecretKeys()
-                }
-                
-                // note the network extension controls listening for connectivity and provide paused
-                // ignore `providePaused`
-                device.setRouteLocal(routeLocal)
-                device.setProvideMode(provideMode)
-                device.setCanShowRatingDialog(canShowRatingDialog)
-                // device.setProvideWhileDisconnected(provideWhileDisconnected)
-                device.setProvideControlMode(provideControlMode?.rawValue ?? ProvideControlMode.Auto.rawValue)
-                device.setProvideNetworkMode(provideNetworkMode?.rawValue ?? ProvideNetworkMode.WiFi.rawValue)
-                device.setCanRefer(canRefer)
-                
-                if (performanceProfile != nil) {
-                    device.setPerformanceProfile(performanceProfile)
-                }
-                
-                // only set the location if the current location is not already equivalent
-                // this avoid resetting the connection
-                if let remoteLocation = device.getConnectLocation() {
-                    if !remoteLocation.equals(connectLocation) {
-                        device.setConnectLocation(connectLocation)
-                    }
-                } else {
-                    device.setConnectLocation(connectLocation)
-                }
-                
-                // default location is used to persist non-connected location on app restart
-                if (defaultLocation != nil) {
-                    device.setDefaultLocation(defaultLocation)
-                }
-                
-                self.setDevice(device: device)
-                
-            } else {
-                print("local state is nil")
-            }
-            
+    ) -> Bool {
+        guard let networkSpace = networkSpace else {
+            markInitializedWithoutDevice()
+            return false
         }
+
+        guard let localState = asyncLocalState?.getLocalState() else {
+            print("local state is nil")
+            markInitializedWithoutDevice()
+            return false
+        }
+
+        let routeLocal = localState.getRouteLocal()
+        let connectLocation = localState.getConnectLocation()
+        let defaultLocation = localState.getDefaultLocation()
+        let canShowRatingDialog = localState.getCanShowRatingDialog()
+        let canPromptIntroFunnel = localState.getCanPromptIntroFunnel()
+        let allowForeground = localState.getAllowForeground()
+        let performanceProfile = localState.getPerformanceProfile()
+
+        let provideControlModeStr = localState.getProvideControlMode()
+        let provideControlMode = ProvideControlMode(rawValue: provideControlModeStr)
+
+        let provideNetworkModeStr = localState.getProvideNetworkMode()
+        let provideNetworkMode = ProvideNetworkMode(rawValue: provideNetworkModeStr)
+
+        let provideMode = provideControlMode == ProvideControlMode.Always ? SdkProvideModePublic : localState.getProvideMode()
+        let canRefer = localState.getCanRefer()
+        let vpnInterfaceWhileOffline = localState.getVpnInterfaceWhileOffline()
+
+        var instanceId = localState.getInstanceId()
+        if instanceId == nil {
+            instanceId = SdkNewId()
+            try? localState.setInstanceId(instanceId)
+        }
+
+        var newDeviceError: NSError?
+
+        let device = SdkNewDeviceRemoteWithDefaults(
+            networkSpace,
+            clientJwt,
+            instanceId,
+            &newDeviceError
+        )
+
+        if let error = newDeviceError {
+            print("Error occurred: \(error.localizedDescription)")
+        } else {
+            print("Device created successfully")
+        }
+
+        guard let device = device else {
+            markInitializedWithoutDevice()
+            return false
+        }
+
+        // point the rpc transport at the last known good session (if any) so the
+        // device can connect to an already-running extension immediately, instead
+        // of the default 127.0.0.1:12025 ws until the vpn is (re)started
+        if let rpcSession = RpcSessionStore.load() {
+            do {
+                try device.setRpcServer(rpcSession.clientPem, serverCertPem: rpcSession.serverCertPem, hostPort: rpcSession.hostPort)
+            } catch {
+                print("[DeviceManager]setRpcServer failed: \(error.localizedDescription)")
+            }
+        }
+
+        if let providerSecretKeys = localState.getProvideSecretKeys() {
+            device.loadProvideSecretKeys(providerSecretKeys)
+        } else {
+            var providerSecretKeysSub: SdkSubProtocol?
+            providerSecretKeysSub = device.add(ProvideSecretKeysListener { provideSecretKeysList in
+                try? localState.setProvideSecretKeys(provideSecretKeysList)
+                providerSecretKeysSub?.close()
+            })
+            device.initProvideSecretKeys()
+        }
+
+        // note the network extension controls listening for connectivity and provide paused
+        // ignore `providePaused`
+        device.setRouteLocal(routeLocal)
+        device.setProvideMode(provideMode)
+        device.setCanShowRatingDialog(canShowRatingDialog)
+        device.setCanPromptIntroFunnel(canPromptIntroFunnel)
+        device.setAllowForeground(allowForeground)
+        device.setProvideControlMode(provideControlMode?.rawValue ?? ProvideControlMode.Auto.rawValue)
+        device.setProvideNetworkMode(provideNetworkMode?.rawValue ?? ProvideNetworkMode.WiFi.rawValue)
+        device.setCanRefer(canRefer)
+        device.setVpnInterfaceWhileOffline(vpnInterfaceWhileOffline)
+
+        if (performanceProfile != nil) {
+            device.setPerformanceProfile(performanceProfile)
+        }
+
+        // only set the location if the current location is not already equivalent
+        // this avoid resetting the connection
+        if let remoteLocation = device.getConnectLocation() {
+            if !remoteLocation.equals(connectLocation) {
+                device.setConnectLocation(connectLocation)
+            }
+        } else {
+            device.setConnectLocation(connectLocation)
+        }
+
+        // default location is used to persist non-connected location on app restart
+        if (defaultLocation != nil) {
+            device.setDefaultLocation(defaultLocation)
+        }
+
+        self.setDevice(device: device)
+        return true
     }
     
     
@@ -684,6 +746,41 @@ extension DeviceManager {
             }
             
         })
+
+        self.deviceCanShowRatingDialogSub = device.add(CanShowRatingDialogChangeListener { [weak self] canShowRatingDialog in
+            try? self?.asyncLocalState?.getLocalState()?.setCanShowRatingDialog(canShowRatingDialog)
+        })
+
+        self.deviceCanPromptIntroFunnelSub = device.add(CanPromptIntroFunnelChangeListener { [weak self] canPromptIntroFunnel in
+            try? self?.asyncLocalState?.getLocalState()?.setCanPromptIntroFunnel(canPromptIntroFunnel)
+        })
+
+        self.deviceAllowForegroundSub = device.add(AllowForegroundChangeListener { [weak self] allowForeground in
+            try? self?.asyncLocalState?.getLocalState()?.setAllowForeground(allowForeground)
+        })
+
+        self.deviceCanReferSub = device.add(CanReferChangeListener { [weak self] canRefer in
+            try? self?.asyncLocalState?.getLocalState()?.setCanRefer(canRefer)
+        })
+
+        self.deviceProvideModeSub = device.add(ProvideModeChangeListener { [weak self] provideMode in
+            try? self?.asyncLocalState?.getLocalState()?.setProvideMode(provideMode)
+        })
+
+        self.deviceProvideNetworkModeSub = device.add(ProvideNetworkModeChangeListener { [weak self] provideNetworkMode in
+            guard let provideNetworkMode else {
+                return
+            }
+            try? self?.asyncLocalState?.getLocalState()?.setProvideNetworkMode(provideNetworkMode)
+        })
+
+        self.deviceVpnInterfaceWhileOfflineSub = device.add(VpnInterfaceWhileOfflineChangeListener { [weak self] vpnInterfaceWhileOffline in
+            try? self?.asyncLocalState?.getLocalState()?.setVpnInterfaceWhileOffline(vpnInterfaceWhileOffline)
+        })
+
+        self.deviceDefaultLocationSub = device.add(DefaultLocationChangeListener { [weak self] location in
+            try? self?.asyncLocalState?.getLocalState()?.setDefaultLocation(location)
+        })
         
         self.provideEnabled = device.getProvideEnabled()
         self.providePaused = device.getProvidePaused()
@@ -698,6 +795,30 @@ extension DeviceManager {
         
         deviceJwtRefreshSub?.close()
         deviceJwtRefreshSub = nil
+
+        deviceCanShowRatingDialogSub?.close()
+        deviceCanShowRatingDialogSub = nil
+
+        deviceCanPromptIntroFunnelSub?.close()
+        deviceCanPromptIntroFunnelSub = nil
+
+        deviceAllowForegroundSub?.close()
+        deviceAllowForegroundSub = nil
+
+        deviceCanReferSub?.close()
+        deviceCanReferSub = nil
+
+        deviceProvideModeSub?.close()
+        deviceProvideModeSub = nil
+
+        deviceProvideNetworkModeSub?.close()
+        deviceProvideNetworkModeSub = nil
+
+        deviceVpnInterfaceWhileOfflineSub?.close()
+        deviceVpnInterfaceWhileOfflineSub = nil
+
+        deviceDefaultLocationSub?.close()
+        deviceDefaultLocationSub = nil
     }
     
 }
@@ -716,13 +837,13 @@ private class SetJWTLocalStateCallback: NSObject, SdkCommitCallbackProtocol {
     let continuation: CheckedContinuation<Void, Error>
     let clientJwt: String
     let deviceSpecs: String
-    let initDevice: (_ clientJwt: String, _ deviceSpecs: String) -> Void
+    let initDevice: (_ clientJwt: String, _ deviceSpecs: String) -> Bool
     
     init(
         continuation: CheckedContinuation<Void, Error>,
         clientJwt: String,
         deviceSpecs: String,
-        initDevice: @escaping (_ clientJwt: String, _ deviceSpecs: String) -> Void
+        initDevice: @escaping (_ clientJwt: String, _ deviceSpecs: String) -> Bool
     ) {
         self.continuation = continuation
         
@@ -736,9 +857,11 @@ private class SetJWTLocalStateCallback: NSObject, SdkCommitCallbackProtocol {
         DispatchQueue.main.async {
             
             if success {
-                
-                self.initDevice(self.clientJwt, self.deviceSpecs)
-                self.continuation.resume(returning: ())
+                if self.initDevice(self.clientJwt, self.deviceSpecs) {
+                    self.continuation.resume(returning: ())
+                } else {
+                    self.continuation.resume(throwing: NSError(domain: "SetJWTLocalStateCallback", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to initialize device"]))
+                }
                 
             } else {
                 self.continuation.resume(throwing: NSError(domain: "SetJWTLocalStateCallback", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to set client JWT"]))
@@ -754,14 +877,19 @@ private class SetJWTLocalStateCallback: NSObject, SdkCommitCallbackProtocol {
 extension DeviceManager {
     
     func authenticateNetworkClient(_ jwt: String) async -> Result<Void, Error> {
-        
+        guard let asyncLocalState = asyncLocalState,
+              let localState = asyncLocalState.getLocalState() else {
+            return .failure(NSError(domain: domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "login: local state is nil"]))
+        }
+
         do {
-            try asyncLocalState?.getLocalState()?.setByJwt(jwt)
+            try localState.setByJwt(jwt)
         } catch {
             return .failure(error)
         }
         
         guard let api = api else {
+            await rollbackFailedNetworkClientAuthentication()
             return .failure(NSError(domain: domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "login: api is nil"]))
         }
         
@@ -801,7 +929,11 @@ extension DeviceManager {
                     }
                     
                     let clientJwt = result.byClientJwt
-                    
+                    guard !clientJwt.isEmpty else {
+                        continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: "Auth network client returned empty client JWT"]))
+                        return
+                    }
+
                     let callback = SetJWTLocalStateCallback(
                         continuation: continuation,
                         clientJwt: clientJwt,
@@ -809,7 +941,7 @@ extension DeviceManager {
                         initDevice: self.initDevice(clientJwt:deviceSpec:)
                     )
                     
-                    self.asyncLocalState?.setByClientJwt(clientJwt, callback: callback)
+                    asyncLocalState.setByClientJwt(clientJwt, callback: callback)
                     
                 }
                 
@@ -820,9 +952,37 @@ extension DeviceManager {
             return .success(result)
             
         } catch {
+            await rollbackFailedNetworkClientAuthentication()
             return .failure(error)
         }
         
+    }
+
+    private func rollbackFailedNetworkClientAuthentication() async {
+        api?.setByJwt(nil)
+
+        guard let asyncLocalState = asyncLocalState else {
+            return
+        }
+
+        await withCheckedContinuation { continuation in
+            let callback = SdkCommitCallback { success in
+                if !success {
+                    print("[authenticateNetworkClient] failed to roll back BY-JWT")
+                }
+
+                let clientJwtCallback = SdkCommitCallback { success in
+                    if !success {
+                        print("[authenticateNetworkClient] failed to roll back client JWT")
+                    }
+                    continuation.resume()
+                }
+
+                asyncLocalState.setByClientJwt(nil, callback: clientJwtCallback)
+            }
+
+            asyncLocalState.setByJwt(nil, callback: callback)
+        }
     }
     
     class SdkCommitCallback: NSObject, SdkCommitCallbackProtocol {
@@ -839,20 +999,59 @@ extension DeviceManager {
     }
     
     func logout() {
-        
-        guard let asyncLocalState = asyncLocalState else {
-            print("[logout] asyncLocalState is nil")
+        guard !isLoggingOut else {
             return
         }
-        
-        let callback = SdkCommitCallback { success in
-            DispatchQueue.main.async {
+
+        isLoggingOut = true
+
+        let finishLocalStateLogout = {
+            guard let asyncLocalState = self.asyncLocalState else {
+                print("[logout] asyncLocalState is nil")
+                self.isLoggingOut = false
                 self.clearDevice()
+                return
+            }
+
+            let callback = SdkCommitCallback { success in
+                DispatchQueue.main.async {
+                    self.isLoggingOut = false
+                    if !success {
+                        print("[logout] asyncLocalState logout failed")
+                    }
+                    self.clearDevice()
+                }
+            }
+
+            asyncLocalState.logout(callback)
+        }
+
+        guard let vpnManager = vpnManager else {
+            VPNManager.clearTunnelLocalStateAndRemoveAllVpnProfiles { error in
+                DispatchQueue.main.async {
+                    if let error = error {
+                        print("[logout] failed to clear VPN profiles: \(error.localizedDescription)")
+                    }
+                    finishLocalStateLogout()
+                }
+            }
+            return
+        }
+
+        vpnManager.stopVpnTunnelOnLogout { error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("[logout] failed to stop VPN tunnel: \(error.localizedDescription)")
+                }
+
+                vpnManager.close()
+                if self.vpnManager === vpnManager {
+                    self.vpnManager = nil
+                }
+
+                finishLocalStateLogout()
             }
         }
-        
-        asyncLocalState.logout(callback)
-        
     }
     
     private func getDeviceSpecs() -> String {
@@ -923,6 +1122,110 @@ private class ProvidePausedChangeListener: NSObject, SdkProvidePausedChangeListe
     }
 }
 
+private class CanShowRatingDialogChangeListener: NSObject, SdkCanShowRatingDialogChangeListenerProtocol {
+
+    private let c: (_ canShowRatingDialog: Bool) -> Void
+
+    init(c: @escaping (_ canShowRatingDialog: Bool) -> Void) {
+        self.c = c
+    }
+
+    func canShowRatingDialogChanged(_ canShowRatingDialog: Bool) {
+        c(canShowRatingDialog)
+    }
+}
+
+private class CanPromptIntroFunnelChangeListener: NSObject, SdkCanPromptIntroFunnelChangeListenerProtocol {
+
+    private let c: (_ canPromptIntroFunnel: Bool) -> Void
+
+    init(c: @escaping (_ canPromptIntroFunnel: Bool) -> Void) {
+        self.c = c
+    }
+
+    func canPromptIntroFunnelChanged(_ canPromptIntroFunnel: Bool) {
+        c(canPromptIntroFunnel)
+    }
+}
+
+private class AllowForegroundChangeListener: NSObject, SdkAllowForegroundChangeListenerProtocol {
+
+    private let c: (_ allowForeground: Bool) -> Void
+
+    init(c: @escaping (_ allowForeground: Bool) -> Void) {
+        self.c = c
+    }
+
+    func allowForegroundChanged(_ allowForeground: Bool) {
+        c(allowForeground)
+    }
+}
+
+private class CanReferChangeListener: NSObject, SdkCanReferChangeListenerProtocol {
+
+    private let c: (_ canRefer: Bool) -> Void
+
+    init(c: @escaping (_ canRefer: Bool) -> Void) {
+        self.c = c
+    }
+
+    func canReferChanged(_ canRefer: Bool) {
+        c(canRefer)
+    }
+}
+
+private class ProvideModeChangeListener: NSObject, SdkProvideModeChangeListenerProtocol {
+
+    private let c: (_ provideMode: Int) -> Void
+
+    init(c: @escaping (_ provideMode: Int) -> Void) {
+        self.c = c
+    }
+
+    func provideModeChanged(_ provideMode: Int) {
+        c(provideMode)
+    }
+}
+
+private class ProvideNetworkModeChangeListener: NSObject, SdkProvideNetworkModeChangeListenerProtocol {
+
+    private let c: (_ provideNetworkMode: String?) -> Void
+
+    init(c: @escaping (_ provideNetworkMode: String?) -> Void) {
+        self.c = c
+    }
+
+    func provideNetworkModeChanged(_ provideNetworkMode: String?) {
+        c(provideNetworkMode)
+    }
+}
+
+private class VpnInterfaceWhileOfflineChangeListener: NSObject, SdkVpnInterfaceWhileOfflineChangeListenerProtocol {
+
+    private let c: (_ vpnInterfaceWhileOffline: Bool) -> Void
+
+    init(c: @escaping (_ vpnInterfaceWhileOffline: Bool) -> Void) {
+        self.c = c
+    }
+
+    func vpnInterfaceWhileOfflineChanged(_ vpnInterfaceWhileOffline: Bool) {
+        c(vpnInterfaceWhileOffline)
+    }
+}
+
+private class DefaultLocationChangeListener: NSObject, SdkDefaultLocationChangeListenerProtocol {
+
+    private let c: (_ location: SdkConnectLocation?) -> Void
+
+    init(c: @escaping (_ location: SdkConnectLocation?) -> Void) {
+        self.c = c
+    }
+
+    func defaultLocationChanged(_ location: SdkConnectLocation?) {
+        c(location)
+    }
+}
+
 private class JwtRefreshListener: NSObject, SdkJwtRefreshListenerProtocol {
     
     private let c: (_ jwt: String?) -> Void
@@ -935,4 +1238,3 @@ private class JwtRefreshListener: NSObject, SdkJwtRefreshListenerProtocol {
         c(jwt)
     }
 }
-

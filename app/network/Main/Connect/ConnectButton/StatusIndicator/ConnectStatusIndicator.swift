@@ -85,7 +85,7 @@ struct ConnectStatusIndicator: View {
 
 struct AnimatedEllipsis: View {
     @State private var dotCount = 0
-    private let timer = Timer.publish(every: 0.4, on: .main, in: .common).autoconnect()
+    @State private var timer: Timer?
 
     var body: some View {
         ZStack(alignment: .leading) {
@@ -94,8 +94,15 @@ struct AnimatedEllipsis: View {
             Text(String(repeating: ".", count: dotCount))
         }
         .frame(width: 20, alignment: .leading)
-        .onReceive(timer) { _ in
-            dotCount = (dotCount + 1) % 4
+        .onAppear {
+            timer?.invalidate()
+            timer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { _ in
+                dotCount = (dotCount + 1) % 4
+            }
+        }
+        .onDisappear {
+            timer?.invalidate()
+            timer = nil
         }
     }
 }

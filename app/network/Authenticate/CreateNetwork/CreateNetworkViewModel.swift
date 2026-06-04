@@ -50,6 +50,7 @@ extension CreateNetworkView {
         @Published var networkName: String = "" {
             didSet {
                 if oldValue != networkName {
+                    createNetworkErrorMessage = nil
                     checkNetworkName()
                 }
             }
@@ -61,6 +62,7 @@ extension CreateNetworkView {
         
         @Published var password: String = "" {
             didSet {
+                createNetworkErrorMessage = nil
                 validateForm()
             }
         }
@@ -71,11 +73,18 @@ extension CreateNetworkView {
         
         @Published var termsAgreed: Bool = false {
             didSet {
+                createNetworkErrorMessage = nil
                 validateForm()
             }
         }
         
         @Published private(set) var isCreatingNetwork: Bool = false
+        
+        @Published private(set) var createNetworkErrorMessage: String?
+        
+        func setCreateNetworkErrorMessage(_ message: String?) {
+            createNetworkErrorMessage = message
+        }
         
         @Published var isPresentedAddBonusSheet: Bool = false
         
@@ -173,25 +182,27 @@ extension CreateNetworkView {
             networkCheckWorkItem?.cancel()
             
             if networkName.count < 6 {
-                
+
                 if networkNameSupportingText != ViewModel.networkNameTooShort {
                     setNetworkNameSupportingText(ViewModel.networkNameTooShort)
                 }
-    
+
+                networkNameValidationState = .notChecked
+                validateForm()
                 return
             }
             
-            DispatchQueue.main.async {
-                self.networkNameValidationState = .validating
-            }
+            self.networkNameValidationState = .validating
             
             if networkNameValidationVc != nil {
+                let checkedNetworkName = networkName
                 
                 let callback = NetworkCheckCallback { [weak self] result, error in
                     
                     DispatchQueue.main.async {
                         
                         guard let self = self else { return }
+                        guard self.networkName == checkedNetworkName else { return }
                         
                         if let error = error {
                             print("error checking network name: \(error.localizedDescription)")
@@ -205,7 +216,7 @@ extension CreateNetworkView {
                         }
                         
                         if let result = result {
-                            print("result checking network name \(self.networkName): \(result.available)")
+                            print("result checking network name \(checkedNetworkName): \(result.available)")
                             self.networkNameValidationState = result.available ? .valid : .invalid
                             
                             
@@ -224,7 +235,7 @@ extension CreateNetworkView {
                 networkCheckWorkItem = DispatchWorkItem { [weak self] in
                     guard let self = self else { return }
                     
-                    self.networkNameValidationVc?.networkCheck(networkName, callback: callback)
+                    self.networkNameValidationVc?.networkCheck(checkedNetworkName, callback: callback)
                 }
                 
                 if let workItem = networkCheckWorkItem {
@@ -252,6 +263,7 @@ extension CreateNetworkView {
             }
                 
             
+            self.createNetworkErrorMessage = nil
             self.isCreatingNetwork = true
             
             do {
@@ -302,6 +314,7 @@ extension CreateNetworkView {
                 return .failure(NSError(domain: domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "Network creation already in progress"]))
             }
             
+            self.createNetworkErrorMessage = nil
             self.isCreatingNetwork = true
             
             do {
@@ -331,11 +344,11 @@ extension CreateNetworkView {
                     args.referralCode = self.bonusReferralCode
                 }
                 
-                return try await urApiService.createNetwork(args)
-                
-                
+                let result = try await urApiService.createNetwork(args)
+                self.isCreatingNetwork = false
+                return result
+
             } catch {
-                
                 self.isCreatingNetwork = false
                 
                 return .failure(error)

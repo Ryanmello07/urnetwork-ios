@@ -39,6 +39,10 @@ extension ConnectCanvasConnectingStateView {
         
         @Published var animatedPoints: [String: AnimatedGridPoint] = [:]
         private var animationTimer: Timer?
+
+        deinit {
+            animationTimer?.invalidate()
+        }
         let canvasWidth: CGFloat = 256
         @Published var maxPointSize: CGFloat = 0
         
@@ -143,19 +147,14 @@ extension ConnectCanvasConnectingStateView {
             }
             
             // Ccean up when both animations complete
-            animatedPoints = animatedPoints.filter { id, point in
-                let shouldKeep = !(point.currentState == .removed &&
-                                 point.stateAnimationProgress >= 1.0 &&
-                                 point.sizeAnimationProgress >= 1.0)
-                if !shouldKeep {
-                    print("Removing point \(id)")
-                }
-                return shouldKeep
+            animatedPoints = animatedPoints.filter { _, point in
+                !(point.currentState == .removed &&
+                  point.stateAnimationProgress >= 1.0 &&
+                  point.sizeAnimationProgress >= 1.0)
             }
             
             // keep timer running if any animation is still in progress
             if animatedPoints.values.allSatisfy({ !$0.isAnimating }) {
-                print("Stopping animation timer")
                 animationTimer?.invalidate()
                 animationTimer = nil
             }
@@ -203,7 +202,9 @@ extension ConnectCanvasConnectingStateView {
         func getColorComponents(from color: Color) -> [CGFloat] {
             #if canImport(UIKit)
             let uiColor = UIColor(color)
-            return uiColor.cgColor.components ?? [0, 0, 0, 0]
+            let converted = uiColor.cgColor.converted(to: CGColorSpaceCreateDeviceRGB(), intent: .defaultIntent, options: nil)
+            let components = converted?.components ?? [0, 0, 0, 0]
+            return components + Array(repeating: 0, count: max(0, 4 - components.count))
             #elseif canImport(AppKit)
             let nsColor = NSColor(color)
             let convertedColor = nsColor.usingColorSpace(.deviceRGB) ?? NSColor.black

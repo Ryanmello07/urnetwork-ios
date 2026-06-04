@@ -15,6 +15,7 @@ struct WalletsView: View {
     @EnvironmentObject var accountWalletsViewModel: AccountWalletsViewModel
     @EnvironmentObject var payoutWalletViewModel: PayoutWalletViewModel
     @EnvironmentObject var connectWalletProviderViewModel: ConnectWalletProviderViewModel
+    @EnvironmentObject var snackbarManager: UrSnackbarManager
     
     let navigate: (AccountNavigationPath) -> Void
     let api: UrApiServiceProtocol
@@ -150,28 +151,30 @@ struct WalletsView: View {
             )
 
         }
-        .onReceive(connectWalletProviderViewModel.$connectedPublicKey) { walletAddress in
-            
-            /**
-             * Once we receive an address from the wallet, here we associate the address with the network
-             */
-            
-            if let walletAddress = walletAddress {
-                
-                // TODO: check if wallet address already present in existing wallets
-                
-                Task {
-                    // TODO: error handling on connect wallet
-                    let _ = await accountWalletsViewModel.connectWallet(walletAddress: walletAddress, chain: WalletChain.sol)
-                    await payoutWalletViewModel.fetchPayoutWallet()
-                    viewModel.presentConnectWalletSheet = false
-                }
-                
-            }
-            
-        }
         .onOpenURL { url in
-            connectWalletProviderViewModel.handleDeepLink(url)
+            guard viewModel.presentConnectWalletSheet else {
+                return
+            }
+
+            connectWalletProviderViewModel.handleDeepLink(
+                url,
+                onPublicKeyRetrieved: { walletAddress, _ in
+                    Task {
+                        let result = await accountWalletsViewModel.connectWallet(walletAddress: walletAddress, chain: WalletChain.sol)
+
+                        switch result {
+                        case .success:
+                            await payoutWalletViewModel.fetchPayoutWallet()
+                            viewModel.presentConnectWalletSheet = false
+                        case .failure(let error):
+                            snackbarManager.showSnackbar(message: "There was an error connecting your wallet: \(error.localizedDescription)")
+                        }
+                    }
+                },
+                onError: { _ in
+                    snackbarManager.showSnackbar(message: "There was an error connecting your wallet.")
+                }
+            )
         }
         .sheet(isPresented: $viewModel.presentConnectWalletSheet) {
             

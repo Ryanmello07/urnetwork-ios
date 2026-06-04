@@ -37,9 +37,7 @@ class NetworkUserViewModel: ObservableObject {
         isFetchingNetworkUser = true
         
         do {
-            let networkUser: SdkNetworkUser = try await withCheckedThrowingContinuation { [weak self] continuation in
-            
-                guard let self = self else { return }
+            let networkUser: SdkNetworkUser = try await withCheckedThrowingContinuation { continuation in
                 
                 let callback = GetNetworkUserCallback { result, err in
                     
@@ -48,8 +46,18 @@ class NetworkUserViewModel: ObservableObject {
                         return
                     }
                     
-                    guard let result = result, let networkUser = result.networkUser else {
-                        continuation.resume(throwing: SendPasswordResetLinkError.resultInvalid)
+                    guard let result = result else {
+                        continuation.resume(throwing: FetchNetworkUserError.networkUserNotFound)
+                        return
+                    }
+
+                    if let resultError = result.error {
+                        continuation.resume(throwing: NSError(domain: "NetworkUserViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: resultError.message]))
+                        return
+                    }
+
+                    guard let networkUser = result.networkUser else {
+                        continuation.resume(throwing: FetchNetworkUserError.networkUserNotFound)
                         return
                     }
                     
@@ -61,14 +69,13 @@ class NetworkUserViewModel: ObservableObject {
                 
             }
             
-            DispatchQueue.main.async {
-                self.networkUser = networkUser
-            }
-            
+            self.networkUser = networkUser
+            self.isFetchingNetworkUser = false
+
             return .success(())
-            
-            
+
         } catch(let error) {
+            self.isFetchingNetworkUser = false
             return .failure(error)
         }
         

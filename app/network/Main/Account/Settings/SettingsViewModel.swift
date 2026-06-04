@@ -40,11 +40,12 @@ extension SettingsView {
             
         }
         
+        private var isCheckingNotificationSettings = true
+
         @Published var canReceiveNotifications: Bool = false {
             didSet {
-                if canReceiveNotifications == true {
-                    requestNotificationAuthorization()
-                }
+                guard !isCheckingNotificationSettings, canReceiveNotifications == true else { return }
+                requestNotificationAuthorization()
             }
         }
         
@@ -55,10 +56,13 @@ extension SettingsView {
         @Published var isDeletingNetwork: Bool = false
         
         #if os(macOS)
+        private var isApplyingLaunchAtStartupState = false
+
         @Published var launchAtStartupEnabled: Bool {
             didSet {
-                // update here
-                setLaunchAtStartup(launchAtStartupEnabled)
+                guard !isApplyingLaunchAtStartupState else { return }
+                guard oldValue != launchAtStartupEnabled else { return }
+                setLaunchAtStartup(launchAtStartupEnabled, previousValue: oldValue)
             }
         }
         #endif
@@ -85,18 +89,24 @@ extension SettingsView {
             center.getNotificationSettings { settings in
                 switch settings.authorizationStatus {
                 case .notDetermined:
-                    print("Notification permission not determined.")
+                    Task { @MainActor in
+                        self.isCheckingNotificationSettings = false
+                    }
                 case .denied:
-                    print("Notification permission denied.")
+                    Task { @MainActor in
+                        self.isCheckingNotificationSettings = false
+                    }
                 case .authorized, .provisional, .ephemeral:
-                    print("Notification permission granted.")
-                    
                     Task { @MainActor in
                         self.canReceiveNotifications = true
+                        self.isCheckingNotificationSettings = false
                     }
                     
                 @unknown default:
                     print("Unknown notification settings.")
+                    Task { @MainActor in
+                        self.isCheckingNotificationSettings = false
+                    }
                 }
             }
         }
@@ -141,9 +151,7 @@ extension SettingsView {
                 
             }
             catch(let error) {
-                DispatchQueue.main.async {
-                    self.isDeletingNetwork = false
-                }
+                self.isDeletingNetwork = false
                 return .failure(error)
             }
             
@@ -171,7 +179,7 @@ extension SettingsView {
         }
         
         #if os(macOS)
-        private func setLaunchAtStartup(_ enabled: Bool) {
+        private func setLaunchAtStartup(_ enabled: Bool, previousValue: Bool) {
             print("setLaunchAtStartup hit with enabled value: \(enabled)")
             
             if (enabled == (SMAppService.mainApp.status == .enabled)) {
@@ -189,6 +197,9 @@ extension SettingsView {
                 }
             } catch {
                 print("Failed to set launch at startup: \(error)")
+                isApplyingLaunchAtStartupState = true
+                launchAtStartupEnabled = previousValue
+                isApplyingLaunchAtStartupState = false
             }
         }
         #endif

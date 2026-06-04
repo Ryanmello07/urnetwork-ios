@@ -30,7 +30,7 @@ struct MainNavigationSplitView: View {
     let isPro: Bool
 
     var connectViewController: SdkConnectViewController?
-    
+
     var iconWidth: CGFloat = 16
     
     // can probably pass this down from MainView
@@ -57,7 +57,7 @@ struct MainNavigationSplitView: View {
         self.logout = logout
         self.device = device
         self.providerListStore = providerListStore
-        
+
         // todo: investigate why we need this?
         // we're launching this in NetworkApp
         // but without it, disconnect isn't triggered
