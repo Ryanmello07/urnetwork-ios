@@ -65,3 +65,6 @@ fastlane/test_output
 
 app/build
 app/build.xcarchive
+
+app/URnetworkSdk/build
+

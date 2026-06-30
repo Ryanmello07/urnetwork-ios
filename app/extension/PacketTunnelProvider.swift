@@ -528,18 +528,31 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         let networkSettings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "127.0.0.1")
 
         // IPv4 Configuration
-        let ipv4Settings = NEIPv4Settings(addresses: ["169.254.2.1"], subnetMasks: ["255.255.255.0"])
+        let tunnelLocalAddress = self.device?.tunnelLocalAddress() ?? "169.254.2.1"
+        let ipv4Settings = NEIPv4Settings(addresses: [tunnelLocalAddress], subnetMasks: ["255.255.255.0"])
         ipv4Settings.includedRoutes = [NEIPv4Route.default()]
         networkSettings.ipv4Settings = ipv4Settings
 
         let ipv6Settings = NEIPv6Settings()
         networkSettings.ipv6Settings = ipv6Settings
 
-        // DNS Settings
-    //        let dnsSettings = NEDNSSettings(servers: ["1.1.1.1", "8.8.8.8", "9.9.9.9"])
-        // use settings from connect/net_http_doh
-        let dnsSettings = NEDNSOverHTTPSSettings(servers: ["1.1.1.1", "8.8.8.8", "9.9.9.9"])
-        dnsSettings.serverURL = URL(string: "https://1.1.1.1/dns-query")
+        // DNS from the SDK device's tunnel DNS setting (default plain 1.1.1.1). Plain
+        // :53 lets the UpgradeMux intercept and upgrade it; a DoH setting is applied at
+        // the OS level and bypasses the mux.
+        let tunnelDns = self.device?.tunnelDnsSetting()
+        let dnsServer = (tunnelDns?.server.isEmpty == false) ? tunnelDns!.server : "1.1.1.1"
+        let dnsSettings: NEDNSSettings
+        if let tunnelDns = tunnelDns, tunnelDns.doh, !tunnelDns.dohUrl.isEmpty {
+            let dohSettings = NEDNSOverHTTPSSettings(servers: [dnsServer])
+            dohSettings.serverURL = URL(string: tunnelDns.dohUrl)
+            dnsSettings = dohSettings
+        } else {
+            dnsSettings = NEDNSSettings(servers: [dnsServer])
+        }
+        // route every DNS query to the tunnel resolver (empty string matches all
+        // domains). without this the OS may not send :53 queries into the tunnel, so
+        // the UpgradeMux never sees them and resolution fails.
+        dnsSettings.matchDomains = [""]
         networkSettings.dnsSettings = dnsSettings
 
         // default URnetwork MTU
