@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: Check out iOS repo
         uses: actions/checkout@v4
+        with:
+          path: urnetwork-ios
 
       - name: Check out forked SDK
         uses: actions/checkout@v4
@@ -49,7 +51,7 @@ jobs:
           make init build_apple
 
       - name: Resolve Swift packages
-        working-directory: app
+        working-directory: urnetwork-ios/app
         run: |
           xcodebuild -resolvePackageDependencies \
             -project app.xcodeproj \
@@ -57,7 +59,7 @@ jobs:
             -derivedDataPath DerivedData
 
       - name: Archive unsigned iOS app
-        working-directory: app
+        working-directory: urnetwork-ios/app
         run: |
           set -o pipefail
           xcodebuild archive \
@@ -76,7 +78,7 @@ jobs:
             2>&1 | tee xcodebuild-archive.log
 
       - name: Package unsigned IPA
-        working-directory: app
+        working-directory: urnetwork-ios/app
         run: |
           APP=$(find build/URnetwork.xcarchive -name 'URnetwork.app' -type d | head -n 1)
           if [ -z "$APP" ]; then
@@ -98,4 +100,4 @@ jobs:
             --prerelease \
             --title "URnetwork iOS beta custom server ${{ github.run_number }}" \
             --generate-notes \
-            app/URnetwork-beta.ipa
+            urnetwork-ios/app/URnetwork-beta.ipa
