@@ -33,7 +33,7 @@ jobs:
           go-version: stable
 
       - name: Check out connect dependency
-        run: git clone --depth 1 https://github.com/urnetwork/connect.git ../connect
+        run: git clone --depth 1 https://github.com/urnetwork/connect.git connect
 
       - name: Build SDK for iOS
         working-directory: urnetwork-sdk/build
