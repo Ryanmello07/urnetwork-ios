@@ -40,6 +40,10 @@ class MockUrApiService: UrApiServiceProtocol {
     func createNetwork(_ args: SdkNetworkCreateArgs) async throws -> LoginNetworkResult {
         return LoginNetworkResult.failure(LoginError.appleLoginFailed)
     }
+
+    func authWalletChallenge(_ args: SdkAuthWalletChallengeArgs) async throws -> SdkAuthWalletChallengeResult {
+        return SdkAuthWalletChallengeResult()
+    }
     
     func validateReferralCode(_ code: String) async throws -> SdkValidateReferralCodeResult {
         SdkValidateReferralCodeResult()
