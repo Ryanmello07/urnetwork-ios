@@ -514,6 +514,35 @@ extension UrApiService {
             
         }
     }
+
+    func authWalletChallenge(_ args: SdkAuthWalletChallengeArgs) async throws -> SdkAuthWalletChallengeResult {
+        return try await withCheckedThrowingContinuation { continuation in
+
+            let callback = AuthWalletChallengeCallback { result, err in
+
+                if let err = err {
+                    continuation.resume(throwing: err)
+                    return
+                }
+
+                guard let result = result else {
+                    continuation.resume(throwing: NSError(domain: "UrApiService", code: 0, userInfo: [NSLocalizedDescriptionKey: "No result found in callback"]))
+                    return
+                }
+
+                if let resultError = result.error {
+                    continuation.resume(throwing: NSError(domain: "UrApiService", code: 0, userInfo: [NSLocalizedDescriptionKey: resultError.message]))
+                    return
+                }
+
+                continuation.resume(returning: result)
+
+            }
+
+            api.authWalletChallenge(args, callback: callback)
+
+        }
+    }
     
 }
 
