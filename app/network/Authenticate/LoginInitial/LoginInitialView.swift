@@ -262,37 +262,53 @@ struct LoginInitialView: View {
     
     private func handleSolanaWalletResult(message: String, signature: String, publicKey: String) async {
         print("handleSolanaWalletResult")
-        
+
+        if viewModel.isSigningForCreateNetwork {
+            viewModel.isSigningForCreateNetwork = false
+            viewModel.setIsSigningMessage(false)
+            viewModel.presentSigninWithSolanaSheet = false
+
+            let createArgsResult = viewModel.createSolanaAuthLoginArgs(message: message, signature: signature, publicKey: publicKey)
+            switch createArgsResult {
+            case .success(let args):
+                navigate(.createNetwork(args))
+            case .failure(let error):
+                print("error create args result: \(error.localizedDescription)")
+                viewModel.setLoginErrorMessage("There was an error logging in")
+            }
+            return
+        }
+
         guard viewModel.beginLoginAction(.solana) else {
             return
         }
-        
+
         defer {
             viewModel.endLoginAction(.solana)
         }
-        
+
         let createArgsResult = viewModel.createSolanaAuthLoginArgs(message: message, signature: signature, publicKey: publicKey)
         switch createArgsResult {
         case .success(let args):
-            
+
             if deviceManager.device != nil {
-                
+
                 let upgradeArgs = self.createUpgradeSolanaWalletArgs(args)
-                
+
                 let result = await guestUpgradeViewModel.linkGuestToExistingLogin(args: upgradeArgs)
-                
+
                 await self.handleAuthLoginResult(result)
                 viewModel.presentSigninWithSolanaSheet = false
                 viewModel.setIsSigningMessage(false)
-                
-                
+
+
             } else {
                 let result = await viewModel.authLogin(args: args)
                 await self.handleAuthLoginResult(result)
                 viewModel.presentSigninWithSolanaSheet = false
                 viewModel.setIsSigningMessage(false)
             }
-        
+
         case .failure(let error):
             print("error create args result: \(error.localizedDescription)")
             viewModel.setIsSigningMessage(false)
@@ -399,7 +415,22 @@ struct LoginInitialView: View {
 
         case .create(let authLoginArgs):
             viewModel.setIsCheckingUserAuth(false)
-            navigate(.createNetwork(authLoginArgs))
+
+            if authLoginArgs.walletAuth != nil {
+                // the wallet challenge behind authLoginArgs was already
+                // consumed by the /auth/login call that just returned this
+                // .create case — fetch and sign a brand-new one before
+                // creating the network
+                viewModel.isSigningForCreateNetwork = true
+                let ok = await viewModel.prepareSolanaChallenge()
+                if ok {
+                    viewModel.setPresentSigninWithSolanaSheet(true)
+                } else {
+                    viewModel.isSigningForCreateNetwork = false
+                }
+            } else {
+                navigate(.createNetwork(authLoginArgs))
+            }
             break
 
         case .verificationRequired(let userAuth):
