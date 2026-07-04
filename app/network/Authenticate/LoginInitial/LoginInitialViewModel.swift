@@ -112,6 +112,27 @@ extension LoginInitialView {
         func setIsSigningMessage(_ isSigning: Bool) -> Void {
             isSigningMessage = isSigning
         }
+
+        @Published private(set) var solanaChallengeMessage: String?
+
+        /// Fetches a fresh, server-issued wallet-auth challenge and stores its
+        /// message template for the wallet to sign. Must be called again for
+        /// every sign attempt — the server invalidates a challenge the moment
+        /// it is checked, whether the check succeeds or fails.
+        func prepareSolanaChallenge() async -> Bool {
+            let args = SdkAuthWalletChallengeArgs()
+            args.blockchain = "solana"
+
+            do {
+                let result = try await urApiService.authWalletChallenge(args)
+                solanaChallengeMessage = result.messageTemplate
+                return true
+            } catch {
+                solanaChallengeMessage = nil
+                setLoginErrorMessage("There was an error connecting to your wallet")
+                return false
+            }
+        }
         
         let termsLink = "https://ur.io/terms"
         
