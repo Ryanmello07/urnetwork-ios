@@ -115,6 +115,8 @@ extension LoginInitialView {
 
         @Published private(set) var solanaChallengeMessage: String?
 
+        @Published var isSigningForCreateNetwork: Bool = false
+
         /// Fetches a fresh, server-issued wallet-auth challenge and stores its
         /// message template for the wallet to sign. Must be called again for
         /// every sign attempt — the server invalidates a challenge the moment
