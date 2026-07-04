@@ -969,6 +969,12 @@ private class AuthLoginCallback: SdkCallback<SdkAuthLoginResult, SdkAuthLoginCal
     }
 }
 
+private class AuthWalletChallengeCallback: SdkCallback<SdkAuthWalletChallengeResult, SdkAuthWalletChallengeCallbackProtocol>, SdkAuthWalletChallengeCallbackProtocol {
+    func result(_ result: SdkAuthWalletChallengeResult?, err: Error?) {
+        handleResult(result, err: err)
+    }
+}
+
 private class ValidateReferralCallback: SdkCallback<SdkValidateReferralCodeResult, SdkValidateReferralCodeCallbackProtocol>, SdkValidateReferralCodeCallbackProtocol {
     func result(_ result: SdkValidateReferralCodeResult?, err: Error?) {
         handleResult(result, err: err)
