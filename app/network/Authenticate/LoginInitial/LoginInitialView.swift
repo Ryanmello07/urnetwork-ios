@@ -74,7 +74,12 @@ struct LoginInitialView: View {
                             loginErrorMessage: viewModel.loginErrorMessage,
                             deviceExists: deviceExists,
                             presentSignInWithSolanaSheet: {
-                                viewModel.setPresentSigninWithSolanaSheet(true)
+                                Task {
+                                    let ok = await viewModel.prepareSolanaChallenge()
+                                    if ok {
+                                        viewModel.setPresentSigninWithSolanaSheet(true)
+                                    }
+                                }
                             },
                             presentAuthCodeLoginSheet: {
                                 viewModel.setPresentAuthCodeLoginSheet(true)
@@ -105,7 +110,12 @@ struct LoginInitialView: View {
                             loginErrorMessage: viewModel.loginErrorMessage,
                             deviceExists: deviceExists,
                             presentSignInWithSolanaSheet: {
-                                viewModel.setPresentSigninWithSolanaSheet(true)
+                                Task {
+                                    let ok = await viewModel.prepareSolanaChallenge()
+                                    if ok {
+                                        viewModel.setPresentSigninWithSolanaSheet(true)
+                                    }
+                                }
                             },
                             presentAuthCodeLoginSheet: {
                                 viewModel.setPresentAuthCodeLoginSheet(true)
@@ -129,7 +139,7 @@ struct LoginInitialView: View {
                     setIsSigningMessage: viewModel.setIsSigningMessage,
                     signButtonText: "Sign in with Solana",
                     signButtonLabelText: "Sign in",
-                    message: connectWalletProviderViewModel.welcomeMessage,
+                    message: viewModel.solanaChallengeMessage ?? "",
                     dismiss: {
                         viewModel.setPresentSigninWithSolanaSheet(false)
                     }
@@ -234,7 +244,7 @@ struct LoginInitialView: View {
                         
                         Task {
                             await handleSolanaWalletResult(
-                                message: connectWalletProviderViewModel.welcomeMessage,
+                                message: viewModel.solanaChallengeMessage ?? "",
                                 signature: signature,
                                 publicKey: pk
                             )
