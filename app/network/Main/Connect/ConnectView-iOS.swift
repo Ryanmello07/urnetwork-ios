@@ -34,7 +34,7 @@ struct ConnectView_iOS: View {
     @State var displayReconnectTunnel: Bool = false
     
     @State private var isSheetExpanded = false
-    @GestureState private var sheetDragTranslation: CGFloat = 0
+    @State private var sheetDragTranslation: CGFloat = 0
 
     private let sheetMinHeight: CGFloat   // collapsed peek height
     private let sheetMaxHeight: CGFloat = 680   // expanded height
@@ -143,8 +143,6 @@ struct ConnectView_iOS: View {
                             .padding(.vertical, 16)
                     }
                     .frame(maxWidth: .infinity)
-                    .contentShape(Rectangle())
-                    .gesture(sheetDragGesture())
 
                     Divider()
 
@@ -196,6 +194,13 @@ struct ConnectView_iOS: View {
                 .shadow(color: Color.black.opacity(0.2), radius: 8, y: -2)
                 .overlay(
                     RoundedRectangle(cornerRadius: 16).stroke(Color.secondary.opacity(0.1))
+                )
+                // UIKit pan under the hood: vertical drags anywhere on the
+                // sheet move it, while taps and horizontal slides pass through
+                // to the controls inside
+                .verticalPanGesture(
+                    onChanged: sheetDragOnChanged,
+                    onEnded: sheetDragOnEnded
                 )
                 .offset(y: sheetY(screenHeight: screenHeight))
                 .ignoresSafeArea(edges: .bottom)
@@ -367,23 +372,21 @@ struct ConnectView_iOS: View {
         return screenHeight - height
     }
     
-    private func sheetDragGesture() -> some Gesture {
+    private func sheetDragOnChanged(_ translation: CGFloat) {
         let range = sheetMaxHeight - sheetMinHeight
-        return DragGesture(minimumDistance: 0, coordinateSpace: .local)
-            .updating($sheetDragTranslation) { value, state, _ in
-                // Allow both directions: negative when dragging up, positive when dragging down
-                let delta = value.translation.height
-                state = max(-range, min(range, delta))
-            }
-            .onEnded { value in
-                let delta = value.translation.height
-                let threshold = range * 0.25
-                if isSheetExpanded {
-                    if delta > threshold { isSheetExpanded = false }
-                } else {
-                    if -delta > threshold { isSheetExpanded = true }
-                }
-            }
+        // Allow both directions: negative when dragging up, positive when dragging down
+        sheetDragTranslation = max(-range, min(range, translation))
+    }
+
+    private func sheetDragOnEnded(_ translation: CGFloat) {
+        let range = sheetMaxHeight - sheetMinHeight
+        let threshold = range * 0.25
+        if isSheetExpanded {
+            if translation > threshold { isSheetExpanded = false }
+        } else {
+            if -translation > threshold { isSheetExpanded = true }
+        }
+        sheetDragTranslation = 0
     }
 
 }
