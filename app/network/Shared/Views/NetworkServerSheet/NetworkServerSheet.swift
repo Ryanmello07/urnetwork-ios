@@ -158,7 +158,7 @@ struct NetworkServerSheet: View {
     }
 
     private func apply(hostName: String, apiUrl: String, connectUrl: String) {
-        let normalizedHost = viewModel.normalizedHostName
+        let normalizedHost = NetworkServerUtils.normalizeNetworkHost(hostName)
         guard !normalizedHost.isEmpty else {
             viewModel.setStatusMessage("Enter a network domain")
             return

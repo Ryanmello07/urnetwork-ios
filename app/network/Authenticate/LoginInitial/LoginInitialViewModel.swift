@@ -131,7 +131,7 @@ extension LoginInitialView {
                 return true
             } catch {
                 solanaChallengeMessage = nil
-                setLoginErrorMessage("There was an error connecting to your wallet")
+                setLoginErrorMessage("There was an error connecting to the network")
                 return false
             }
         }
