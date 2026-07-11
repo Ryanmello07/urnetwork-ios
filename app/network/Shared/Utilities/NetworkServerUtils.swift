@@ -25,6 +25,14 @@ enum NetworkServerUtils {
         if let atRange = value.range(of: "@") {
             value = String(value[atRange.upperBound...])
         }
+        // Strip a trailing :port - the network domain field is a bare host
+        // used to derive api.<host>/connect.<host>; a custom port belongs in
+        // the explicit API/connect URL overrides, not baked into the derived
+        // subdomain (which would otherwise produce invalid hosts like
+        // "api.192.168.1.5:8080").
+        if let colonRange = value.range(of: ":", options: .backwards) {
+            value = String(value[..<colonRange.lowerBound])
+        }
         return value.trimmingCharacters(in: .whitespacesAndNewlines)
             .trimmingCharacters(in: CharacterSet(charactersIn: "."))
     }
