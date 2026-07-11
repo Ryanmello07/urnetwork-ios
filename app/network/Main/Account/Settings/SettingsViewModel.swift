@@ -113,7 +113,7 @@ extension SettingsView {
                     }
                     if info.clientId?.idStr == clientId.idStr {
                         self.deviceId = info.deviceId
-                        self.deviceName = !info.deviceName.isEmpty ? info.deviceName : info.description
+                        self.deviceName = !info.deviceName.isEmpty ? info.deviceName : info.deviceDescription
                         self.deviceSpec = info.deviceSpec
                         break
                     }
