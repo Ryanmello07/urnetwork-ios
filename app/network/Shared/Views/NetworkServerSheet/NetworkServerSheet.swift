@@ -85,7 +85,7 @@ struct NetworkServerSheet: View {
             UrTextField(
                 text: $viewModel.hostName,
                 label: "Network domain",
-                placeholder: viewModel.officialHostName,
+                placeholder: LocalizedStringKey(viewModel.officialHostName),
                 supportingText: "Example: ur.network or your custom domain.",
                 isEnabled: managerAvailable
             )
@@ -95,7 +95,7 @@ struct NetworkServerSheet: View {
             UrTextField(
                 text: $viewModel.apiUrl,
                 label: "API URL (optional)",
-                placeholder: viewModel.derivedApiUrl,
+                placeholder: LocalizedStringKey(viewModel.derivedApiUrl),
                 supportingText: "Leave blank to derive from the network domain.",
                 isEnabled: managerAvailable
             )
@@ -105,7 +105,7 @@ struct NetworkServerSheet: View {
             UrTextField(
                 text: $viewModel.connectUrl,
                 label: "Connect URL (optional)",
-                placeholder: viewModel.derivedConnectUrl,
+                placeholder: LocalizedStringKey(viewModel.derivedConnectUrl),
                 supportingText: "Use wss:// for secure custom connect servers.",
                 isEnabled: managerAvailable
             )
