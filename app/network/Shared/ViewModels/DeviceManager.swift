@@ -905,7 +905,7 @@ extension DeviceManager {
             let result: Void = try await withCheckedThrowingContinuation { continuation in
                 
                 let authArgs = SdkAuthNetworkClientArgs()
-                authArgs.description = deviceDescription
+                authArgs.deviceDescription = deviceDescription
                 authArgs.deviceSpec = deviceSpecs
                 
                 let callback = AuthNetworkClientCallback { [weak self] result, error in
