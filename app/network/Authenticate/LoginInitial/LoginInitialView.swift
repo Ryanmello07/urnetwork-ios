@@ -932,37 +932,6 @@ private struct SSOButtons: View {
             }
             .frame(maxWidth: .infinity)
             
-            Spacer()
-                .frame(height: 8)
-
-            HStack {
-                Button(action: presentSignInWithSolanaSheet) {
-                    HStack {
-                        Image("solana.gradient.logo")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 16)
-                        Spacer().frame(width: 8)
-                        Text("Sign in with Solana")
-                            .foregroundColor(themeManager.currentTheme.inverseTextColor)
-                                .font(
-                                    Font.system(size: 12, weight: .medium)
-                                )
-                    }
-                }
-                .frame(height: 30)
-                .frame(maxWidth: .infinity)
-                .background(.white)
-                .cornerRadius(6)
-                .buttonStyle(.plain)
-                .disabled(isLoginActionInFlight)
-
-                Spacer().frame(width: 8)
-
-                Spacer().frame(maxWidth: .infinity)
-            }
-            .frame(maxWidth: .infinity)
-            
         }
         
     }
