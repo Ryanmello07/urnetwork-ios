@@ -1154,3 +1154,87 @@ enum UpdateReferralNetworkError: Error {
     case resultInvalid
     case unknown
 }
+
+// MARK: device
+
+extension UrApiService {
+
+    func getNetworkClients() async throws -> SdkNetworkClientsResult {
+        return try await withCheckedThrowingContinuation { continuation in
+
+            let callback = GetNetworkClientsCallback { result, err in
+
+                if let err = err {
+                    continuation.resume(throwing: err)
+                    return
+                }
+
+                guard let result = result else {
+                    continuation.resume(throwing: DeviceInfoError.resultEmpty)
+                    return
+                }
+
+                continuation.resume(returning: result)
+            }
+
+            api.getNetworkClients(callback)
+
+        }
+    }
+
+    func deviceSetName(deviceId: SdkId, deviceName: String) async throws -> Void {
+        let _: SdkDeviceSetNameResult = try await withCheckedThrowingContinuation { continuation in
+
+            let args = SdkDeviceSetNameArgs()
+            args.deviceId = deviceId
+            args.deviceName = deviceName
+
+            let callback = DeviceSetNameCallback { result, err in
+
+                if let err = err {
+                    continuation.resume(throwing: err)
+                    return
+                }
+
+                if let resultError = result?.error {
+                    continuation.resume(throwing: DeviceInfoError.resultError(message: resultError.message))
+                    return
+                }
+
+                guard let result = result else {
+                    continuation.resume(throwing: DeviceInfoError.resultEmpty)
+                    return
+                }
+
+                continuation.resume(returning: result)
+            }
+
+            api.deviceSetName(args, callback: callback)
+
+        }
+    }
+
+}
+
+private class GetNetworkClientsCallback: SdkCallback<
+    SdkNetworkClientsResult, SdkGetNetworkClientsCallbackProtocol
+>, SdkGetNetworkClientsCallbackProtocol
+{
+    func result(_ result: SdkNetworkClientsResult?, err: Error?) {
+        handleResult(result, err: err)
+    }
+}
+
+private class DeviceSetNameCallback: SdkCallback<
+    SdkDeviceSetNameResult, SdkDeviceSetNameCallbackProtocol
+>, SdkDeviceSetNameCallbackProtocol
+{
+    func result(_ result: SdkDeviceSetNameResult?, err: Error?) {
+        handleResult(result, err: err)
+    }
+}
+
+enum DeviceInfoError: Error {
+    case resultEmpty
+    case resultError(message: String)
+}

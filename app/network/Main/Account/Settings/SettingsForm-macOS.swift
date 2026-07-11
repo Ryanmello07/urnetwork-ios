@@ -30,7 +30,10 @@ struct SettingsForm_macOS: View {
     let navigate: (AccountNavigationPath) -> Void
     let provideEnabled: Bool
     let providePaused: Bool
-    
+    let deviceName: String
+    let deviceSpec: String
+    let presentRenameDevice: () -> Void
+
     @Binding var canReceiveNotifications: Bool
     @Binding var canReceiveProductUpdates: Bool
     @Binding var launchAtStartupEnabled: Bool
@@ -264,13 +267,64 @@ struct SettingsForm_macOS: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     
                     Spacer().frame(height: 32)
-                    
+
+                    /**
+                     * Device
+                     */
+                    HStack {
+                        UrLabel(text: "Device")
+
+                        Spacer()
+                    }
+
+                    VStack {
+
+                        HStack {
+                            Text("Name")
+                                .font(themeManager.currentTheme.bodyFont)
+                                .foregroundColor(themeManager.currentTheme.textColor)
+                            Spacer()
+                            Text(deviceName.isEmpty ? "—" : deviceName)
+                                .font(themeManager.currentTheme.secondaryBodyFont)
+                                .foregroundColor(themeManager.currentTheme.textMutedColor)
+                                .lineLimit(1)
+                            Image(systemName: "pencil")
+                                .foregroundColor(themeManager.currentTheme.textMutedColor)
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            presentRenameDevice()
+                        }
+
+                        Spacer().frame(height: 16)
+                        Divider()
+                        Spacer().frame(height: 16)
+
+                        HStack {
+                            Text("Spec")
+                                .font(themeManager.currentTheme.bodyFont)
+                                .foregroundColor(themeManager.currentTheme.textColor)
+                            Spacer()
+                            Text(deviceSpec.isEmpty ? "—" : deviceSpec)
+                                .font(themeManager.currentTheme.secondaryBodyFont)
+                                .foregroundColor(themeManager.currentTheme.textMutedColor)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+
+                    }
+                    .padding()
+                    .background(themeManager.currentTheme.tintedBackgroundBase)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                    Spacer().frame(height: 32)
+
                     /**
                      * Connections
                      */
                     HStack {
                         UrLabel(text: "Connections")
-                        
+
                         Spacer()
                     }
                     

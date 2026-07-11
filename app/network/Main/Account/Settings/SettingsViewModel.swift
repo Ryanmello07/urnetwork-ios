@@ -81,8 +81,78 @@ extension SettingsView {
          * Referral network
          */
         @Published private(set) var referralNetwork: SdkReferralNetwork? = nil
-        
+
+        /**
+         * Device
+         */
+        @Published private(set) var deviceId: SdkId? = nil
+        @Published private(set) var deviceName: String = ""
+        @Published private(set) var deviceSpec: String = ""
+        @Published var isPresentedRenameDevice: Bool = false
+        @Published var editingDeviceName: String = ""
+        @Published private(set) var isUpdatingDeviceName: Bool = false
+
         let domain = "SettingsViewModel"
+
+        func fetchDeviceInfo(_ clientId: SdkId?) async {
+
+            guard let clientId = clientId else {
+                return
+            }
+
+            do {
+                let result = try await api.getNetworkClients()
+
+                guard let clients = result.clients else {
+                    return
+                }
+
+                for i in 0..<clients.len() {
+                    guard let info = clients.get(i) else {
+                        continue
+                    }
+                    if info.clientId?.idStr == clientId.idStr {
+                        self.deviceId = info.deviceId
+                        self.deviceName = !info.deviceName.isEmpty ? info.deviceName : info.description
+                        self.deviceSpec = info.deviceSpec
+                        break
+                    }
+                }
+            } catch(let error) {
+                print("[\(domain)] Error fetching device info: \(error)")
+            }
+
+        }
+
+        func presentRenameDevice() {
+            editingDeviceName = deviceName
+            isPresentedRenameDevice = true
+        }
+
+        func updateDeviceName() async -> Result<Void, Error> {
+
+            guard let deviceId = deviceId else {
+                return .failure(DeviceInfoError.resultEmpty)
+            }
+
+            let name = editingDeviceName.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else {
+                return .failure(DeviceInfoError.resultEmpty)
+            }
+
+            isUpdatingDeviceName = true
+
+            do {
+                try await api.deviceSetName(deviceId: deviceId, deviceName: name)
+                self.deviceName = name
+                isUpdatingDeviceName = false
+                return .success(())
+            } catch(let error) {
+                isUpdatingDeviceName = false
+                return .failure(error)
+            }
+
+        }
         
         private func checkNotificationSettings() {
             let center = UNUserNotificationCenter.current()

@@ -70,4 +70,10 @@ protocol UrApiServiceProtocol {
     func getReferralNetwork() async throws -> SdkGetReferralNetworkResult
     func setNetworkReferral(_ referralCode: String) async throws -> SdkSetNetworkReferralResult
     func unlinkReferralNetwork() async throws -> SdkUnlinkReferralNetworkResult
+
+    /**
+     * Device
+     */
+    func getNetworkClients() async throws -> SdkNetworkClientsResult
+    func deviceSetName(deviceId: SdkId, deviceName: String) async throws -> Void
 }

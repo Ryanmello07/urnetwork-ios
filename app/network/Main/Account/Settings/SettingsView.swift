@@ -77,10 +77,25 @@ struct SettingsView: View {
                 navigate: navigate,
                 provideEnabled: deviceManager.provideEnabled,
                 providePaused: deviceManager.providePaused,
+                deviceName: viewModel.deviceName,
+                deviceSpec: viewModel.deviceSpec,
+                presentRenameDevice: viewModel.presentRenameDevice,
                 canReceiveNotifications: $viewModel.canReceiveNotifications,
                 canReceiveProductUpdates: $accountPreferencesViewModel.canReceiveProductUpdates,
             )
             .background(themeManager.currentTheme.backgroundColor)
+            .task {
+                await viewModel.fetchDeviceInfo(clientId)
+            }
+            .alert("Device name", isPresented: $viewModel.isPresentedRenameDevice) {
+                TextField("Device name", text: $viewModel.editingDeviceName)
+                Button("Save") {
+                    Task {
+                        await saveDeviceName()
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            }
             .onChange(of: accountPreferencesViewModel.saveErrorMessage) { newValue in
                 if let newValue {
                     snackbarManager.showSnackbar(message: newValue)
@@ -186,10 +201,25 @@ struct SettingsView: View {
                 navigate: navigate,
                 provideEnabled: deviceManager.provideEnabled,
                 providePaused: deviceManager.providePaused,
+                deviceName: viewModel.deviceName,
+                deviceSpec: viewModel.deviceSpec,
+                presentRenameDevice: viewModel.presentRenameDevice,
                 canReceiveNotifications: $viewModel.canReceiveNotifications,
                 canReceiveProductUpdates: $accountPreferencesViewModel.canReceiveProductUpdates,
                 launchAtStartupEnabled: $viewModel.launchAtStartupEnabled
             )
+            .task {
+                await viewModel.fetchDeviceInfo(clientId)
+            }
+            .alert("Device name", isPresented: $viewModel.isPresentedRenameDevice) {
+                TextField("Device name", text: $viewModel.editingDeviceName)
+                Button("Save") {
+                    Task {
+                        await saveDeviceName()
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            }
             .onChange(of: accountPreferencesViewModel.saveErrorMessage) { newValue in
                 if let newValue {
                     snackbarManager.showSnackbar(message: newValue)
@@ -254,6 +284,17 @@ struct SettingsView: View {
         
     }
     
+    private func saveDeviceName() async {
+        let result = await viewModel.updateDeviceName()
+        switch result {
+        case .success:
+            snackbarManager.showSnackbar(message: "Device name updated")
+        case .failure(let error):
+            print("Error updating device name: \(error)")
+            snackbarManager.showSnackbar(message: "There was an error updating the device name.")
+        }
+    }
+
     private func handleResult(_ result: Result<Void, Error>) {
         switch result {
         case .success:

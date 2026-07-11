@@ -19,7 +19,11 @@ enum MainNavigationTab {
 struct MainNavigationSplitView: View {
     
     @EnvironmentObject var themeManager: ThemeManager
-    
+    @EnvironmentObject var deviceManager: DeviceManager
+    @EnvironmentObject var subscriptionManager: AppStoreSubscriptionManager
+    @EnvironmentObject var subscriptionBalanceViewModel: SubscriptionBalanceViewModel
+    @EnvironmentObject var connectViewModel: ConnectViewModel
+
     @State private var selectedTab: MainNavigationTab = .connect
     @State private var displayIntroduction: Bool
     
@@ -50,6 +54,7 @@ struct MainNavigationSplitView: View {
         device: SdkDeviceRemote,
         logout: @escaping () -> Void,
         providerListStore: ProviderListStore,
+        introductionComplete: Binding<Bool>,
         isPro: Bool
     ) {
         self.api = api
@@ -74,22 +79,18 @@ struct MainNavigationSplitView: View {
         
         _networkReliabilityStore = StateObject(wrappedValue: NetworkReliabilityStore(api: urApiService))
         
-        /**
-         * Prompt introduction
-         */
-        self.displayIntroduction = false
         self.isPro = isPro
-//        if (currentPlan == .supporter || errorFetchingSubscriptionBalance) {
-//            self.displayIntroduction = false
-//        } else {
-//            
-//            if introductionComplete.wrappedValue {
-//                self.displayIntroduction = false
-//            } else {
-//                self.displayIntroduction = true
-//            }
-//            
-//        }
+
+        /**
+         * Prompt introduction (mirrors iOS MainTabView gating)
+         */
+        if isPro {
+            self.displayIntroduction = false
+        } else if introductionComplete.wrappedValue {
+            self.displayIntroduction = false
+        } else {
+            self.displayIntroduction = true
+        }
     }
     
     var body: some View {
@@ -160,7 +161,7 @@ struct MainNavigationSplitView: View {
                 ConnectView_macOS(
                     urApiService: urApiService,
                     providerStore: providerListStore,
-                    promptMoreDataFlow: {},
+                    promptMoreDataFlow: { displayIntroduction = true },
                     meanReliabilityWeight: networkReliabilityStore.reliabilityWindow?.meanReliabilityWeight ?? 0,
                     totalReferrals: referralLinkViewModel.totalReferrals,
                     isPro: isPro
@@ -198,7 +199,21 @@ struct MainNavigationSplitView: View {
                 }
             }
         }
-//        .fullScreenCover(isPresented: $displayIntroduction) {}
+        .sheet(isPresented: $displayIntroduction) {
+            IntroductionView(
+                close: { displayIntroduction = false },
+                totalReferrals: referralLinkViewModel.totalReferrals,
+                referralCode: referralLinkViewModel.referralCode ?? "",
+                meanReliabilityWeight: networkReliabilityStore.reliabilityWindow?.meanReliabilityWeight ?? 0,
+                api: urApiService
+            )
+            .environmentObject(themeManager)
+            .environmentObject(deviceManager)
+            .environmentObject(subscriptionManager)
+            .environmentObject(subscriptionBalanceViewModel)
+            .environmentObject(connectViewModel)
+            .frame(minWidth: 600, minHeight: 700)
+        }
     }
 }
 

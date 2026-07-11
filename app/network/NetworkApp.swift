@@ -27,8 +27,13 @@ struct NetworkApp: App {
     let themeManager = ThemeManager.shared
     
     @StateObject var deviceManager: DeviceManager
-    
+
     @StateObject var connectViewModel = ConnectViewModel()
+
+    @StateObject var throughputStore = ThroughputStore()
+    @StateObject var blockActionsStore = BlockActionsStore()
+    @StateObject var dnsSettingsStore = DnsSettingsStore()
+    @StateObject var networkPeersStore = NetworkPeersStore()
 
     init() {
         let deviceManager = DeviceManager()
@@ -65,9 +70,25 @@ struct NetworkApp: App {
                 return
             }
             setupConnectViewModel(device)
+            setupDeviceStores(device)
         } else {
             connectViewModel.reset()
+            resetDeviceStores()
         }
+    }
+
+    private func setupDeviceStores(_ device: SdkDeviceRemote) {
+        throughputStore.setup(device)
+        blockActionsStore.setup(device)
+        dnsSettingsStore.setup(device)
+        networkPeersStore.setup(device)
+    }
+
+    private func resetDeviceStores() {
+        throughputStore.reset()
+        blockActionsStore.reset()
+        dnsSettingsStore.reset()
+        networkPeersStore.reset()
     }
     
     private var connectEnabled: Bool {
@@ -124,6 +145,10 @@ struct NetworkApp: App {
                 .environmentObject(themeManager)
                 .environmentObject(deviceManager)
                 .environmentObject(connectViewModel)
+                .environmentObject(throughputStore)
+                .environmentObject(blockActionsStore)
+                .environmentObject(dnsSettingsStore)
+                .environmentObject(networkPeersStore)
                 .onOpenURL { url in
                     GIDSignIn.sharedInstance.handle(url)
                 }
@@ -137,6 +162,10 @@ struct NetworkApp: App {
                 .environmentObject(themeManager)
                 .environmentObject(deviceManager)
                 .environmentObject(connectViewModel)
+                .environmentObject(throughputStore)
+                .environmentObject(blockActionsStore)
+                .environmentObject(dnsSettingsStore)
+                .environmentObject(networkPeersStore)
                 .onOpenURL { url in
                     GIDSignIn.sharedInstance.handle(url)
                 }

@@ -93,6 +93,7 @@ struct MainView: View {
                         device: device,
                         logout: self.logout,
                         providerListStore: providerListStore,
+                        introductionComplete: introductionComplete,
                         isPro: isPro
                     )
                     #endif
@@ -109,6 +110,13 @@ struct MainView: View {
              * plan updates change subscription balance polling behavior
              */
             subscriptionBalanceViewModel.updateIsPro(newValue)
+        }
+        .onChange(of: subscriptionBalanceViewModel.didDetectUpgradeToPro) { detected in
+            if detected {
+                // at the free -> paid upgrade, reset provide mode to never;
+                // the user can opt back in afterward and that choice persists
+                deviceManager.provideControlMode = .Never
+            }
         }
     }
 }

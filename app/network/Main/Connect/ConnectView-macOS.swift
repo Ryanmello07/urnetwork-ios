@@ -25,8 +25,9 @@ import URnetworkSdk
         @State private var isProviderTableVisible: Bool = false
 
         @ObservedObject private var providerListStore: ProviderListStore
-        
+
         @State var displayReconnectTunnel: Bool = false
+        @State private var presentedStatsSheet: ConnectStatsSheet? = nil
         
         let promptMoreDataFlow: () -> Void
         let meanReliabilityWeight: Double
@@ -97,16 +98,17 @@ import URnetworkSdk
                                 availableByteCount: subscriptionBalanceViewModel.availableByteCount,
                                 pendingByteCount: subscriptionBalanceViewModel.pendingByteCount,
                                 usedByteCount: subscriptionBalanceViewModel.usedBalanceByteCount,
-                                promptMoreDataFlow: {
-                                    connectViewModel.isPresentedUpgradeSheet = true
-                                },
+                                promptMoreDataFlow: promptMoreDataFlow,
                                 meanReliabilityWeight: meanReliabilityWeight,
                                 totalReferrals: totalReferrals,
                                 isPro: isPro,
                                 selectedWindowType: $deviceManager.selectedWindowType,
                                 fixedIpSize: $deviceManager.fixedIpSize,
                                 allowDirect: $deviceManager.allowDirect,
-                                dailyBalanceByteCount: subscriptionBalanceViewModel.startBalanceByteCount
+                                dailyBalanceByteCount: subscriptionBalanceViewModel.startBalanceByteCount,
+                                openStatsSheet: { sheet in
+                                    presentedStatsSheet = sheet
+                                }
                             )
                             
                         }
@@ -184,8 +186,23 @@ import URnetworkSdk
             .onAppear {
                 connectViewModel.updateGrid()
                 connectViewModel.refreshTunnelStatus()
+
+                // in-app rating prompt (parity with iOS)
+                connectViewModel.requestReview = {
+                    Task {
+                        if let device = deviceManager.device {
+                            if device.getShouldShowRatingDialog() {
+                                device.setCanShowRatingDialog(false)
+                                try await Task.sleep(for: .seconds(2))
+                                requestReview()
+                            }
+                        }
+                    }
+                }
             }
 
+            // statistics and dns detail sheets (store subscription isolated in the modifier)
+            .modifier(ConnectStatsSheets(presentedStatsSheet: $presentedStatsSheet))
             // upgrade subscription
             .sheet(isPresented: $connectViewModel.isPresentedUpgradeSheet) {
                 UpgradeSubscriptionSheet(
@@ -295,6 +312,14 @@ import URnetworkSdk
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(32)
                 } else {
+
+                    /**
+                     * network peers, pinned at the top
+                     */
+                    NetworkPeersSection(
+                        selectedProvider: selectedProvider,
+                        connect: connect
+                    )
                     
                     /**
                      * nothing is being searched, or results are empty

@@ -30,7 +30,10 @@ struct SettingsForm_iOS: View {
     let navigate: (AccountNavigationPath) -> Void
     let provideEnabled: Bool
     let providePaused: Bool
-    
+    let deviceName: String
+    let deviceSpec: String
+    let presentRenameDevice: () -> Void
+
     @Binding var canReceiveNotifications: Bool
     @Binding var canReceiveProductUpdates: Bool
     
@@ -183,8 +186,48 @@ struct SettingsForm_iOS: View {
                 
             }
             
+            Section("Device") {
+
+                /**
+                 * Device name, editable
+                 */
+                Button(action: {
+                    presentRenameDevice()
+                }) {
+                    HStack {
+                        Text("Name")
+                            .font(themeManager.currentTheme.bodyFont)
+                            .foregroundColor(themeManager.currentTheme.textColor)
+                        Spacer()
+                        Text(deviceName.isEmpty ? "—" : deviceName)
+                            .font(themeManager.currentTheme.secondaryBodyFont)
+                            .foregroundColor(themeManager.currentTheme.textMutedColor)
+                            .lineLimit(1)
+                        Image(systemName: "pencil")
+                            .foregroundColor(themeManager.currentTheme.textMutedColor)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                /**
+                 * Device spec, read only
+                 */
+                HStack {
+                    Text("Spec")
+                        .font(themeManager.currentTheme.bodyFont)
+                        .foregroundColor(themeManager.currentTheme.textColor)
+                    Spacer()
+                    Text(deviceSpec.isEmpty ? "—" : deviceSpec)
+                        .font(themeManager.currentTheme.secondaryBodyFont)
+                        .foregroundColor(themeManager.currentTheme.textMutedColor)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+
+            }
+
             Section("Connections") {
-            
+
                 /**
                  * Connections
                  */

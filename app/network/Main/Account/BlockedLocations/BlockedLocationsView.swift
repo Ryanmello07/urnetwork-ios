@@ -130,8 +130,20 @@ struct BlockedLocationsView: View {
             }
             .padding()
 
+            // country search (parity with the iOS .searchable field)
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(themeManager.currentTheme.textMutedColor)
+                TextField("Search countries", text: $viewModel.searchCountry)
+                    .textFieldStyle(.plain)
+            }
+            .padding(8)
+            .background(themeManager.currentTheme.tintedBackgroundBase)
+            .cornerRadius(8)
+            .padding(.horizontal)
+
             Spacer().frame(height: 8)
-            
+
             AddBlockedLocationSheet(
                 providerCountries: viewModel.availableCountries,
                 onSelect: { provider in

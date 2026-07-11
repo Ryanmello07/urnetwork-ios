@@ -75,6 +75,7 @@ struct WalletsView: View {
                         VStack {
                             
                             WalletsHeader(
+                                navigate: navigate,
                                 unpaidMegaBytes: accountWalletsViewModel.unpaidDataFormatted,
                                 netAccountPoints: netAccountPoints,
                                 payoutPoints: payoutPoints,
@@ -82,7 +83,7 @@ struct WalletsView: View {
                                 referralPoints: referralPoints,
                                 referralLinkViewModel: referralLinkViewModel,
                             )
-                            
+
                             EmptyWalletsView(
                                 presentConnectWalletSheet: $viewModel.presentConnectWalletSheet
                             )
@@ -103,6 +104,7 @@ struct WalletsView: View {
                     VStack {
                         
                         WalletsHeader(
+                            navigate: navigate,
                             unpaidMegaBytes: accountWalletsViewModel.unpaidDataFormatted,
                             netAccountPoints: netAccountPoints,
                             payoutPoints: payoutPoints,
@@ -187,35 +189,16 @@ struct WalletsView: View {
             .presentationDetents([.height(264)])
             
             #elseif os(macOS)
-            VStack {
-                
-                Spacer().frame(height: 16)
-                
-                HStack {
-                    Text("Connect external wallet")
-                        .font(themeManager.currentTheme.toolbarTitleFont)
-                    Spacer()
-                    Button(action: {
-                        viewModel.presentConnectWalletSheet = false
-                    }) {
-                        Image(systemName: "xmark")
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal, 16)
-             
-                EnterWalletAddressView(
-                    onSuccess: {
-                        viewModel.presentConnectWalletSheet = false
-                    },
-                    api: api
-                )
-                .environmentObject(themeManager)
-                .environmentObject(accountWalletsViewModel)
-                
-                Spacer().frame(height: 16)
-                
-            }
+            // full deeplink connect flow (Phantom / Solflare via the
+            // ur.io/wallet-connect bridge, plus manual address entry)
+            ConnectWalletNavigationStack(
+                api: api,
+                presentConnectWalletSheet: $viewModel.presentConnectWalletSheet
+            )
+            .environmentObject(themeManager)
+            .environmentObject(accountWalletsViewModel)
+            .environmentObject(connectWalletProviderViewModel)
+            .frame(minWidth: 460, minHeight: 320)
             #endif
             
         }
@@ -250,9 +233,10 @@ struct WalletsView: View {
 }
 
 struct WalletsHeader: View {
-    
+
     @EnvironmentObject var themeManager: ThemeManager
-    
+
+    var navigate: ((AccountNavigationPath) -> Void)? = nil
     var unpaidMegaBytes: String
     var netAccountPoints: Double
     var payoutPoints: Double
@@ -319,13 +303,23 @@ struct WalletsHeader: View {
                 }
                 
                 Divider()
-                
+
                 Spacer().frame(height: 8)
-                
+
                 NetworkReliabilityView(
                     reliabilityWindow: networkReliabilityWindow
                 )
-                
+
+                if let navigate = navigate {
+
+                    Divider()
+
+                    Spacer().frame(height: 12)
+
+                    ProviderStatsSection(navigate: navigate)
+
+                }
+
             }
             .padding(.top)
             .padding(.horizontal)
@@ -355,10 +349,75 @@ struct WalletsHeader: View {
     
 }
 
+/**
+ * Provider statistics: local and blocked traffic relayed for remote
+ * clients. Tap to open the provider contract details.
+ */
+struct ProviderStatsSection: View {
+
+    @EnvironmentObject var themeManager: ThemeManager
+    @EnvironmentObject var throughputStore: ThroughputStore
+
+    let navigate: (AccountNavigationPath) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+
+            HStack {
+                UrLabel(text: "Provider statistics")
+                Spacer()
+                if throughputStore.hasProviderStats {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(themeManager.currentTheme.textFaintColor)
+                }
+            }
+
+            Spacer().frame(height: 8)
+
+            if throughputStore.hasProviderStats {
+
+                TransferChart(
+                    points: throughputStore.providerPoints,
+                    route: .local,
+                    title: "Local",
+                    window: throughputStore.windowDuration
+                )
+
+                Spacer().frame(height: 12)
+
+                TransferChart(
+                    points: throughputStore.providerPoints,
+                    route: .block,
+                    title: "Blocked",
+                    window: throughputStore.windowDuration,
+                    byteColor: .urCoral,
+                    packetColor: .urMutedCoral
+                )
+
+            } else {
+
+                Text("Providing is disabled")
+                    .font(themeManager.currentTheme.secondaryBodyFont)
+                    .foregroundColor(themeManager.currentTheme.textFaintColor)
+                    .padding(.bottom, 8)
+
+            }
+
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if throughputStore.hasProviderStats {
+                navigate(.providerContracts)
+            }
+        }
+    }
+}
+
 //#Preview {
-//    
+//
 //    let themeManager = ThemeManager.shared
-//    
+//
 //    WalletsView(
 //        navigate: {_ in},
 //        referralLinkViewModel: ReferralLinkViewModel()
