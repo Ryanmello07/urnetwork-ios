@@ -1,4 +1,4 @@
-name: Beta Build — iOS
+name: Beta Build — iOS & macOS
 
 on:
   push:
@@ -14,7 +14,7 @@ env:
 
 jobs:
   build-ios:
-    name: Build unsigned iOS app
+    name: Build unsigned iOS and macOS apps
     runs-on: macos-latest
     steps:
       - name: Check out iOS repo
@@ -89,6 +89,35 @@ jobs:
           cp -R "$APP" Payload/
           zip -r URnetwork-beta.ipa Payload
 
+      - name: Archive unsigned macOS app
+        working-directory: urnetwork-ios/app
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project app.xcodeproj \
+            -scheme URnetwork \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -archivePath build/URnetwork-macOS.xcarchive \
+            -derivedDataPath DerivedData \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            MARKETING_VERSION=beta \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            2>&1 | tee xcodebuild-archive-macos.log
+
+      - name: Package unsigned macOS app
+        working-directory: urnetwork-ios/app
+        run: |
+          APP=$(find build/URnetwork-macOS.xcarchive -name 'URnetwork.app' -type d | head -n 1)
+          if [ -z "$APP" ]; then
+            echo "Could not find URnetwork.app in macOS archive"
+            exit 1
+          fi
+          ditto -c -k --sequesterRsrc --keepParent "$APP" URnetwork-beta-macOS.zip
+
       - name: Create prerelease
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -100,4 +129,5 @@ jobs:
             --prerelease \
             --title "URnetwork iOS beta custom server ${{ github.run_number }}" \
             --generate-notes \
-            urnetwork-ios/app/URnetwork-beta.ipa
+            urnetwork-ios/app/URnetwork-beta.ipa \
+            urnetwork-ios/app/URnetwork-beta-macOS.zip
