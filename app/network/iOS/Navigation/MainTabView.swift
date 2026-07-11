@@ -34,6 +34,9 @@ struct MainTabView: View {
     
     @State private var selectedTab = 0
     @State private var displayIntroduction: Bool
+    // increments when the connect tab is tapped while already selected,
+    // which collapses the connect drawer
+    @State private var connectTabReselectCount = 0
     
     init(
         api: SdkApi,
@@ -90,9 +93,18 @@ struct MainTabView: View {
     }
     
     var body: some View {
-        
-        TabView(selection: $selectedTab) {
-            
+
+        TabView(selection: Binding(
+            get: { selectedTab },
+            set: { newValue in
+                if newValue == 0 && selectedTab == 0 {
+                    // re-tapped the connect tab
+                    connectTabReselectCount += 1
+                }
+                selectedTab = newValue
+            }
+        )) {
+
             /**
              * Connect View
              */
@@ -108,7 +120,8 @@ struct MainTabView: View {
                     self.displayIntroduction = true
                 },
                 meanReliabilityWeight: networkReliabilityStore.reliabilityWindow?.meanReliabilityWeight ?? 0,
-                isPro: isPro
+                isPro: isPro,
+                collapseDrawerSignal: connectTabReselectCount
             )
             .background(themeManager.currentTheme.backgroundColor)
             .tabItem {

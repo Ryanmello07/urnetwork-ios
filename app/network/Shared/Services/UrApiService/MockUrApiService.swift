@@ -108,5 +108,13 @@ class MockUrApiService: UrApiServiceProtocol {
     func authCodeLogin(_ args: SdkAuthCodeLoginArgs) async throws -> SdkAuthCodeLoginResult {
         return SdkAuthCodeLoginResult()
     }
-    
+
+    func getNetworkClients() async throws -> SdkNetworkClientsResult {
+        return SdkNetworkClientsResult()
+    }
+
+    func deviceSetName(deviceId: SdkId, deviceName: String) async throws -> Void {
+        return
+    }
+
 }

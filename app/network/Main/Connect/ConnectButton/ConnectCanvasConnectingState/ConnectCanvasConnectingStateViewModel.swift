@@ -107,7 +107,12 @@ extension ConnectCanvasConnectingStateView {
         }
         
         private func startAnimationTimer() {
-            animationTimer?.invalidate()
+            // already running — keep the existing 60fps timer rather than
+            // tearing it down and recreating it on every grid update
+            guard animationTimer == nil else { return }
+            // nothing to animate — don't spin up a timer that would just idle
+            // (updateAnimations invalidates the timer once all points settle)
+            guard animatedPoints.values.contains(where: { $0.isAnimating }) else { return }
             animationTimer = Timer.scheduledTimer(withTimeInterval: 1/60, repeats: true) { [weak self] _ in
                 Task { @MainActor in
                     await self?.updateAnimations()

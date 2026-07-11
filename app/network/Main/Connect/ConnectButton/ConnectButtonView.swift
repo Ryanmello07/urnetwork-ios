@@ -50,20 +50,34 @@ struct ConnectButtonView: View {
                 } else {
                  
                     /**
-                     * Disconnected
+                     * Disconnected. Mounted only while actually disconnected so
+                     * its repeatForever pulse animation stops running (and stops
+                     * burning CPU) underneath the connecting/connected states —
+                     * the macOS Connect tab keeps this view tree alive.
                      */
-                    ConnectCanvasDisconnectedStateView()
-                        .opacity(connectionStatus == .disconnected ? 1 : 0)
-                        .animation(.easeInOut(duration: 0.5), value: connectionStatus)
+                    ZStack {
+                        if connectionStatus == .disconnected {
+                            ConnectCanvasDisconnectedStateView()
+                                .transition(.opacity)
+                        }
+                    }
+                    .animation(.easeInOut(duration: 0.5), value: connectionStatus)
                     
                     /**
-                     * Connecting grid
+                     * Connecting grid. Mounted only while connecting so its
+                     * 60fps grid-animation timer is torn down (onDisappear ->
+                     * stopAnimations) once connected/disconnected, its animation
+                     * state doesn't accumulate across reconnects, and it stops
+                     * reacting to grid churn when it isn't visible. On macOS this
+                     * view is otherwise never removed from the tree.
                      */
-                    ConnectCanvasConnectingStateView(gridPoints: gridPoints, gridWidth: gridWidth)
-                        .opacity((connectionStatus == .connecting || connectionStatus == .destinationSet)
-                            ? 1
-                            : 0)
-                        .animation(.easeInOut(duration: 0.5), value: connectionStatus)
+                    ZStack {
+                        if connectionStatus == .connecting || connectionStatus == .destinationSet {
+                            ConnectCanvasConnectingStateView(gridPoints: gridPoints, gridWidth: gridWidth)
+                                .transition(.opacity)
+                        }
+                    }
+                    .animation(.easeInOut(duration: 0.5), value: connectionStatus)
                     
                     /**
                      * Connected

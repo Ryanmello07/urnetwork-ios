@@ -191,7 +191,7 @@ struct IntroductionView: View {
                                     Spacer().frame(height: 4)
                                     
                                     
-                                    Text("Participate in the network and get free access to the community edition.")
+                                    Text("Get free access to the community edition.")
                                         .font(Font.custom("PP NeueBit", size: 18).weight(.bold))
                                         .foregroundStyle(themeManager.currentTheme.textMutedColor)
                                         .multilineTextAlignment(.center)

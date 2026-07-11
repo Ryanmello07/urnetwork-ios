@@ -656,17 +656,15 @@ private struct LoginInitialFormView: View {
             Spacer()
                 .frame(height: 24)
             
-#if os(iOS)
-            
             if !deviceExists {
                 // if a device exists, it means they are already in guest mode and trying to upgrade their account
                 // restrict access to create guest network from within authed guest network
-             
+
                 HStack {
                     Text("Commitment issues?")
                         .font(themeManager.currentTheme.bodyFont)
                         .foregroundColor(themeManager.currentTheme.textMutedColor)
-                    
+
                     Button(action: {
                         presentGuestNetworkSheet = true
                     }) {
@@ -676,13 +674,11 @@ private struct LoginInitialFormView: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(isLoginActionInFlight)
-                    
+
                 }
-                
+
             }
             
-#endif
-
             Spacer()
                 .frame(height: 8)
 
@@ -936,35 +932,36 @@ private struct SSOButtons: View {
             }
             .frame(maxWidth: .infinity)
             
-//            Spacer()
-//                .frame(height: 8)
-//            
-//            HStack {
-//                Button(action: presentSignInWithSolanaSheet) {
-//                    HStack {
-//                        Image("solana.gradient.logo")
-//                            .resizable()
-//                            .scaledToFit()
-//                            .frame(width: 16)
-//                        Spacer().frame(width: 8)
-//                        Text("Sign in with Solana")
-//                            .foregroundColor(themeManager.currentTheme.inverseTextColor)
-//                                .font(
-//                                    Font.system(size: 12, weight: .medium)
-//                                )
-//                    }
-//                }
-//                .frame(height: 30)
-//                .frame(maxWidth: .infinity)
-//                .background(.white)
-//                .cornerRadius(6)
-//                .buttonStyle(.plain)
-//                
-//                Spacer().frame(width: 8)
-//                
-//                Spacer().frame(maxWidth: .infinity)
-//            }
-//            .frame(maxWidth: .infinity)
+            Spacer()
+                .frame(height: 8)
+
+            HStack {
+                Button(action: presentSignInWithSolanaSheet) {
+                    HStack {
+                        Image("solana.gradient.logo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 16)
+                        Spacer().frame(width: 8)
+                        Text("Sign in with Solana")
+                            .foregroundColor(themeManager.currentTheme.inverseTextColor)
+                                .font(
+                                    Font.system(size: 12, weight: .medium)
+                                )
+                    }
+                }
+                .frame(height: 30)
+                .frame(maxWidth: .infinity)
+                .background(.white)
+                .cornerRadius(6)
+                .buttonStyle(.plain)
+                .disabled(isLoginActionInFlight)
+
+                Spacer().frame(width: 8)
+
+                Spacer().frame(maxWidth: .infinity)
+            }
+            .frame(maxWidth: .infinity)
             
         }
         

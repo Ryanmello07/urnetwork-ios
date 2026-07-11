@@ -40,8 +40,12 @@ class SubscriptionBalanceViewModel: ObservableObject {
     
     private let refreshJwt: () -> Void
     private var isPro: Bool
-    
-    
+
+    // set once when a free -> paid upgrade is first detected, so the app can
+    // reset provide mode to never at the upgrade (the user can opt back in after)
+    @Published private(set) var didDetectUpgradeToPro: Bool = false
+
+
     init(
         urApiService: UrApiServiceProtocol,
         isPro: Bool,
@@ -110,6 +114,11 @@ class SubscriptionBalanceViewModel: ObservableObject {
                     print("current plan is: \(validPlan)")
                     
                     
+                    if validPlan == .supporter && !self.isPro {
+                        // free -> paid: signal the upgrade so provide mode resets to never once
+                        self.didDetectUpgradeToPro = true
+                    }
+
                     if validPlan == .supporter && !self.isPro
                         || validPlan == .none && self.isPro
                     {
