@@ -10,7 +10,6 @@
 //
 
 import SwiftUI
-import URnetworkSdk
 
 struct NetworkServerSheet: View {
 
