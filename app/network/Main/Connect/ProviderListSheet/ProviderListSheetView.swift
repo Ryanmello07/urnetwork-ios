@@ -50,7 +50,15 @@ struct ProviderListSheetView: View {
         } else {
             
             List {
-                
+
+                /**
+                 * network peers, pinned at the top
+                 */
+                NetworkPeersSection(
+                    selectedProvider: selectedProvider,
+                    connect: connect
+                )
+
                 /**
                  * nothing is being searched, or results are empty
                  * show "best available provider"

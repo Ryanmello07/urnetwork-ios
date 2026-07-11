@@ -149,23 +149,6 @@ struct UsageBar: View {
 
             HStack {
                 
-                Text("Reliability: \(String(format: "%.4f", meanReliabilityWeight))")
-                    .font(themeManager.currentTheme.secondaryBodyFont)
-                    .foregroundStyle(themeManager.currentTheme.textMutedColor)
-                
-                Spacer()
-             
-                Text("+\(String(format: "%.4f", cappedReliabilityData)) GiB/Day")
-                    .font(themeManager.currentTheme.secondaryBodyFont)
-                    .foregroundStyle(themeManager.currentTheme.textMutedColor)
-                
-            }
-            
-            Spacer().frame(height: 8)
-            
-            
-            HStack {
-                
                 Text("Total Referrals: \(totalReferrals)")
                     .font(themeManager.currentTheme.secondaryBodyFont)
                     .foregroundStyle(themeManager.currentTheme.textMutedColor)

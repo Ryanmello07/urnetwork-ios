@@ -27,12 +27,12 @@ struct IntroductionUsageBar: View {
                     
                     IntroIcon()
                     
-                    Text("Boost Your Bandwidth - Earn More Every Day")
+                    Text("Boost Your Bandwidth")
                         .font(themeManager.currentTheme.titleFont)
-                    
+
                     Spacer().frame(height: 16)
-                    
-                    Text("By participating in the network and providing bandwidth you can earn rewards.")
+
+                    Text("You get free data every month, and can earn more by referring friends.")
                         .font(themeManager.currentTheme.bodyFontLarge)
                     
                     Spacer().frame(height: 32)
@@ -52,8 +52,6 @@ struct IntroductionUsageBar: View {
                         .font(themeManager.currentTheme.bodyFont)
                     
                     Spacer().frame(height: 16)
-                    
-                    IntroBulletPoint(text: "Stay connected daily = Earn up to 100 GiB/Day")
                     
                     IntroBulletPoint(text: "Refer a friend = +30 GiB/Month")
                     

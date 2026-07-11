@@ -19,7 +19,7 @@ struct ConnectView_iOS: View {
     @Environment(\.requestReview) private var requestReview
     
     @EnvironmentObject var connectViewModel: ConnectViewModel
-    
+
     @ObservedObject var referralLinkViewModel: ReferralLinkViewModel
     
     @ObservedObject private var providerListStore: ProviderListStore
@@ -29,12 +29,20 @@ struct ConnectView_iOS: View {
     let promptMoreDataFlow: () -> Void
     let meanReliabilityWeight: Double
     let isPro: Bool
+    // incremented by the tab bar when the connect tab is re-tapped
+    var collapseDrawerSignal: Int = 0
     @ObservedObject var providerListSheetViewModel: ProviderListSheetViewModel
     
     @State var displayReconnectTunnel: Bool = false
-    
+
     @State private var isSheetExpanded = false
     @State private var sheetDragTranslation: CGFloat = 0
+    @State private var presentedStatsSheet: ConnectStatsSheet? = nil
+
+    // whether the expanded sheet's content is scrolled to the very top.
+    // at the top, a downward drag closes the sheet instead of rubber-banding
+    @State private var sheetScrollAtTop: Bool = true
+    @State private var sheetScrollBaseline: CGFloat? = nil
 
     private let sheetMinHeight: CGFloat   // collapsed peek height
     private let sheetMaxHeight: CGFloat = 680   // expanded height
@@ -50,21 +58,23 @@ struct ConnectView_iOS: View {
         providerStore: ProviderListStore,
         promptMoreDataFlow: @escaping () -> Void,
         meanReliabilityWeight: Double,
-        isPro: Bool
+        isPro: Bool,
+        collapseDrawerSignal: Int = 0
     ) {
         self.logout = logout
         self.api = api
         self.providerListSheetViewModel = providerListSheetViewModel
         self.referralLinkViewModel = referralLinkViewModel
         self.providerListStore = providerStore
-        
+
         self.promptMoreDataFlow = promptMoreDataFlow
         self.meanReliabilityWeight = meanReliabilityWeight
-        
+
 
         self.isPro = isPro
+        self.collapseDrawerSignal = collapseDrawerSignal
         self.sheetMinHeight = 280
-        
+
         // adds clear button to search providers text field
         UITextField.appearance().clearButtonMode = .whileEditing
     }
@@ -147,8 +157,22 @@ struct ConnectView_iOS: View {
                     Divider()
 
                     // Sheet content can scroll only when expanded
+                    ScrollViewReader { sheetScrollProxy in
                     ScrollView {
                         VStack(spacing: 0) {
+                            // top marker, used to detect when the content
+                            // is scrolled to the very top
+                            Color.clear
+                                .frame(height: 0)
+                                .id("connectSheetTop")
+                                .background(
+                                    GeometryReader { markerGeometry in
+                                        Color.clear.preference(
+                                            key: SheetScrollTopOffsetKey.self,
+                                            value: markerGeometry.frame(in: .named("connectSheetScroll")).minY
+                                        )
+                                    }
+                                )
                             ConnectActions(
                                 connect: connectViewModel.connect,
                                 disconnect: connectViewModel.disconnect,
@@ -175,13 +199,38 @@ struct ConnectView_iOS: View {
                                 selectedWindowType: $deviceManager.selectedWindowType,
                                 fixedIpSize: $deviceManager.fixedIpSize,
                                 allowDirect: $deviceManager.allowDirect,
-                                dailyBalanceByteCount: subscriptionBalanceViewModel.startBalanceByteCount
+                                dailyBalanceByteCount: subscriptionBalanceViewModel.startBalanceByteCount,
+                                openStatsSheet: { sheet in
+                                    presentedStatsSheet = sheet
+                                }
                             )
+
+                            // bottom inset equal to the tab bar height so the
+                            // last card isn't tucked under the tab bar
+                            Spacer()
+                                .frame(height: tabBarHeight(safeAreaBottom: geometry.safeAreaInsets.bottom))
                         }
                     }
                     .scrollIndicators(.hidden)
-//                    .scrollDisabled(!isSheetExpanded) // we can set this once sheet takes up entire view
-                    .scrollDisabled(true)
+                    .scrollDisabled(!isSheetExpanded)
+                    .coordinateSpace(name: "connectSheetScroll")
+                    .onPreferenceChange(SheetScrollTopOffsetKey.self) { minY in
+                        if let minY = minY {
+                            if sheetScrollBaseline == nil {
+                                sheetScrollBaseline = minY
+                            }
+                            sheetScrollAtTop = (sheetScrollBaseline ?? 0) - 4 <= minY
+                        }
+                    }
+                    .onChange(of: isSheetExpanded) { expanded in
+                        // when the sheet collapses, reset the content to the top
+                        if !expanded {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                                sheetScrollProxy.scrollTo("connectSheetTop", anchor: .top)
+                            }
+                        }
+                    }
+                    }
                 }
                 .frame(height: currentSheetHeight())
                 .frame(maxWidth: .infinity)
@@ -197,10 +246,24 @@ struct ConnectView_iOS: View {
                 )
                 // UIKit pan under the hood: vertical drags anywhere on the
                 // sheet move it, while taps and horizontal slides pass through
-                // to the controls inside
+                // to the controls inside. scroll views in the sheet defer to
+                // the pan: while collapsed every vertical drag moves the
+                // sheet; expanded, drags in the handle region always move it,
+                // and drags over the content move it only when the content is
+                // at its top and the drag is downward (closing)
                 .verticalPanGesture(
                     onChanged: sheetDragOnChanged,
-                    onEnded: sheetDragOnEnded
+                    onEnded: sheetDragOnEnded,
+                    shouldBegin: { translation, location in
+                        if !isSheetExpanded {
+                            return true
+                        }
+                        // the drag handle and divider sit above the scroll content
+                        if location.y < 48 {
+                            return true
+                        }
+                        return sheetScrollAtTop && 0 < translation
+                    }
                 )
                 .offset(y: sheetY(screenHeight: screenHeight))
                 .ignoresSafeArea(edges: .bottom)
@@ -275,6 +338,8 @@ struct ConnectView_iOS: View {
                 
                 
             }
+            // statistics and dns detail sheets (store subscription isolated in the modifier)
+            .modifier(ConnectStatsSheets(presentedStatsSheet: $presentedStatsSheet))
             // upgrade subscription
             .sheet(isPresented: $connectViewModel.isPresentedUpgradeSheet) {
                 UpgradeSubscriptionSheet(
@@ -330,8 +395,12 @@ struct ConnectView_iOS: View {
             .onChange(of: connectViewModel.tunnelConnected) { _ in
                 checkTunnelStatus()
             }
+            .onChange(of: collapseDrawerSignal) { _ in
+                // the connect tab was re-tapped. close the drawer.
+                isSheetExpanded = false
+            }
         }
-        
+
     }
     
     private func handleSuccessWithJwt(_ jwt: String) async {
@@ -389,6 +458,18 @@ struct ConnectView_iOS: View {
         sheetDragTranslation = 0
     }
 
+    // the standard tab bar content height plus the bottom safe area it covers
+    private func tabBarHeight(safeAreaBottom: CGFloat) -> CGFloat {
+        return 49 + safeAreaBottom
+    }
+
+}
+
+private struct SheetScrollTopOffsetKey: PreferenceKey {
+    static var defaultValue: CGFloat? = nil
+    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) {
+        value = value ?? nextValue()
+    }
 }
 
 

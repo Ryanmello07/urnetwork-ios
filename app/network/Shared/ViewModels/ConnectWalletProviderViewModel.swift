@@ -546,6 +546,42 @@ class ConnectWalletProviderViewModel: ObservableObject {
         components.path = String(components.path.dropFirst("/ul".count))
         return components.url
     }
+
+    /**
+     * Rewrites a Phantom/Solflare universal link into the ur.io/wallet-connect
+     * browser-bridge URL. Desktop wallets are browser extensions rather than
+     * deeplink apps, so the app opens this page in the browser; it drives the
+     * extension and returns via the urnetwork:// scheme with the same envelope.
+     */
+    private func webConnectURL(from universalLink: URL) -> URL? {
+        guard let components = URLComponents(url: universalLink, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+        let providerName: String
+        switch components.host {
+        case phantomHostname: providerName = "phantom"
+        case solflareHostname: providerName = "solflare"
+        default: return nil
+        }
+        let method: String
+        if components.path.hasSuffix("/connect") {
+            method = "connect"
+        } else if components.path.hasSuffix("/signMessage") {
+            method = "signMessage"
+        } else {
+            // disconnect and other ops aren't bridged
+            return nil
+        }
+        var webComponents = URLComponents()
+        webComponents.scheme = "https"
+        webComponents.host = "ur.io"
+        webComponents.path = "/wallet-connect"
+        var items = components.queryItems ?? []
+        items.append(URLQueryItem(name: "method", value: method))
+        items.append(URLQueryItem(name: "provider", value: providerName))
+        webComponents.queryItems = items
+        return webComponents.url
+    }
     #endif
 
     @discardableResult
@@ -571,16 +607,17 @@ class ConnectWalletProviderViewModel: ObservableObject {
         }
         return true
         #elseif canImport(AppKit)
-        // prefer the wallet's custom scheme so the link deep-links straight
-        // into the installed desktop wallet
-        if let nativeURL = nativeWalletURL(from: url), NSWorkspace.shared.open(nativeURL) {
-            completion?(true)
-            return true
+        // desktop Phantom/Solflare are browser extensions, not URL-scheme apps.
+        // route the wallet universal link through the ur.io/wallet-connect
+        // browser bridge, which drives the extension and returns to the app via
+        // the urnetwork:// scheme with the same encrypted envelope.
+        if let webURL = webConnectURL(from: url) {
+            let success = NSWorkspace.shared.open(webURL)
+            completion?(success)
+            return success
         }
 
-        // fall back to the original universal/https link (resolves via the
-        // wallet's site association, or opens the browser) so connect/sign
-        // still works when the custom scheme isn't registered
+        // non-wallet links fall back to opening directly
         let success = NSWorkspace.shared.open(url)
         completion?(success)
         return success
@@ -591,6 +628,11 @@ class ConnectWalletProviderViewModel: ObservableObject {
     }
     
     func isWalletAppInstalled(_ walletType: ConnectedWalletProvider) -> Bool {
+        #if canImport(AppKit)
+        // desktop wallets are browser extensions we can't probe here; the
+        // ur.io/wallet-connect bridge detects them, so always offer the option
+        return true
+        #elseif canImport(UIKit)
         let scheme: String
         switch walletType {
         case .phantom:
@@ -598,14 +640,8 @@ class ConnectWalletProviderViewModel: ObservableObject {
         case .solflare:
             scheme = "solflare://"
         }
-        
         guard let url = URL(string: scheme) else { return false }
-        
-        #if canImport(UIKit)
         return UIApplication.shared.canOpenURL(url)
-        #elseif canImport(AppKit)
-        // On macOS, we check if any app can handle the URL scheme
-        return NSWorkspace.shared.urlForApplication(toOpen: url) != nil
         #else
         return false
         #endif

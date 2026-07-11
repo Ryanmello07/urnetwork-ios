@@ -305,26 +305,29 @@ class VPNManager: ObservableObject {
         let connectEnabled = device.getConnectEnabled()
         let routeLocal = device.getRouteLocal()
         let providePaused = device.getProvidePaused()
-        let provideMode = device.getProvideMode()
-        let provideControlMode = device.getProvideControlMode()
-        
+
+        #if DEBUG
         print("provideEnabled is: \(provideEnabled)")
         print("connect enabled: \(connectEnabled)")
         print("routeLocal is: \(routeLocal)")
-        print("provideMode is: \(provideMode)")
-        print("provideControlMode is: \(provideControlMode)")
+        print("provideMode is: \(device.getProvideMode())")
+        print("provideControlMode is: \(device.getProvideControlMode())")
+        #endif
         
         if (provideEnabled || connectEnabled || !routeLocal) {
+            #if DEBUG
             print("[VPNManager]start")
-            print("[VPNManager]start")
-            
+            #endif
+
             // if provide paused, keep the vpn on but do not keep the locks
             setIdleTimerDisabled(!providePaused)
             
             self.startVpnTunnel(index: index, reset: reset, completion: completion)
             
         } else {
+            #if DEBUG
             print("[VPNManager]stop")
+            #endif
 
             self.setIdleTimerDisabled(false)
             

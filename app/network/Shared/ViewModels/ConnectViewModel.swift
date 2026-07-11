@@ -114,6 +114,11 @@ class ConnectViewModel: ObservableObject {
     private var tunnelListenerSub: SdkSubProtocol?
     private var contractListenerSub: SdkSubProtocol?
 
+    // last published grid signature; skip redundant re-renders when the SDK
+    // re-emits a logically unchanged grid (its point objects get fresh
+    // identities each notification, which would otherwise storm @Published)
+    private var lastGridSignature: String = ""
+
     func setup(api: SdkApi?, device: SdkDeviceRemote, connectViewController: SdkConnectViewController?) {
         closeListeners()
         closeConnectViewController()
@@ -170,6 +175,7 @@ class ConnectViewModel: ObservableObject {
         self.windowCurrentSize = 0
         self.gridPoints = [:]
         self.gridWidth = 0
+        self.lastGridSignature = ""
         self.selectedProvider = nil
         self.tunnelConnected = false
         self.contractStatus = nil
@@ -260,11 +266,24 @@ extension ConnectViewModel {
         }
 
         let status = device.getContractStatus()
-        self.contractStatus = status
+        // only publish when a field the UI reads actually changed; the SDK
+        // re-emits a fresh SdkContractStatus (new identity) each callback, which
+        // would otherwise re-render the whole connect screen on every tick
+        if !Self.contractStatusEqual(status, self.contractStatus) {
+            self.contractStatus = status
+        }
 
         if status?.insufficientBalance == true && self.connectionStatus != .disconnected {
             self.disconnect()
         }
+    }
+
+    private static func contractStatusEqual(_ a: SdkContractStatus?, _ b: SdkContractStatus?) -> Bool {
+        if a == nil, b == nil { return true }
+        guard let a = a, let b = b else { return false }
+        return a.insufficientBalance == b.insufficientBalance
+            && a.noPermission == b.noPermission
+            && a.premium == b.premium
     }
 }
 
@@ -287,8 +306,33 @@ extension ConnectViewModel {
         updateGrid()
     }
     
+    private func gridSignature() -> String {
+        guard let grid = self.connectViewController?.getGrid() else { return "" }
+        var sig: [String] = []
+        if let list = grid.getProviderGridPointList() {
+            for i in 0..<list.len() {
+                if let p = list.get(i), let cid = p.clientId {
+                    sig.append("\(cid.idStr):\(p.state):\(p.x):\(p.y)")
+                }
+            }
+        }
+        sig.sort()
+        return "\(grid.getWidth())x\(grid.getWindowCurrentSize());" + sig.joined(separator: "|")
+    }
+
     func updateGrid() {
-           
+
+        // skip the @Published publish (and the downstream re-render + grid
+        // animation) when the grid is logically unchanged. the SDK re-emits
+        // grid notifications with fresh point objects, so assigning gridPoints
+        // unconditionally would storm observers on every notification even when
+        // nothing actually moved — a real cost during connect/reconnect churn.
+        let signature = gridSignature()
+        if signature == lastGridSignature {
+            return
+        }
+        lastGridSignature = signature
+
        if let grid = self.connectViewController?.getGrid() {
            self.gridWidth = grid.getWidth()
            self.windowCurrentSize = grid.getWindowCurrentSize()
@@ -296,7 +340,6 @@ extension ConnectViewModel {
            let gridPointList = grid.getProviderGridPointList()
            
            guard let gridPointList = gridPointList else {
-               print("grid point list is nil")
                return
            }
            
@@ -308,9 +351,6 @@ extension ConnectViewModel {
                
                if let gridPoint = gridPoint, let clientId = gridPoint.clientId {
                    gridPoints[clientId] = gridPoint
-                   
-                   let state = gridPoint.state
-                   print("grid point \(clientId.idStr) state is \(state)")
                }
                
            }
@@ -332,8 +372,6 @@ extension ConnectViewModel {
     
     private func addConnectionStatusListener() {
         let listener = ConnectionStatusListener { [weak self] in
-            print("connection status listener hit")
-            
             guard let self = self else {
                 return
             }

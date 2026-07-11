@@ -31,7 +31,8 @@ struct ConnectActions: View {
     @Binding var fixedIpSize: Bool
     @Binding var allowDirect: Bool
     let dailyBalanceByteCount: Int
-    
+    let openStatsSheet: (ConnectStatsSheet) -> Void
+
     @EnvironmentObject var themeManager: ThemeManager
     
     var body: some View {
@@ -147,9 +148,18 @@ struct ConnectActions: View {
                         themeManager.currentTheme.tintedBackgroundBase,
                     )
                     .cornerRadius(12)
-                    
+
                     Spacer().frame(height: 16)
-                    
+
+                    /**
+                     * Statistics and dns sections
+                     */
+                    ConnectStatsSections(
+                        openSheet: openStatsSheet
+                    )
+
+                    Spacer().frame(height: 16)
+
                     /**
                      * Upgrade and participate flows
                      */

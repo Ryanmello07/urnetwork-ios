@@ -51,7 +51,7 @@ class DeviceManager: ObservableObject {
     private var isLoggingOut = false
     
     
-    @Published var provideControlMode: ProvideControlMode = ProvideControlMode.Auto {
+    @Published var provideControlMode: ProvideControlMode = ProvideControlMode.Never {
         didSet {
             handleProvideControlModeUpdate(provideControlMode)
         }
@@ -237,7 +237,7 @@ class DeviceManager: ObservableObject {
                 self.deviceInitialized = true
                 self.vpnManager = VPNManager(device: device)
             } else {
-                self.provideControlMode = ProvideControlMode.Auto
+                self.provideControlMode = ProvideControlMode.Never
                 self.deviceInitialized = false
                 self.allowProvidingCell = false
             }
@@ -474,7 +474,7 @@ extension DeviceManager {
             self.vpnManager = nil
         }
 
-        self.provideControlMode = ProvideControlMode.Auto
+        self.provideControlMode = ProvideControlMode.Never
         self.allowProvidingCell = false
         self.provideEnabled = false
         self.providePaused = false
@@ -665,7 +665,7 @@ extension DeviceManager {
         device.setCanShowRatingDialog(canShowRatingDialog)
         device.setCanPromptIntroFunnel(canPromptIntroFunnel)
         device.setAllowForeground(allowForeground)
-        device.setProvideControlMode(provideControlMode?.rawValue ?? ProvideControlMode.Auto.rawValue)
+        device.setProvideControlMode(provideControlMode?.rawValue ?? ProvideControlMode.Never.rawValue)
         device.setProvideNetworkMode(provideNetworkMode?.rawValue ?? ProvideNetworkMode.WiFi.rawValue)
         device.setCanRefer(canRefer)
         device.setVpnInterfaceWhileOffline(vpnInterfaceWhileOffline)

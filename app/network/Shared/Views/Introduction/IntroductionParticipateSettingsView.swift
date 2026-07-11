@@ -27,17 +27,17 @@ struct IntroductionParticipateSettingsView: View {
                     
                     IntroIcon()
                     
-                    Text("Reliability Settings")
+                    Text("Contribute Bandwidth")
                         .font(themeManager.currentTheme.titleFont)
-                    
+
                     Spacer().frame(height: 16)
-                    
-                    Text("Adjust settings to maximize reliability. App runs in the background when connected and on Wi-Fi. Reliability is how many IPs you make continually available to the network")
+
+                    Text("Providing is optional. When you turn it on, the app can share your connection with the network while it runs in the background on Wi-Fi.")
                         .font(themeManager.currentTheme.bodyFontLarge)
-                    
+
                     Spacer().frame(height: 32)
-                    
-                    Text("You can adjust the setting to Always to fill the free data faster.")
+
+                    Text("Providing is off by default. Choose when your device provides below.")
                         .font(themeManager.currentTheme.bodyFont)
                     
                     Spacer().frame(height: 4)

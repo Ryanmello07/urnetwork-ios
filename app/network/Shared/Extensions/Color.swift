@@ -10,6 +10,11 @@ import SwiftUI
 
 // for SwiftUI Colors
 extension Color {
+
+    // a muted coral, used for the blocked packet series (maroon reads as
+    // near-black against the dark background)
+    static let urMutedCoral = Color(hex: "C8604F")
+
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
         var int: UInt64 = 0

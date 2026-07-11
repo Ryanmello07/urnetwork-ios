@@ -17,6 +17,7 @@ struct AccountRootView: View {
     @EnvironmentObject var subscriptionBalanceViewModel: SubscriptionBalanceViewModel
     @EnvironmentObject var subscriptionManager: AppStoreSubscriptionManager
     @EnvironmentObject var connectViewModel: ConnectViewModel
+    @EnvironmentObject var connectWalletProviderViewModel: ConnectWalletProviderViewModel
     
     let navigate: (AccountNavigationPath) -> Void
     let logout: () -> Void
@@ -477,7 +478,35 @@ struct AccountRootView: View {
         }
         #endif
         #if os(macOS)
+        // guests can upgrade to a full account (parity with the iOS cover)
+        .sheet(isPresented: $viewModel.isPresentedCreateAccount) {
+            LoginNavigationView(
+                api: api,
+                cancel: {
+                    viewModel.isPresentedCreateAccount = false
+                },
+                handleSuccess: { jwt in
+                    Task {
+                        await handleSuccessWithJwt(jwt)
+                    }
+                }
+            )
+            .environmentObject(themeManager)
+            .environmentObject(deviceManager)
+            .environmentObject(snackbarManager)
+            .environmentObject(connectWalletProviderViewModel)
+            .frame(minWidth: 520, minHeight: 620)
+        }
         .toolbar {
+            ToolbarItem(placement: .automatic) {
+                AccountMenu(
+                    isGuest: isGuest,
+                    logout: logout,
+                    networkName: networkName,
+                    isPresentedCreateAccount: $viewModel.isPresentedCreateAccount,
+                    referralLinkViewModel: referralLinkViewModel
+                )
+            }
             ToolbarItem(placement: .automatic) {
                 Button(action: {
                     Task {

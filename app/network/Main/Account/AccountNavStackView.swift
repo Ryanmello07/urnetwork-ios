@@ -188,11 +188,17 @@ struct AccountNavStackView: View {
                     .background(themeManager.currentTheme.backgroundColor)
                  
                 case .transferBalanceCodes:
-                    
+
                     TransferBalanceCodesView(api: urApiService)
                         .navigationTitle("Balance Codes")
                         .background(themeManager.currentTheme.backgroundColor)
-                    
+
+                case .providerContracts:
+
+                    ContractDetailsView(mode: .provider)
+                        .navigationTitle("Provider contracts")
+                        .background(themeManager.currentTheme.backgroundColor)
+
                 }
                 
             }

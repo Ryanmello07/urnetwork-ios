@@ -17,14 +17,21 @@ extension View {
      * in-flight touches are cancelled (like a scroll view), so a drag that
      * starts on a control moves the view without triggering the control.
      *
+     * Scroll views under this view defer to the pan: they wait for it to
+     * decline before scrolling, so `shouldBegin` decides whether a drag moves
+     * this view or scrolls the content. `shouldBegin` receives the vertical
+     * translation (negative when dragging up) and the touch location in this
+     * view's bounds; when nil, all predominantly vertical pans begin.
+     *
      * `onChanged` and `onEnded` receive the vertical translation in points,
      * negative when dragging up.
      */
     func verticalPanGesture(
         onChanged: @escaping (CGFloat) -> Void,
-        onEnded: @escaping (CGFloat) -> Void
+        onEnded: @escaping (CGFloat) -> Void,
+        shouldBegin: ((CGFloat, CGPoint) -> Bool)? = nil
     ) -> some View {
-        background(VerticalPanGestureView(onChanged: onChanged, onEnded: onEnded))
+        background(VerticalPanGestureView(onChanged: onChanged, onEnded: onEnded, shouldBegin: shouldBegin))
     }
 
 }
@@ -33,9 +40,10 @@ private struct VerticalPanGestureView: UIViewRepresentable {
 
     let onChanged: (CGFloat) -> Void
     let onEnded: (CGFloat) -> Void
+    let shouldBegin: ((CGFloat, CGPoint) -> Bool)?
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onChanged: onChanged, onEnded: onEnded)
+        Coordinator(onChanged: onChanged, onEnded: onEnded, shouldBegin: shouldBegin)
     }
 
     func makeUIView(context: Context) -> MarkerView {
@@ -49,6 +57,7 @@ private struct VerticalPanGestureView: UIViewRepresentable {
     func updateUIView(_ uiView: MarkerView, context: Context) {
         context.coordinator.onChanged = onChanged
         context.coordinator.onEnded = onEnded
+        context.coordinator.shouldBegin = shouldBegin
     }
 
     static func dismantleUIView(_ uiView: MarkerView, coordinator: Coordinator) {
@@ -59,14 +68,17 @@ private struct VerticalPanGestureView: UIViewRepresentable {
 
         var onChanged: (CGFloat) -> Void
         var onEnded: (CGFloat) -> Void
+        var shouldBegin: ((CGFloat, CGPoint) -> Bool)?
         weak var markerView: UIView?
 
         init(
             onChanged: @escaping (CGFloat) -> Void,
-            onEnded: @escaping (CGFloat) -> Void
+            onEnded: @escaping (CGFloat) -> Void,
+            shouldBegin: ((CGFloat, CGPoint) -> Bool)?
         ) {
             self.onChanged = onChanged
             self.onEnded = onEnded
+            self.shouldBegin = shouldBegin
         }
 
         @objc func handlePan(_ pan: UIPanGestureRecognizer) {
@@ -84,7 +96,9 @@ private struct VerticalPanGestureView: UIViewRepresentable {
 
         /**
          * Only begin for predominantly vertical movement, so horizontal slides
-         * on controls (toggle knobs, segmented pickers) keep working.
+         * on controls (toggle knobs, segmented pickers) keep working. The
+         * `shouldBegin` policy then decides between moving the view and
+         * letting the content scroll.
          */
         func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
             guard let pan = gestureRecognizer as? UIPanGestureRecognizer,
@@ -92,7 +106,14 @@ private struct VerticalPanGestureView: UIViewRepresentable {
                 return false
             }
             let translation = pan.translation(in: view)
-            return abs(translation.y) > abs(translation.x)
+            guard abs(translation.y) > abs(translation.x) else {
+                return false
+            }
+            if let shouldBegin, let markerView {
+                let location = pan.location(in: markerView)
+                return shouldBegin(translation.y, location)
+            }
+            return true
         }
 
         /**
@@ -105,6 +126,15 @@ private struct VerticalPanGestureView: UIViewRepresentable {
                 return false
             }
             return markerView.bounds.contains(touch.location(in: markerView))
+        }
+
+        /**
+         * Scroll pans over this view wait for this recognizer to decline,
+         * so a drag at the scroll boundary can move the view instead of
+         * rubber-banding the content.
+         */
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            return otherGestureRecognizer is UIPanGestureRecognizer && otherGestureRecognizer.view is UIScrollView
         }
 
     }
