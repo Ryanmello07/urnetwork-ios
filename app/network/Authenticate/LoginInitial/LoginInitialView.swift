@@ -548,6 +548,7 @@ struct LoginInitialView: View {
 private struct LoginInitialFormView: View {
     
     @EnvironmentObject var themeManager: ThemeManager
+    @EnvironmentObject var deviceManager: DeviceManager
     
     @Binding var userAuth: String
     let handleUserAuth: () async -> Void
@@ -562,6 +563,7 @@ private struct LoginInitialFormView: View {
     let presentAuthCodeLoginSheet: () -> Void
     
     @Binding var presentGuestNetworkSheet: Bool
+    @State private var presentNetworkServerSheet = false
     
     var body: some View {
         
@@ -680,9 +682,46 @@ private struct LoginInitialFormView: View {
             }
             
 #endif
+
+            Spacer()
+                .frame(height: 8)
+
+            HStack {
+                Button(action: {
+                    presentNetworkServerSheet = true
+                }) {
+                    Text("Change Network API")
+                        .font(themeManager.currentTheme.secondaryBodyFont)
+                        .foregroundColor(themeManager.currentTheme.textMutedColor)
+                }
+                .buttonStyle(.plain)
+                .disabled(isLoginActionInFlight)
+
+                Spacer()
+            }
             
         }
         .frame(maxWidth: 400)
+        .sheet(isPresented: $presentNetworkServerSheet) {
+            NetworkServerSheet(
+                initialHostName: deviceManager.activeHostName,
+                currentApiUrl: deviceManager.activeApiUrl,
+                currentConnectUrl: deviceManager.activePlatformUrl,
+                configuredApiUrl: deviceManager.configuredApiUrl,
+                configuredConnectUrl: deviceManager.configuredPlatformUrl,
+                managerAvailable: deviceManager.networkSpaceManager != nil,
+                onApply: { hostName, apiUrl, connectUrl in
+                    deviceManager.applyNetworkSpace(hostName: hostName, apiUrl: apiUrl, connectUrl: connectUrl)
+                },
+                dismiss: {
+                    presentNetworkServerSheet = false
+                }
+            )
+            .environmentObject(themeManager)
+            #if os(macOS)
+            .frame(minWidth: 420, minHeight: 480)
+            #endif
+        }
     }
 }
 
