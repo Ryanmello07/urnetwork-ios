@@ -146,6 +146,11 @@ extension LoginInitialView {
         /// the Bittensor wallet-connect bridge. Must be called again for
         /// every sign attempt - the server invalidates a challenge the
         /// moment it is checked, whether the check succeeds or fails.
+        ///
+        /// The server accepts blockchain="bittensor" (case-insensitively,
+        /// also "tao"/"TAO") — confirmed against urnetwork/server#402 after
+        /// that PR was extended to support Bittensor wallets alongside
+        /// Solana in the challenge-based wallet auth flow.
         func prepareBittensorChallenge() async -> Bool {
             let args = SdkAuthWalletChallengeArgs()
             args.blockchain = "bittensor"
