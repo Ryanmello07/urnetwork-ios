@@ -120,7 +120,7 @@ struct ContentView: View {
         if case .failure(let error) = result {
             print("[ContentView] handleSuccessWithJwt: \(error.localizedDescription)")
             
-            snackbarManager.showSnackbar(message: "There was an error creating your network. Please try again later.")
+            snackbarManager.showSnackbar(message: String(localized: "There was an error creating your network. Please try again later."))
             
             return
         }

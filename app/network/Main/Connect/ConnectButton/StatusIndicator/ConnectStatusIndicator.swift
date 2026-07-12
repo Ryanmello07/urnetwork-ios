@@ -48,7 +48,9 @@ struct ConnectStatusIndicator: View {
                     if displayReconnectTunnel {
                         return String(localized: "VPN tunnel disconnected 😓")
                     } else {
-                        return String(localized: "Connected to \(windowCurrentSize) \(windowCurrentSize == 1 ? "provider" : "providers")")
+                        // real plural rules live in Localizable.xcstrings
+                        // ("Connected to %d providers")
+                        return String(localized: "Connected to \(windowCurrentSize) providers")
                     }
                 }
                 case .none: return ""

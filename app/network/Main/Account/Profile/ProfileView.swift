@@ -89,12 +89,12 @@ struct ProfileView: View {
         switch result {
         case .success:
             if let userAuth = userAuth {
-                snackbarManager.showSnackbar(message: "Password reset link sent to \(userAuth)")
+                snackbarManager.showSnackbar(message: String(localized: "Password reset link sent to \(userAuth)."))
             } else {
-                snackbarManager.showSnackbar(message: "Something went wrong finding your account")
+                snackbarManager.showSnackbar(message: String(localized: "Something went wrong finding your account"))
             }
         case .failure:
-            snackbarManager.showSnackbar(message: "Error sending password reset link")
+            snackbarManager.showSnackbar(message: String(localized: "Error sending password reset link"))
         }
     }
 }

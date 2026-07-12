@@ -88,7 +88,7 @@ struct ResetPasswordView: View {
             
         case .success:
             
-            snackbarManager.showSnackbar(message: "Password reset link sent to \(userAuth).")
+            snackbarManager.showSnackbar(message: String(localized: "Password reset link sent to \(userAuth)."))
             
             self.popNavigationStack()
             break

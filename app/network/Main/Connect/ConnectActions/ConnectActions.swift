@@ -26,6 +26,8 @@ struct ConnectActions: View {
     let promptMoreDataFlow: () -> Void
     let meanReliabilityWeight: Double
     let totalReferrals: Int
+    // when set, the usage bar referral row shares the referral link
+    let referralCode: String?
     let isPro: Bool
     @Binding var selectedWindowType: WindowType
     @Binding var fixedIpSize: Bool
@@ -172,7 +174,7 @@ struct ConnectActions: View {
                         
                         HStack(alignment: .firstTextBaseline) {
                              
-                            Text(isPro ? "Supporter" : "Free")
+                            Text(isPro ? "Pro" : "Free")
                                 .font(themeManager.currentTheme.titleCondensedFont)
                                 .foregroundColor(themeManager.currentTheme.textColor)
                         
@@ -195,7 +197,8 @@ struct ConnectActions: View {
                             usedByteCount: usedByteCount,
                             meanReliabilityWeight: meanReliabilityWeight,
                             totalReferrals: totalReferrals,
-                            dailyBalanceByteCount: dailyBalanceByteCount
+                            dailyBalanceByteCount: dailyBalanceByteCount,
+                            referralCode: referralCode
                         )
                         
                     }

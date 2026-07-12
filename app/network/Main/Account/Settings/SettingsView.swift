@@ -47,19 +47,14 @@ struct SettingsView: View {
         self.api = api
     }
     
-    var clientUrl: String {
-        guard let clientId = clientId?.idStr else { return "" }
-        return "https://ur.io/c?\(clientId)"
-    }
-    
     var body: some View {
 
         #if os(iOS)
             SettingsForm_iOS(
                 urApiService: api,
                 clientId: clientId,
-                clientUrl: clientUrl,
                 referralCode: referralLinkViewModel.referralCode,
+                totalReferrals: referralLinkViewModel.totalReferrals,
                 referralNetworkName: viewModel.referralNetwork?.name,
                 version: viewModel.version,
                 isUpdatingAccountPreferences: accountPreferencesViewModel.isUpdatingAccountPreferences,
@@ -140,7 +135,7 @@ struct SettingsView: View {
                             
                             guard let pk = connectWalletProviderViewModel.connectedPublicKey else {
                                 viewModel.setIsSigningMessage(false)
-                                snackbarManager.showSnackbar(message: "Couldn't parse public key, please try again later.")
+                                snackbarManager.showSnackbar(message: String(localized: "Couldn't parse public key, please try again later."))
                                 return
                             }
                             
@@ -155,7 +150,7 @@ struct SettingsView: View {
                         },
                         onError: { _ in
                             viewModel.setIsSigningMessage(false)
-                            snackbarManager.showSnackbar(message: "Sorry, there was an error claiming multiplier.")
+                            snackbarManager.showSnackbar(message: String(localized: "Sorry, there was an error claiming multiplier."))
                         }
                     )
             }
@@ -182,8 +177,8 @@ struct SettingsView: View {
             SettingsForm_macOS(
                 urApiService: api,
                 clientId: clientId,
-                clientUrl: clientUrl,
                 referralCode: referralLinkViewModel.referralCode,
+                totalReferrals: referralLinkViewModel.totalReferrals,
                 referralNetworkName: viewModel.referralNetwork?.name,
                 version: viewModel.version,
                 isUpdatingAccountPreferences: accountPreferencesViewModel.isUpdatingAccountPreferences,
@@ -274,12 +269,12 @@ struct SettingsView: View {
         
         switch result {
         case .success(true):
-            snackbarManager.showSnackbar(message: "Successfully claimed multiplier!")
+            snackbarManager.showSnackbar(message: String(localized: "Successfully claimed multiplier!"))
             viewModel.presentSigninWithSolanaSheet = false
         case .success(false):
-            snackbarManager.showSnackbar(message: "Sorry, there was an error claiming multiplier.")
+            snackbarManager.showSnackbar(message: String(localized: "Sorry, there was an error claiming multiplier."))
         case .failure(let error):
-            snackbarManager.showSnackbar(message: "Sorry, there was an error claiming multiplier: \(error)")
+            snackbarManager.showSnackbar(message: String(localized: "Sorry, there was an error claiming multiplier: \(error.localizedDescription)"))
         }
         
     }
@@ -288,10 +283,10 @@ struct SettingsView: View {
         let result = await viewModel.updateDeviceName()
         switch result {
         case .success:
-            snackbarManager.showSnackbar(message: "Device name updated")
+            snackbarManager.showSnackbar(message: String(localized: "Device name updated"))
         case .failure(let error):
             print("Error updating device name: \(error)")
-            snackbarManager.showSnackbar(message: "There was an error updating the device name.")
+            snackbarManager.showSnackbar(message: String(localized: "There was an error updating the device name."))
         }
     }
 
@@ -302,7 +297,7 @@ struct SettingsView: View {
             break
         case .failure(let error):
             print("Error deleting account: \(error)")
-            snackbarManager.showSnackbar(message: "Sorry, there was an error deleting your account.")
+            snackbarManager.showSnackbar(message: String(localized: "Sorry, there was an error deleting your account."))
         }
     }
     

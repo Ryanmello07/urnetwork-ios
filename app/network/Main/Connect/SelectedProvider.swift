@@ -38,7 +38,8 @@ struct SelectedProvider: View {
                     if selectedProvider.providerCount > 0 {
                         
                         HStack(spacing: 0) {
-    
+
+                            // real plural rules live in Localizable.xcstrings ("%d providers")
                             Text("\(selectedProvider.providerCount) providers")
                                 .font(themeManager.currentTheme.secondaryBodyFont)
                                 .foregroundColor(themeManager.currentTheme.textMutedColor)

@@ -45,6 +45,14 @@ class ConnectWalletProviderViewModel: ObservableObject {
     private let phantomConnectRedirectLink = "urnetwork://phantom-connect"
     private let phantomDisconnectRedirectLink = "urnetwork://phantom-disconnect"
     private let phantomSignMessageRedirectLink = "urnetwork://phantom-sign-message"
+
+    /**
+     * Bittensor: signing runs through the ur.io/wallet-connect bridge
+     * (injected substrate wallets); the return envelope is plain query params
+     * (address + sr25519 signature hex) — no encryption envelope
+     */
+    private let bittensorSignMessageRedirectLink = "urnetwork://bittensor-sign-message"
+    private let bittensorConnectRedirectLink = "urnetwork://bittensor-connect"
     
     init() {
         self.createKeyPair()
@@ -270,12 +278,40 @@ class ConnectWalletProviderViewModel: ObservableObject {
         onSignature: ((_ signature: String) -> Void)? = nil,
         onError: ((_ error: Error) -> Void)? = nil
     ) {
-        
+
         // todo - handle disconnect
 
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              let queryItems = components.queryItems,
-              components.host == "solflare-connect" || components.host == "phantom-connect" || components.host == "phantom-sign-message" || components.host == "solflare-sign-message" else {
+              let queryItems = components.queryItems else {
+            print("no match for components.host")
+            return
+        }
+
+        // bittensor returns plain params from the ur.io/wallet-connect bridge
+        if components.host == "bittensor-sign-message" || components.host == "bittensor-connect" {
+            if let errorMessage = queryItems.first(where: { $0.name == "errorMessage" })?.value {
+                onError?(WalletDeepLinkError.walletError(errorMessage))
+                return
+            }
+            guard let address = queryItems.first(where: { $0.name == "address" })?.value, !address.isEmpty else {
+                onError?(WalletDeepLinkError.missingParams)
+                return
+            }
+            self.connectedPublicKey = address
+            self.connectedWalletProvider = .bittensor
+            if components.host == "bittensor-connect" {
+                onPublicKeyRetrieved?(address, .bittensor)
+                return
+            }
+            guard let signature = queryItems.first(where: { $0.name == "signature" })?.value, !signature.isEmpty else {
+                onError?(WalletDeepLinkError.missingParams)
+                return
+            }
+            onSignature?(signature)
+            return
+        }
+
+        guard components.host == "solflare-connect" || components.host == "phantom-connect" || components.host == "phantom-sign-message" || components.host == "solflare-sign-message" else {
             print("no match for components.host")
             return
         }
@@ -584,6 +620,39 @@ class ConnectWalletProviderViewModel: ObservableObject {
     }
     #endif
 
+    /**
+     * Opens the ur.io/wallet-connect bridge to sign in with a Bittensor
+     * wallet. The bridge drives an injected substrate wallet (extension or a
+     * mobile wallet's in-app browser) and returns via
+     * urnetwork://bittensor-sign-message?address=<ss58>&signature=<hex>
+     */
+    func openBittensorSignIn(message: String) {
+        var webComponents = URLComponents()
+        webComponents.scheme = "https"
+        webComponents.host = "ur.io"
+        webComponents.path = "/wallet-connect"
+        var items = [
+            URLQueryItem(name: "provider", value: "bittensor"),
+            URLQueryItem(name: "method", value: "signMessage"),
+            URLQueryItem(name: "message", value: message),
+            URLQueryItem(name: "redirect_link", value: bittensorSignMessageRedirectLink),
+        ]
+        // the WalletConnect Cloud project id (URnetwork-Info.plist) lets the
+        // bridge pair with a wallet app; without it the bridge uses injected
+        // wallets only
+        if let projectId = Bundle.main.object(forInfoDictionaryKey: "URWalletConnectProjectId") as? String,
+           !projectId.isEmpty {
+            items.append(URLQueryItem(name: "wc_project_id", value: projectId))
+        }
+        webComponents.queryItems = items
+        guard let url = webComponents.url else { return }
+        #if canImport(UIKit)
+        UIApplication.shared.open(url)
+        #elseif canImport(AppKit)
+        NSWorkspace.shared.open(url)
+        #endif
+    }
+
     @discardableResult
     func openURL(_ url: URL, completion: ((Bool) -> Void)? = nil) -> Bool {
         #if canImport(UIKit)
@@ -668,11 +737,13 @@ enum WalletDeepLinkError: Error {
     case failedGeneratingNonce
     case missingParams
     case invalidParameters
+    case walletError(String)
 }
 
 enum ConnectedWalletProvider {
     case solflare
     case phantom
+    case bittensor
 }
 
 private struct SignMessagePayload: Encodable {

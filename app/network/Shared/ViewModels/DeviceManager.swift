@@ -74,6 +74,26 @@ class DeviceManager: ObservableObject {
 
         device?.setRouteLocal(value)
     }
+
+    @Published var blockerEnabled: Bool = false {
+        didSet {
+            guard !isLoadingFromDevice else { return }
+            setBlockerEnabledInternal(blockerEnabled)
+        }
+    }
+
+    // the extension device persists the toggle to local settings and restores
+    // it at creation; the app-side local state mirror (shared storage) keeps
+    // the toggle seeded when the extension device is not reachable
+    private func setBlockerEnabledInternal(_ value: Bool) {
+        do {
+            try asyncLocalState?.getLocalState()?.setBlockerEnabled(value)
+        } catch {
+            print("error setting blocker enabled: \(error)")
+        }
+
+        device?.setBlockerEnabled(value)
+    }
     
     @Published var allowProvidingCell: Bool = false {
         didSet {
@@ -189,6 +209,7 @@ class DeviceManager: ObservableObject {
     private var deviceProvideSub: SdkSubProtocol?
     private var deviceProvidePausedSub: SdkSubProtocol?
     private var deviceJwtRefreshSub: SdkSubProtocol?
+    private var deviceAuthLogoutSub: SdkSubProtocol?
     private var deviceCanShowRatingDialogSub: SdkSubProtocol?
     private var deviceCanPromptIntroFunnelSub: SdkSubProtocol?
     private var deviceAllowForegroundSub: SdkSubProtocol?
@@ -197,6 +218,7 @@ class DeviceManager: ObservableObject {
     private var deviceProvideNetworkModeSub: SdkSubProtocol?
     private var deviceVpnInterfaceWhileOfflineSub: SdkSubProtocol?
     private var deviceDefaultLocationSub: SdkSubProtocol?
+    private var deviceBlockerEnabledSub: SdkSubProtocol?
 
     private func updateAllowProvidingCell(_ allow: Bool) {
         #if os(iOS)
@@ -662,6 +684,7 @@ extension DeviceManager {
         }
 
         let routeLocal = localState.getRouteLocal()
+        let blockerEnabled = localState.getBlockerEnabled()
         let connectLocation = localState.getConnectLocation()
         let defaultLocation = localState.getDefaultLocation()
         let canShowRatingDialog = localState.getCanShowRatingDialog()
@@ -738,6 +761,10 @@ extension DeviceManager {
         device.setProvideNetworkMode(provideNetworkMode?.rawValue ?? ProvideNetworkMode.WiFi.rawValue)
         device.setCanRefer(canRefer)
         device.setVpnInterfaceWhileOffline(vpnInterfaceWhileOffline)
+        device.setBlockerEnabled(blockerEnabled)
+        isLoadingFromDevice = true
+        self.blockerEnabled = blockerEnabled
+        isLoadingFromDevice = false
 
         if (performanceProfile != nil) {
             device.setPerformanceProfile(performanceProfile)
@@ -803,17 +830,35 @@ extension DeviceManager {
         })
         
         self.deviceJwtRefreshSub = device.add(JwtRefreshListener { [weak self] _ in
-            
+
             print("JwtRefreshListener hit")
-            
+
             guard let self = self else {
                 return
             }
-            
+
             DispatchQueue.main.async {
                 self.updateParsedJwt()
             }
-            
+
+        })
+
+        // the sdk fires this when the jwt refresh finds the client no longer
+        // exists on the server (e.g. the client was removed): the sdk has
+        // already cleared its local auth state; log the user out so the ui
+        // returns to the login flow
+        self.deviceAuthLogoutSub = device.add(AuthLogoutListener { [weak self] in
+
+            print("AuthLogoutListener hit")
+
+            guard let self = self else {
+                return
+            }
+
+            DispatchQueue.main.async {
+                self.logout()
+            }
+
         })
 
         self.deviceCanShowRatingDialogSub = device.add(CanShowRatingDialogChangeListener { [weak self] canShowRatingDialog in
@@ -826,6 +871,20 @@ extension DeviceManager {
 
         self.deviceAllowForegroundSub = device.add(AllowForegroundChangeListener { [weak self] allowForeground in
             try? self?.asyncLocalState?.getLocalState()?.setAllowForeground(allowForeground)
+        })
+
+        self.deviceBlockerEnabledSub = device.add(BlockerEnabledChangeListener { [weak self] blockerEnabled in
+            guard let self = self else {
+                return
+            }
+
+            DispatchQueue.main.async {
+                if self.blockerEnabled != blockerEnabled {
+                    self.isLoadingFromDevice = true
+                    self.blockerEnabled = blockerEnabled
+                    self.isLoadingFromDevice = false
+                }
+            }
         })
 
         self.deviceCanReferSub = device.add(CanReferChangeListener { [weak self] canRefer in
@@ -865,6 +924,9 @@ extension DeviceManager {
         deviceJwtRefreshSub?.close()
         deviceJwtRefreshSub = nil
 
+        deviceAuthLogoutSub?.close()
+        deviceAuthLogoutSub = nil
+
         deviceCanShowRatingDialogSub?.close()
         deviceCanShowRatingDialogSub = nil
 
@@ -888,6 +950,9 @@ extension DeviceManager {
 
         deviceDefaultLocationSub?.close()
         deviceDefaultLocationSub = nil
+
+        deviceBlockerEnabledSub?.close()
+        deviceBlockerEnabledSub = nil
     }
     
 }
@@ -1179,15 +1244,28 @@ private class ProvideChangeListener: NSObject, SdkProvideChangeListenerProtocol 
 }
 
 private class ProvidePausedChangeListener: NSObject, SdkProvidePausedChangeListenerProtocol {
-    
+
     private let c: (_ providePaused: Bool) -> Void
 
     init(c: @escaping (_ providePaused: Bool) -> Void) {
         self.c = c
     }
-    
+
     func providePausedChanged(_ providePaused: Bool) {
         c(providePaused)
+    }
+}
+
+private class BlockerEnabledChangeListener: NSObject, SdkBlockerEnabledChangeListenerProtocol {
+
+    private let c: (_ blockerEnabled: Bool) -> Void
+
+    init(c: @escaping (_ blockerEnabled: Bool) -> Void) {
+        self.c = c
+    }
+
+    func blockerEnabledChanged(_ blockerEnabled: Bool) {
+        c(blockerEnabled)
     }
 }
 
@@ -1296,14 +1374,27 @@ private class DefaultLocationChangeListener: NSObject, SdkDefaultLocationChangeL
 }
 
 private class JwtRefreshListener: NSObject, SdkJwtRefreshListenerProtocol {
-    
+
     private let c: (_ jwt: String?) -> Void
 
     init(c: @escaping (_ jwt: String?) -> Void) {
         self.c = c
     }
-    
+
     func jwtRefreshed(_ jwt: String?) {
         c(jwt)
+    }
+}
+
+private class AuthLogoutListener: NSObject, SdkAuthLogoutListenerProtocol {
+
+    private let c: () -> Void
+
+    init(c: @escaping () -> Void) {
+        self.c = c
+    }
+
+    func authLogout() {
+        c()
     }
 }

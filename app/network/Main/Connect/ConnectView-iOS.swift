@@ -195,6 +195,7 @@ struct ConnectView_iOS: View {
                                 },
                                 meanReliabilityWeight: meanReliabilityWeight,
                                 totalReferrals: referralLinkViewModel.totalReferrals,
+                                referralCode: referralLinkViewModel.referralCode,
                                 isPro: isPro,
                                 selectedWindowType: $deviceManager.selectedWindowType,
                                 fixedIpSize: $deviceManager.fixedIpSize,
@@ -366,8 +367,13 @@ struct ConnectView_iOS: View {
                     },
                     isPurchasing: subscriptionManager.isPurchasing,
                     purchaseSuccess: subscriptionManager.purchaseSuccess,
+                    purchasePending: subscriptionManager.purchasePending,
                     dismiss: {
                         connectViewModel.isPresentedUpgradeSheet = false
+                        // the purchase flags describe ONE attempt; letting them
+                        // survive is what showed "You're premium." to a user who
+                        // had not actually completed a purchase
+                        subscriptionManager.resetPurchaseState()
                     }
                 )
                 .environmentObject(themeManager)
@@ -410,7 +416,7 @@ struct ConnectView_iOS: View {
         if case .failure(let error) = result {
             print("[ContentView] handleSuccessWithJwt: \(error.localizedDescription)")
             
-            snackbarManager.showSnackbar(message: "There was an error creating your network. Please try again later.")
+            snackbarManager.showSnackbar(message: String(localized: "There was an error creating your network. Please try again later."))
             
             return
         }

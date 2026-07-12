@@ -124,7 +124,7 @@ struct FeedbackView: View {
             
             // TODO: message sent overlay
             
-            snackbarManager.showSnackbar(message: "Sent! Thanks for your feedback.")
+            snackbarManager.showSnackbar(message: String(localized: "Sent! Thanks for your feedback."))
             
             requestReview()
             
@@ -139,7 +139,7 @@ struct FeedbackView: View {
             }
 
         case .failure:
-            snackbarManager.showSnackbar(message: "There was an error sending your feedback. Please try again later.")
+            snackbarManager.showSnackbar(message: String(localized: "There was an error sending your feedback. Please try again later."))
         }
     }
 }

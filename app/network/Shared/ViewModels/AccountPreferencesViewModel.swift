@@ -153,7 +153,7 @@ class AccountPreferencesViewModel: ObservableObject {
                 setCanReceiveProductUpdates(previousValue ?? lastSavedCanReceiveProductUpdates)
                 isUpdatingAccountPreferences = false
                 // the toggle silently snapped back to its saved value — tell the user why
-                saveErrorMessage = "Couldn't update your preferences. Please try again."
+                saveErrorMessage = String(localized: "Couldn't update your preferences. Please try again.")
             }
             
         }

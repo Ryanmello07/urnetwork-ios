@@ -34,9 +34,9 @@ struct EnterWalletAddressView: View {
             
             UrTextField(
                 text: $viewModel.walletAddress,
-                label: "USDC wallet address",
-                placeholder: "Enter a Solana USDC wallet address",
-                supportingText: "USDC addresses on Solana are currently supported",
+                label: "Wallet address",
+                placeholder: "Enter a Solana or Bittensor wallet address",
+                supportingText: "Solana USDC addresses and Bittensor (TAO) addresses are supported. Bittensor wallets are stored for future use and can't receive payouts yet.",
                 isEnabled: !accountWalletsViewModel.isCreatingWallet,
                 submitLabel: .continue,
                 onSubmit: {

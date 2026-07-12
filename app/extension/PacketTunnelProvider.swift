@@ -32,6 +32,9 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private var close: (() -> Void)?
     private var memoryPressureSource: DispatchSourceMemoryPressure?
     private var connected: Bool = false
+    // the dns servers currently applied to the tunnel, used to detect when the
+    // network settings need a re-apply after a dns settings change
+    private var appliedTunnelDnsServers: [String] = []
     private var stopped: Bool = false
     private var shouldSaveKeyMaterial: Bool = true
     private let packetReadLock = NSLock()
@@ -271,6 +274,11 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         device.setProvideControlMode(localState.getProvideControlMode())
         device.setProvideNetworkMode(localState.getProvideNetworkMode())
         device.setRouteLocal(localState.getRouteLocal())
+        // the device restores the blocker from its own local state at creation,
+        // but seed it here too: when the app and the extension do not share
+        // storage, a toggle made before the tunnel ever ran would otherwise be
+        // lost on the first start
+        device.setBlockerEnabled(localState.getBlockerEnabled())
         device.setCanShowRatingDialog(localState.getCanShowRatingDialog())
         device.setCanPromptIntroFunnel(localState.getCanPromptIntroFunnel())
         device.setCanRefer(localState.getCanRefer())
@@ -377,6 +385,19 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         let defaultLocationChangeSub = device.add(DefaultLocationChangeListener { location in
             try? localState.setDefaultLocation(location)
         })
+        // re-apply the network settings when the dns settings change the tunnel
+        // dns servers (e.g. unencrypted local servers set or cleared)
+        let dnsResolverSettingsChangeSub = device.add(DnsResolverSettingsChangeListener { _ in
+            DispatchQueue.main.async {
+                if self.tunnelDnsServers() != self.appliedTunnelDnsServers {
+                    self.setTunnelNetworkSettings(self.networkSettings()) { error in
+                        if let error = error {
+                            self.logger.error("[PacketTunnelProvider]failed to set tunnel network settings: \(error.localizedDescription)")
+                        }
+                    }
+                }
+            }
+        })
         let updateWindowStatus = { (windowStatus: SdkWindowStatus?) in
             var connected = false
             if let windowStatus = windowStatus {
@@ -480,6 +501,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             provideSecretKeysSub?.close()
             locationChangeSub?.close()
             defaultLocationChangeSub?.close()
+            dnsResolverSettingsChangeSub?.close()
             windowStatusChangeSub?.close()
             provideNetworkModeChangeSub?.close()
 //            packetContext.wrappingIncrement(ordering: .relaxed)
@@ -536,18 +558,21 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         let ipv6Settings = NEIPv6Settings()
         networkSettings.ipv6Settings = ipv6Settings
 
-        // DNS from the SDK device's tunnel DNS setting (default plain 1.1.1.1). Plain
-        // :53 lets the UpgradeMux intercept and upgrade it; a DoH setting is applied at
-        // the OS level and bypasses the mux.
+        // DNS from the SDK device, like the tunnel address: the dns settings'
+        // unencrypted local servers when set, otherwise the default plain 1.1.1.1
+        // (see `tunnelDnsServers`). Plain :53 lets the UpgradeMux intercept and
+        // upgrade it; a DoH setting is applied at the OS level and bypasses the mux.
+        let dnsServers = self.tunnelDnsServers()
+        self.appliedTunnelDnsServers = dnsServers
         let tunnelDns = self.device?.tunnelDnsSetting()
-        let dnsServer = (tunnelDns?.server.isEmpty == false) ? tunnelDns!.server : "1.1.1.1"
         let dnsSettings: NEDNSSettings
         if let tunnelDns = tunnelDns, tunnelDns.doh, !tunnelDns.dohUrl.isEmpty {
+            let dnsServer = tunnelDns.server.isEmpty ? "1.1.1.1" : tunnelDns.server
             let dohSettings = NEDNSOverHTTPSSettings(servers: [dnsServer])
             dohSettings.serverURL = URL(string: tunnelDns.dohUrl)
             dnsSettings = dohSettings
         } else {
-            dnsSettings = NEDNSSettings(servers: [dnsServer])
+            dnsSettings = NEDNSSettings(servers: dnsServers)
         }
         // route every DNS query to the tunnel resolver (empty string matches all
         // domains). without this the OS may not send :53 queries into the tunnel, so
@@ -559,6 +584,24 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         networkSettings.mtu = 1440
 
         return networkSettings
+    }
+
+    /// The plain-dns servers for the tunnel, from the sdk device like the tunnel
+    /// address: the dns settings' unencrypted local servers when set, otherwise
+    /// the default plain 1.1.1.1 (which the UpgradeMux can intercept and upgrade).
+    /// The tunnel is ipv4-only (no ipv6 addresses or routes), so only the ipv4
+    /// resolvers apply.
+    func tunnelDnsServers() -> [String] {
+        var servers: [String] = []
+        if let addresses = self.device?.tunnelDnsAddressesIpv4() {
+            for i in 0..<addresses.len() {
+                servers.append(addresses.get(i))
+            }
+        }
+        if servers.isEmpty {
+            servers = ["1.1.1.1"]
+        }
+        return servers
     }
 
     private func hasStaleLocalState(_ localState: SdkLocalState, byJwt: String, instanceId: SdkId) -> Bool {
@@ -862,6 +905,19 @@ private class WindowStatusChangeListener: NSObject, SdkWindowStatusChangeListene
 
     func windowStatusChanged(_ windowStatus: SdkWindowStatus?) {
         c(windowStatus)
+    }
+}
+
+private class DnsResolverSettingsChangeListener: NSObject, SdkDnsResolverSettingsChangeListenerProtocol {
+
+    private let c: (_ dnsResolverSettings: SdkDnsResolverSettings?) -> Void
+
+    init(c: @escaping (_ dnsResolverSettings: SdkDnsResolverSettings?) -> Void) {
+        self.c = c
+    }
+
+    func dnsResolverSettingsChanged(_ dnsResolverSettings: SdkDnsResolverSettings?) {
+        c(dnsResolverSettings)
     }
 }
 

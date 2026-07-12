@@ -17,22 +17,64 @@ struct UpgradeSubscriptionSheet: View {
     var purchase: (Product) -> Void
     var isPurchasing: Bool
     var purchaseSuccess: Bool
+    /**
+     * StoreKit accepted the purchase but it is awaiting approval (Ask to Buy) or
+     * another auth step. It is NOT complete and no transaction arrives now.
+     */
+    var purchasePending: Bool = false
     var dismiss: () -> Void
-    
+
     @State var selectedPaymentOption: PaymentOption = .yearly
-    
+
     var body: some View {
-        
+
         ZStack {
-            
+
             if (purchaseSuccess) {
-                
+
                 PurchaseSuccessView(
                     dismiss: dismiss
                 )
                 .transition(.opacity)
                 .frame(maxWidth: .infinity)
-                
+
+            } else if (purchasePending) {
+
+                /**
+                 * Ask to Buy / SCA. The purchase is not done, and the transaction lands
+                 * later on Transaction.updates -- so there is nothing to wait for here.
+                 *
+                 * This state used to be swallowed entirely: the spinner just stopped and
+                 * the user was returned to the product list as if nothing had happened.
+                 * The natural conclusion is that it failed, so they buy again.
+                 */
+                VStack(spacing: 12) {
+
+                    Spacer()
+
+                    Image(systemName: "clock")
+                        .font(.system(size: 40))
+                        .foregroundColor(themeManager.currentTheme.textMutedColor)
+
+                    Text("Waiting for approval")
+                        .font(themeManager.currentTheme.titleCondensedFont)
+                        .foregroundColor(themeManager.currentTheme.textColor)
+
+                    Text("Your purchase needs to be approved before it can complete. UR Pro will turn on by itself once it goes through — there's no need to buy again.")
+                        .font(themeManager.currentTheme.bodyFont)
+                        .foregroundColor(themeManager.currentTheme.textMutedColor)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+
+                    Spacer()
+
+                    UrButton(text: "Got it", action: dismiss)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 16)
+                }
+                .transition(.opacity)
+                .frame(maxWidth: .infinity)
+
             } else {
                 
                 VStack {
