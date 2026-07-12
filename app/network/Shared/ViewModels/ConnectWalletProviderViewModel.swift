@@ -708,6 +708,10 @@ class ConnectWalletProviderViewModel: ObservableObject {
             scheme = "phantom://"
         case .solflare:
             scheme = "solflare://"
+        case .bittensor:
+            // Bittensor wallets are browser extensions — always reachable
+            // through the ur.io/wallet-connect bridge, same as macOS.
+            return true
         }
         guard let url = URL(string: scheme) else { return false }
         return UIApplication.shared.canOpenURL(url)
