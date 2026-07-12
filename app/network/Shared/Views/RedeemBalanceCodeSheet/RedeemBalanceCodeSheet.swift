@@ -50,7 +50,25 @@ struct RedeemBalanceCodeSheet: View {
                         }
                     }
                 )
-                
+
+                /**
+                 * Someone opening this sheet with no code needs to know where to get
+                 * one. Without this the sheet asks for a code and offers no way to
+                 * obtain one — a dead end.
+                 *
+                 * Deliberately PLAIN TEXT: no link, no button. App Store rules forbid
+                 * steering a user to an external purchase, but nothing stops us saying
+                 * where codes come from.
+                 */
+                Text("Don't have a code? Data codes can be purchased at ur.io and emailed to you.")
+                    .font(themeManager.currentTheme.secondaryBodyFont)
+                    .foregroundColor(themeManager.currentTheme.textMutedColor)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 12)
+
+                Spacer()
+
             }
             .padding()
             .toolbar {

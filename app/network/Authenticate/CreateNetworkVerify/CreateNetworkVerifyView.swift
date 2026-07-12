@@ -161,7 +161,7 @@ struct CreateNetworkVerifyView: View {
                                     
                                     switch result {
                                     case .success:
-                                        snackbarManager.showSnackbar(message: "Verification code sent.")
+                                        snackbarManager.showSnackbar(message: String(localized: "Verification code sent."))
                                         break
                                     case .failure(let error):
                                         print("error resending OTP \(error.localizedDescription)")

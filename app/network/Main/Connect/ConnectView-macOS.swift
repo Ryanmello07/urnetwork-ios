@@ -32,6 +32,7 @@ import URnetworkSdk
         let promptMoreDataFlow: () -> Void
         let meanReliabilityWeight: Double
         let totalReferrals: Int
+        let referralCode: String?
         let isPro: Bool
 
         init(
@@ -40,12 +41,14 @@ import URnetworkSdk
             promptMoreDataFlow: @escaping () -> Void,
             meanReliabilityWeight: Double,
             totalReferrals: Int,
+            referralCode: String?,
             isPro: Bool
         ) {
             self.providerListStore = providerStore
             self.promptMoreDataFlow = promptMoreDataFlow
             self.meanReliabilityWeight = meanReliabilityWeight
             self.totalReferrals = totalReferrals
+            self.referralCode = referralCode
             self.isPro = isPro
         }
 
@@ -101,6 +104,7 @@ import URnetworkSdk
                                 promptMoreDataFlow: promptMoreDataFlow,
                                 meanReliabilityWeight: meanReliabilityWeight,
                                 totalReferrals: totalReferrals,
+                                referralCode: referralCode,
                                 isPro: isPro,
                                 selectedWindowType: $deviceManager.selectedWindowType,
                                 fixedIpSize: $deviceManager.fixedIpSize,
@@ -238,8 +242,13 @@ import URnetworkSdk
                     },
                     isPurchasing: subscriptionManager.isPurchasing,
                     purchaseSuccess: subscriptionManager.purchaseSuccess,
+                    purchasePending: subscriptionManager.purchasePending,
                     dismiss: {
                         connectViewModel.isPresentedUpgradeSheet = false
+                        // the purchase flags describe ONE attempt; letting them
+                        // survive is what showed "You're premium." to a user who
+                        // had not actually completed a purchase
+                        subscriptionManager.resetPurchaseState()
                     }
                 )
                 .environmentObject(themeManager)

@@ -232,8 +232,8 @@ struct IntroductionView: View {
                             
                             HStack(alignment: .center) {
                                 Text("""
-                                URnetwork is powered by a patented protocol
-                                that keeps everyone safe and secure.
+                                URnetwork is powered by the world's largest, safest,
+                                and most decentralized ingress and egress protocol.
                                 """)
                                     .font(Font.custom("PP NeueBit", size: 22).weight(.bold))
                                     .multilineTextAlignment(.center)

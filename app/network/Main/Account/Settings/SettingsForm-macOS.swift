@@ -17,8 +17,8 @@ struct SettingsForm_macOS: View {
     
     let urApiService: UrApiServiceProtocol
     let clientId: SdkId?;
-    let clientUrl: String;
     let referralCode: String?;
+    let totalReferrals: Int
     let referralNetworkName: String?
     let version: String
     let isUpdatingAccountPreferences: Bool
@@ -53,25 +53,42 @@ struct SettingsForm_macOS: View {
         GeometryReader { geometry in
                     
             ScrollView(.vertical) {
-                
+
                 VStack {
-                    
+
+                    /**
+                     * referral royalty: networks with at least one referral get
+                     * the crowned frog mascot (same as the ur.io site)
+                     */
+                    if 0 < totalReferrals {
+                        VStack {
+                            Image("ReferralFrog")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(height: 80)
+                            Text("You're referral royalty!")
+                                .font(themeManager.currentTheme.secondaryBodyFont)
+                                .foregroundColor(themeManager.currentTheme.textMutedColor)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, 16)
+                    }
+
                     HStack {
-                        UrLabel(text: "URid")
-                        
+                        UrLabel(text: "Client ID")
+
                         Spacer()
                     }
                     
                     /**
-                     * Copy URid
+                     * Copy client id
                      */
-                    // TODO: copy URid
                     Button(action: {
                         if let clientId = clientId?.idStr {
-                            
+
                             copyToPasteboard(clientId)
-                            
-                            snackbarManager.showSnackbar(message: "URid copied to clipboard")
+
+                            snackbarManager.showSnackbar(message: String(localized: "Client ID copied to clipboard"))
                         }
                     }) {
                         HStack {
@@ -91,43 +108,6 @@ struct SettingsForm_macOS: View {
                     Spacer().frame(height: 32)
                     
                     /**
-                     * Copy URnetwork link
-                     */
-                    HStack {
-                        UrLabel(text: "Share URnetwork")
-                        
-                        Spacer()
-                    }
-                    
-                    Button(action: {
-                        if let clientId = clientId?.idStr {
-                            
-                            copyToPasteboard("https://ur.io/c?\(clientId)")
-                            
-                            snackbarManager.showSnackbar(message: "URnetwork link copied to clipboard")
-                            
-                        }
-                    }) {
-                        HStack {
-                            Text(clientUrl)
-                                .font(themeManager.currentTheme.secondaryBodyFont)
-                                .foregroundColor(themeManager.currentTheme.textMutedColor)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                            Spacer()
-                            Image(systemName: "document.on.document")
-                        }
-                        .foregroundColor(themeManager.currentTheme.textMutedColor)
-                        .padding()
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .background(themeManager.currentTheme.tintedBackgroundBase)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-
-                    Spacer().frame(height: 32)
-                    
-                    /**
                      * Copy Referral Link
                      */
                     HStack {
@@ -141,7 +121,7 @@ struct SettingsForm_macOS: View {
                             
                             copyToPasteboard(referralCode)
                             
-                            snackbarManager.showSnackbar(message: "Bonus referral code copied to clipboard")
+                            snackbarManager.showSnackbar(message: String(localized: "Bonus referral code copied to clipboard"))
                             
                         }
                     }) {
@@ -498,13 +478,25 @@ struct SettingsForm_macOS: View {
                     HStack {
                         Text(version.isEmpty ? "0.0.0" : version)
                             .font(themeManager.currentTheme.bodyFont)
-                        
+
                         Spacer()
                     }
                     .padding()
                     .background(themeManager.currentTheme.tintedBackgroundBase)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    
+
+                    Spacer().frame(height: 16)
+
+                    HStack {
+                        Link(destination: URL(string: "https://ur.xyz")!) {
+                            Text("Uses the UR Protocol")
+                                .font(themeManager.currentTheme.secondaryBodyFont)
+                                .foregroundColor(themeManager.currentTheme.textMutedColor)
+                        }
+
+                        Spacer()
+                    }
+
                     Spacer().frame(height: 64)
                     
                     Button(role: .destructive, action: {

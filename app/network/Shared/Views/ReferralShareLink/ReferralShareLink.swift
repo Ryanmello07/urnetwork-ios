@@ -21,16 +21,16 @@ struct ReferralShareLink<Content: View>: View {
     }
     
     var body: some View {
-        // share a clean app link until the referral code loads (the poller keeps
-        // retrying), instead of permanently disabling sharing on a failed/slow
-        // fetch or appending an empty `bonus=`
-        let url: URL = {
+        // referrals no longer use deep links; share the code and friends enter
+        // it when they sign up. share a generic invite until the code loads
+        // (the poller keeps retrying), instead of permanently disabling sharing
+        let message: String = {
             if let code = referralLinkViewModel.referralCode, !code.isEmpty {
-                return URL(string: "https://ur.io/app?bonus=\(code)") ?? URL(string: "https://ur.io/app")!
+                return String(localized: "Join me on URnetwork! Get the app and enter referral code \(code) when you sign up.")
             }
-            return URL(string: "https://ur.io/app")!
+            return String(localized: "Join me on URnetwork! Get the app and enter my referral code when you sign up.")
         }()
-        ShareLink(item: url, subject: Text("URnetwork Referral Code"), message: Text("All the content in the world from URnetwork")) {
+        ShareLink(item: message, subject: Text("URnetwork Referral Code")) {
             content()
         }
         .disabled(referralLinkViewModel.isLoading)

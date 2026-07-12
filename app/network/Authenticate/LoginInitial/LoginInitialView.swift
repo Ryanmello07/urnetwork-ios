@@ -81,6 +81,9 @@ struct LoginInitialView: View {
                                     }
                                 }
                             },
+                            signInWithBittensor: {
+                                handleBittensorSignIn()
+                            },
                             presentAuthCodeLoginSheet: {
                                 viewModel.setPresentAuthCodeLoginSheet(true)
                             },
@@ -116,6 +119,9 @@ struct LoginInitialView: View {
                                         viewModel.setPresentSigninWithSolanaSheet(true)
                                     }
                                 }
+                            },
+                            signInWithBittensor: {
+                                handleBittensorSignIn()
                             },
                             presentAuthCodeLoginSheet: {
                                 viewModel.setPresentAuthCodeLoginSheet(true)
@@ -235,25 +241,33 @@ struct LoginInitialView: View {
                 .handleDeepLink(
                     url,
                     onSignature: { signature in
-                        
+
                         guard let pk = connectWalletProviderViewModel.connectedPublicKey else {
                         viewModel.setIsSigningMessage(false)
-                        viewModel.setLoginErrorMessage("There was an error logging in")
+                        viewModel.setLoginErrorMessage(String(localized: "There was an error logging in"))
                         return
                     }
-                        
+
                         Task {
-                            await handleSolanaWalletResult(
-                                message: viewModel.solanaChallengeMessage ?? "",
-                                signature: signature,
-                                publicKey: pk
-                            )
+                            if connectWalletProviderViewModel.connectedWalletProvider == .bittensor {
+                                await handleBittensorWalletResult(
+                                    message: connectWalletProviderViewModel.welcomeMessage,
+                                    signature: signature,
+                                    publicKey: pk
+                                )
+                            } else {
+                                await handleSolanaWalletResult(
+                                    message: connectWalletProviderViewModel.welcomeMessage,
+                                    signature: signature,
+                                    publicKey: pk
+                                )
+                            }
                         }
-                        
+
                     },
                     onError: { _ in
                         viewModel.setIsSigningMessage(false)
-                        viewModel.setLoginErrorMessage("There was an error logging in")
+                        viewModel.setLoginErrorMessage(String(localized: "There was an error logging in"))
                     }
                 )
         }
@@ -312,7 +326,7 @@ struct LoginInitialView: View {
         case .failure(let error):
             print("error create args result: \(error.localizedDescription)")
             viewModel.setIsSigningMessage(false)
-            viewModel.setLoginErrorMessage("There was an error logging in")
+            viewModel.setLoginErrorMessage(String(localized: "There was an error logging in"))
         }
     }
     
@@ -370,7 +384,7 @@ struct LoginInitialView: View {
         
         case .failure(let error):
             print("error create args result: \(error.localizedDescription)")
-            viewModel.setLoginErrorMessage("There was an error logging in")
+            viewModel.setLoginErrorMessage(String(localized: "There was an error logging in"))
         }
         
      }
@@ -395,7 +409,7 @@ struct LoginInitialView: View {
         
         case .failure(let error):
             print("error create args result: \(error.localizedDescription)")
-            viewModel.setLoginErrorMessage("There was an error logging in")
+            viewModel.setLoginErrorMessage(String(localized: "There was an error logging in"))
         }
         
     }
@@ -452,9 +466,9 @@ struct LoginInitialView: View {
         case .failure(let error):
             print("auth login error: \(error.localizedDescription)")
             viewModel.setIsCheckingUserAuth(false)
-            viewModel.setLoginErrorMessage("There was an error logging in")
+            viewModel.setLoginErrorMessage(String(localized: "There was an error logging in"))
             if deviceManager.device != nil {
-                snackbarManager.showSnackbar(message: "There was an error logging in")
+                snackbarManager.showSnackbar(message: String(localized: "There was an error logging in"))
             }
             break
             
@@ -465,6 +479,52 @@ struct LoginInitialView: View {
         let updateArgs = SdkUpgradeGuestExistingArgs()
         updateArgs.walletAuth = args.walletAuth
         return updateArgs
+    }
+
+    /**
+     * Bittensor sign in: opens the ur.io/wallet-connect bridge; the wallet
+     * returns through onOpenURL with the ss58 address and sr25519 signature
+     */
+    private func handleBittensorSignIn() {
+        connectWalletProviderViewModel.openBittensorSignIn(
+            message: connectWalletProviderViewModel.welcomeMessage
+        )
+    }
+
+    private func handleBittensorWalletResult(message: String, signature: String, publicKey: String) async {
+
+        guard viewModel.beginLoginAction(.bittensor) else {
+            return
+        }
+
+        defer {
+            viewModel.endLoginAction(.bittensor)
+        }
+
+        let createArgsResult = viewModel.createBittensorAuthLoginArgs(message: message, signature: signature, publicKey: publicKey)
+        switch createArgsResult {
+        case .success(let args):
+
+            if deviceManager.device != nil {
+
+                let upgradeArgs = self.createUpgradeSolanaWalletArgs(args)
+
+                let result = await guestUpgradeViewModel.linkGuestToExistingLogin(args: upgradeArgs)
+
+                await self.handleAuthLoginResult(result)
+                viewModel.setIsSigningMessage(false)
+
+            } else {
+                let result = await viewModel.authLogin(args: args)
+                await self.handleAuthLoginResult(result)
+                viewModel.setIsSigningMessage(false)
+            }
+
+        case .failure(let error):
+            print("error create args result: \(error.localizedDescription)")
+            viewModel.setIsSigningMessage(false)
+            viewModel.setLoginErrorMessage(String(localized: "There was an error logging in"))
+        }
     }
     
     private func createUpgradeExistingSocialArgs(_ args: SdkAuthLoginArgs) -> SdkUpgradeGuestExistingArgs {
@@ -489,7 +549,7 @@ struct LoginInitialView: View {
             
             guard let rootViewController = getRootViewController() else {
                 print("no root view controller found")
-                viewModel.setLoginErrorMessage("There was an error logging in")
+                viewModel.setLoginErrorMessage(String(localized: "There was an error logging in"))
                 return
             }
             
@@ -498,7 +558,7 @@ struct LoginInitialView: View {
             
             guard let presentingWindow = NSApplication.shared.windows.first else {
               print("There is no presenting window!")
-              viewModel.setLoginErrorMessage("There was an error logging in")
+              viewModel.setLoginErrorMessage(String(localized: "There was an error logging in"))
               return
             }
             
@@ -531,12 +591,12 @@ struct LoginInitialView: View {
             
             case .failure(let error):
                 print("error create args result: \(error.localizedDescription)")
-                viewModel.setLoginErrorMessage("There was an error logging in")
+                viewModel.setLoginErrorMessage(String(localized: "There was an error logging in"))
             }
             
          } catch {
              print("Error signing in: \(error.localizedDescription)")
-             viewModel.setLoginErrorMessage("There was an error logging in")
+             viewModel.setLoginErrorMessage(String(localized: "There was an error logging in"))
          }
         
         
@@ -560,8 +620,9 @@ private struct LoginInitialFormView: View {
     let loginErrorMessage: String?
     let deviceExists: Bool
     let presentSignInWithSolanaSheet: () -> Void
+    let signInWithBittensor: () -> Void
     let presentAuthCodeLoginSheet: () -> Void
-    
+
     @Binding var presentGuestNetworkSheet: Bool
     @State private var presentNetworkServerSheet = false
     
@@ -643,6 +704,7 @@ private struct LoginInitialFormView: View {
                 handleAppleLoginResult: handleAppleLoginResult,
                 handleGoogleSignInButton: handleGoogleSignInButton,
                 presentSignInWithSolanaSheet: presentSignInWithSolanaSheet,
+                signInWithBittensor: signInWithBittensor,
                 presentAuthCodeLoginSheet: presentAuthCodeLoginSheet,
                 activeLoginAction: activeLoginAction,
                 isLoginActionInFlight: isLoginActionInFlight
@@ -730,6 +792,7 @@ private struct SSOButtons: View {
     let handleAppleLoginResult: (Result<ASAuthorization, Error>) async -> Void
     let handleGoogleSignInButton: () async -> Void
     let presentSignInWithSolanaSheet: () -> Void
+    let signInWithBittensor: () -> Void
     let presentAuthCodeLoginSheet: () -> Void
     let activeLoginAction: LoginInitialView.LoginAction?
     let isLoginActionInFlight: Bool
@@ -771,14 +834,56 @@ private struct SSOButtons: View {
             )
             .buttonStyle(.plain)
             
+            Spacer()
+                .frame(height: 24)
+
+            /**
+             * Bittensor sign in runs through the ur.io/wallet-connect bridge,
+             * so it does not depend on an installed wallet app
+             */
+            Button(action: signInWithBittensor) {
+                ZStack {
+                    HStack {
+                        Text("τ")
+                            .foregroundColor(themeManager.currentTheme.inverseTextColor)
+                            .font(
+                                Font.system(size: 19, weight: .bold)
+                            )
+                        Spacer().frame(width: 8)
+                        Text("Sign in with Bittensor")
+                            .foregroundColor(themeManager.currentTheme.inverseTextColor)
+                            .font(
+                                Font.system(size: 19, weight: .medium)
+                            )
+                    }
+
+                    if activeLoginAction == .bittensor {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                                .tint(.urBlack)
+                                .controlSize(.small)
+                                .padding(.trailing, 16)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .frame(height: 48)
+            .background(.white)
+            .clipShape(Capsule())
+            .buttonStyle(.plain)
+            .opacity(isLoginActionInFlight && activeLoginAction != .bittensor ? 0.3 : 1)
+            .disabled(isLoginActionInFlight)
+
             // check if either .phantom or solflare are installed
             if (connectWalletProviderViewModel.isWalletAppInstalled(.phantom)
                 || connectWalletProviderViewModel.isWalletAppInstalled(.solflare)
             ) {
-                
+
                 Spacer()
                     .frame(height: 24)
-             
+
                 Button(action: presentSignInWithSolanaSheet) {
                     ZStack {
                         HStack {
@@ -854,6 +959,7 @@ private struct SSOButtons: View {
     var handleAppleLoginResult: (Result<ASAuthorization, Error>) async -> Void
     var handleGoogleSignInButton: () async -> Void
     var presentSignInWithSolanaSheet: () -> Void
+    var signInWithBittensor: () -> Void
     let presentAuthCodeLoginSheet: () -> Void
     let activeLoginAction: LoginInitialView.LoginAction?
     let isLoginActionInFlight: Bool
@@ -932,6 +1038,60 @@ private struct SSOButtons: View {
             }
             .frame(maxWidth: .infinity)
             
+            Spacer()
+                .frame(height: 8)
+
+            HStack {
+                /**
+                 * Bittensor sign in, placed before Solana. Runs through the
+                 * ur.io/wallet-connect bridge (browser extension wallets)
+                 */
+                Button(action: signInWithBittensor) {
+                    HStack {
+                        Text("τ")
+                            .foregroundColor(themeManager.currentTheme.inverseTextColor)
+                            .font(
+                                Font.system(size: 12, weight: .bold)
+                            )
+                        Spacer().frame(width: 8)
+                        Text("Sign in with Bittensor")
+                            .foregroundColor(themeManager.currentTheme.inverseTextColor)
+                                .font(
+                                    Font.system(size: 12, weight: .medium)
+                                )
+                    }
+                }
+                .frame(height: 30)
+                .frame(maxWidth: .infinity)
+                .background(.white)
+                .cornerRadius(6)
+                .buttonStyle(.plain)
+                .disabled(isLoginActionInFlight)
+
+                Spacer().frame(width: 8)
+
+                Button(action: presentSignInWithSolanaSheet) {
+                    HStack {
+                        Image("solana.gradient.logo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 16)
+                        Spacer().frame(width: 8)
+                        Text("Sign in with Solana")
+                            .foregroundColor(themeManager.currentTheme.inverseTextColor)
+                                .font(
+                                    Font.system(size: 12, weight: .medium)
+                                )
+                    }
+                }
+                .frame(height: 30)
+                .frame(maxWidth: .infinity)
+                .background(.white)
+                .cornerRadius(6)
+                .buttonStyle(.plain)
+                .disabled(isLoginActionInFlight)
+            }
+            .frame(maxWidth: .infinity)
         }
         
     }

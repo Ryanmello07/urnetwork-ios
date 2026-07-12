@@ -105,6 +105,24 @@ struct MainView: View {
         .background(themeManager.currentTheme.backgroundColor)
         .environmentObject(subscriptionBalanceViewModel)
         .environmentObject(subscriptionManager)
+        .onChange(of: subscriptionManager.transactionUpdateSequence) { _ in
+            /**
+             * StoreKit delivered a transaction outside of an in-app purchase flow: an
+             * Ask to Buy approval that came through later, a purchase made on another
+             * device, a renewal — anything that completed while the app was closed.
+             *
+             * This used to do NOTHING. The transaction listener starts at init, but the
+             * callback it invoked (`onPurchaseSuccess`) is only assigned inside
+             * `purchase()`. So on a fresh launch it was nil: StoreKit handed us the
+             * transaction, we finished it, and the app never noticed. The user's purchase
+             * had completed and they were still on the free plan, with nothing to explain
+             * why.
+             *
+             * Poll: the server learns of the purchase by webhook, so give it a moment and
+             * pick up the entitlement.
+             */
+            subscriptionBalanceViewModel.startPolling()
+        }
         .onChange(of: deviceManager.isPro) { newValue in
             /**
              * plan updates change subscription balance polling behavior

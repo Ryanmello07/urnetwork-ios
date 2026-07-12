@@ -186,6 +186,7 @@ struct SplitRulesView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.up")
                             .font(.system(size: 10, weight: .semibold))
+                        // real plural rules live in Localizable.xcstrings ("%lld new")
                         Text("\(pending) new")
                             .font(.system(size: 12, weight: .medium).monospacedDigit())
                     }
@@ -315,7 +316,8 @@ struct SplitRuleRowView: View {
                     .foregroundColor(themeManager.currentTheme.textColor)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Text("\(rule.hosts.count) host\(rule.hosts.count == 1 ? "" : "s")")
+                // real plural rules live in Localizable.xcstrings ("%lld hosts")
+                Text("\(rule.hosts.count) hosts")
                     .font(themeManager.currentTheme.secondaryBodyFont)
                     .foregroundColor(themeManager.currentTheme.textFaintColor)
             }

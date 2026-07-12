@@ -28,6 +28,7 @@ struct ConnectStatsSections: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var throughputStore: ThroughputStore
     @EnvironmentObject var dnsSettingsStore: DnsSettingsStore
+    @EnvironmentObject var deviceManager: DeviceManager
 
     let openSheet: (ConnectStatsSheet) -> Void
 
@@ -106,6 +107,22 @@ struct ConnectStatsSections: View {
 
             }
 
+            /**
+             * Ad and tracker blocker toggle. The device applies it immediately
+             * and persists it to local settings.
+             */
+            VStack(alignment: .leading, spacing: 0) {
+                UrSwitchToggle(isOn: $deviceManager.blockerEnabled) {
+                    Text("Block ads and trackers")
+                        .font(themeManager.currentTheme.bodyFont)
+                        .foregroundColor(themeManager.currentTheme.textColor)
+                }
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(themeManager.currentTheme.tintedBackgroundBase)
+            .cornerRadius(12)
+
         }
     }
 
@@ -170,7 +187,9 @@ private struct SplitRuleCountLabel: View {
     @EnvironmentObject var blockActionsStore: BlockActionsStore
 
     var body: some View {
-        Text("\(blockActionsStore.splitRules.count) split rule\(blockActionsStore.splitRules.count == 1 ? "" : "s")")
+        // real plural rules live in Localizable.xcstrings ("%lld split rules");
+        // never inflect in the interpolation, it is untranslatable
+        Text("\(blockActionsStore.splitRules.count) split rules")
             .font(themeManager.currentTheme.secondaryBodyFont)
             .foregroundColor(themeManager.currentTheme.textColor)
     }

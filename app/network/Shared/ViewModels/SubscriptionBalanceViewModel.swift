@@ -28,6 +28,29 @@ class SubscriptionBalanceViewModel: ObservableObject {
     @Published private(set) var isPolling: Bool = false
     private var pollingTimer: Timer?
     private var pollingInterval: TimeInterval = 5.0 // Default 5 seconds
+
+    /**
+     * The upgrade-confirmation poll has a DEADLINE.
+     *
+     * A purchase reaches our server asynchronously (the App Store notifies it by
+     * webhook), so right after StoreKit reports success the server does not know yet.
+     * We poll to bridge that gap -- that part works.
+     *
+     * But a webhook can be lost or badly delayed, and the poll only ever stopped on
+     * SUCCESS. So in that case it ran every 5 seconds for the rest of the session,
+     * behind a spinner, with no way for the user to learn anything had gone wrong.
+     * They paid, and the app just span. Give up after `maxPollingDuration` and say so.
+     */
+    private var pollingDeadline: Date?
+    private let maxPollingDuration: TimeInterval = 120.0 // 2 minutes
+
+    /**
+     * True when the confirmation poll gave up without the server ever confirming Pro.
+     * StoreKit took the money but we could not verify the entitlement, so the UI must
+     * SAY that -- it is the difference between "we're still working on it" and an
+     * endless spinner.
+     */
+    @Published private(set) var purchaseConfirmationTimedOut: Bool = false
     
     // this is used primarily for the data usage bar
     private var backgroundPollingTimer: Timer?
@@ -107,25 +130,24 @@ class SubscriptionBalanceViewModel: ObservableObject {
             self.usedBalanceByteCount = Int(result.startBalanceByteCount) - self.availableByteCount - self.pendingByteCount
             self.startBalanceByteCount = Int(result.startBalanceByteCount)
             
-            if let currentSubscription = result.currentSubscription {
-  
-                if let validPlan = Plan(rawValue: currentSubscription.plan.lowercased()) {
-                    
-                    print("current plan is: \(validPlan)")
-                    
-                    
-                    if validPlan == .supporter && !self.isPro {
-                        // free -> paid: signal the upgrade so provide mode resets to never once
-                        self.didDetectUpgradeToPro = true
-                    }
+            // The server is the source of truth for Pro, and `currentSubscription` is
+            // non-nil exactly when the network is Pro. The jwt's `pro` claim is baked
+            // in when the token is issued, so it goes stale on BOTH an upgrade and a
+            // lapse. Refresh the jwt whenever the two disagree, in either direction.
+            //
+            // The downgrade case used to live inside `if let currentSubscription`,
+            // which is nil precisely when the user is no longer pro -- so it could
+            // never run. A lapsed subscriber kept showing "Supporter", kept Pro
+            // behavior, and kept the upgrade CTA hidden until the app was relaunched.
+            let serverIsPro = result.currentSubscription != nil
 
-                    if validPlan == .supporter && !self.isPro
-                        || validPlan == .none && self.isPro
-                    {
-                        refreshJwt()
-                    }
-                    
-                }
+            if serverIsPro && !self.isPro {
+                // free -> paid: signal the upgrade so provide mode resets to never once
+                self.didDetectUpgradeToPro = true
+            }
+
+            if serverIsPro != self.isPro {
+                refreshJwt()
             }
             
             self.isLoading = false
@@ -181,36 +203,68 @@ class SubscriptionBalanceViewModel: ObservableObject {
         backgroundPollingTimer?.invalidate()
         backgroundPollingTimer = nil
 
+        // a fresh confirmation attempt: clear any previous give-up, and arm the deadline
+        self.purchaseConfirmationTimedOut = false
+        self.pollingDeadline = Date().addingTimeInterval(maxPollingDuration)
+
         self.setPollingInterval(interval)
         self.setIsPolling(true)
 
         Task {
-            
+
             await fetchSubscriptionBalance()
-            
+
             if (self.isSupporterWithBalance()) {
                 stopPolling()
                 return
             }
-            
+
             // Set up timer for subsequent fetches
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
-                
+
                 self.pollingTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
                     guard let self = self else { return }
-                    
+
                     Task {
                         await self.fetchSubscriptionBalance()
-                        
+
                         if (await self.isSupporterWithBalance()) {
                             await self.stopPolling()
+                            return
                         }
-                        
+
+                        // the server never confirmed within the window -- stop
+                        // hammering the api and tell the user, rather than spinning
+                        // for the rest of the session
+                        if (await self.isPollingDeadlineExpired()) {
+                            await self.timeOutPurchaseConfirmation()
+                        }
                     }
                 }
             }
         }
+    }
+
+    private func isPollingDeadlineExpired() -> Bool {
+        guard let pollingDeadline = self.pollingDeadline else { return false }
+        return Date() >= pollingDeadline
+    }
+
+    /**
+     * Give up waiting for the server to confirm the purchase. The money was taken by
+     * StoreKit; we simply could not verify the entitlement in time (a lost or slow
+     * App Store webhook). Stop polling and raise the flag so the UI can show a real
+     * message -- the purchase is still likely to land, and the background poll and the
+     * next app launch will pick it up.
+     */
+    private func timeOutPurchaseConfirmation() {
+        stopPolling()
+        purchaseConfirmationTimedOut = true
+    }
+
+    func clearPurchaseConfirmationTimeout() {
+        purchaseConfirmationTimedOut = false
     }
     
     func isSupporterWithBalance() -> Bool {
@@ -221,6 +275,7 @@ class SubscriptionBalanceViewModel: ObservableObject {
     func stopPolling() {
         pollingTimer?.invalidate()
         pollingTimer = nil
+        pollingDeadline = nil
         isPolling = false
         backgroundPollingTimer?.invalidate()
         backgroundPollingTimer = nil
