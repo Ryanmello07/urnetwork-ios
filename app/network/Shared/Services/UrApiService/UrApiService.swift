@@ -334,7 +334,7 @@ extension UrApiService {
                             // treat as a brand new network (create flow)
                             continuation.resume(returning: .create(args))
                         } else {
-                            let errMessage = "Please login with one of: \(acceptedAuthMethods.joined(separator: ", "))."
+                            let errMessage = String(localized: "Please login with one of: \(acceptedAuthMethods.joined(separator: ", ")).")
                             continuation.resume(returning: .incorrectAuth(errMessage))
                         }
 

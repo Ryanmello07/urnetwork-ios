@@ -96,7 +96,7 @@ struct AccountRootView: View {
                                     .foregroundColor(themeManager.currentTheme.textColor)
                             } else {
                              
-                                Text(isPro ? "Supporter" : "Free")
+                                Text(isPro ? "Pro" : "Free")
                                     .font(themeManager.currentTheme.titleCondensedFont)
                                     .foregroundColor(themeManager.currentTheme.textColor)
                                 
@@ -129,21 +129,37 @@ struct AccountRootView: View {
                             usedByteCount: subscriptionBalanceViewModel.usedBalanceByteCount,
                             meanReliabilityWeight: meanReliabilityWeight,
                             totalReferrals: referralLinkViewModel.totalReferrals,
-                            dailyBalanceByteCount: subscriptionBalanceViewModel.startBalanceByteCount
+                            dailyBalanceByteCount: subscriptionBalanceViewModel.startBalanceByteCount,
+                            referralCode: referralLinkViewModel.referralCode
                         )
                         
-                        HStack {
-                            
-                            Spacer()
-                            
-                            Button(action: {
-                                viewModel.isPresentedRedeemBalanceCodeSheet = true
-                            }) {
+                        /**
+                         * "Redeem Balance Code" gets its OWN row, as a full-width tap
+                         * target.
+                         *
+                         * It used to be a small right-aligned link crammed under the
+                         * usage bar beside the referral affordance — a fiddly thing to
+                         * hit on a phone, and easy to miss altogether. The whole row is
+                         * now tappable, with a chevron so it reads as somewhere to go.
+                         */
+                        Button(action: {
+                            viewModel.isPresentedRedeemBalanceCodeSheet = true
+                        }) {
+                            HStack {
                                 Text("Redeem Balance Code")
-                                    .font(themeManager.currentTheme.secondaryBodyFont)
+                                    .font(themeManager.currentTheme.bodyFont)
+                                    .foregroundColor(themeManager.currentTheme.textColor)
+
+                                Spacer()
+
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(themeManager.currentTheme.textMutedColor)
                             }
-                            
+                            .contentShape(Rectangle())
+                            .padding(.vertical, 12)
                         }
+                        .buttonStyle(.plain)
                         
                         Divider()
                             .background(themeManager.currentTheme.borderBaseColor)
@@ -327,12 +343,7 @@ struct AccountRootView: View {
                             
                         }
                         .buttonStyle(.plain)
-                        
-                        /**
-                         * URnode Carousel
-                         */
-                        URNodeCarousel()
-                        
+
                         Spacer().frame(height: 16)
                     }
                     
@@ -443,8 +454,13 @@ struct AccountRootView: View {
                 },
                 isPurchasing: subscriptionManager.isPurchasing,
                 purchaseSuccess: subscriptionManager.purchaseSuccess,
+                purchasePending: subscriptionManager.purchasePending,
                 dismiss: {
                     viewModel.isPresentedUpgradeSheet = false
+                    // the purchase flags describe ONE attempt; letting them
+                    // survive is what showed "You're premium." to a user who
+                    // had not actually completed a purchase
+                    subscriptionManager.resetPurchaseState()
                 }
             )
             .environmentObject(themeManager)
@@ -469,6 +485,7 @@ struct AccountRootView: View {
             ToolbarItem {
                 AccountMenu(
                     isGuest: isGuest,
+                    isPro: isPro,
                     logout: logout,
                     networkName: networkName,
                     isPresentedCreateAccount: $viewModel.isPresentedCreateAccount,
@@ -501,6 +518,7 @@ struct AccountRootView: View {
             ToolbarItem(placement: .automatic) {
                 AccountMenu(
                     isGuest: isGuest,
+                    isPro: isPro,
                     logout: logout,
                     networkName: networkName,
                     isPresentedCreateAccount: $viewModel.isPresentedCreateAccount,
@@ -539,7 +557,7 @@ struct AccountRootView: View {
             if case .failure(let error) = result {
                 print("[AccountRootView] handleSuccessWithJwt: \(error.localizedDescription)")
                 
-                snackbarManager.showSnackbar(message: "There was an error creating your network. Please try again later.")
+                snackbarManager.showSnackbar(message: String(localized: "There was an error creating your network. Please try again later."))
                 
                 return
             }

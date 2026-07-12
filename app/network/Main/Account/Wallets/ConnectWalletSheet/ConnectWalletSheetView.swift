@@ -76,10 +76,36 @@ struct ConnectWalletSheetView: View {
                 .buttonStyle(.plain)
                 .disabled(!connectWalletProviderViewModel.isWalletAppInstalled(.solflare))
                 
+                /**
+                 * Bittensor wallets connect by address (recorded for future
+                 * use; they can't receive payouts yet)
+                 */
                 Button(action: {
                     navigate(ConnectWalletNavigationPath.external)
                 }) {
-                    
+
+                    VStack {
+                        Text("τ")
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 36, height: 36)
+                            .padding()
+                            .background(Color(hex: "#1C1C1C"))
+                            .cornerRadius(12)
+
+
+                        Text("Bittensor")
+                            .font(themeManager.currentTheme.secondaryBodyFont)
+                            .foregroundColor(themeManager.currentTheme.textColor)
+                    }
+
+                }
+                .buttonStyle(.plain)
+
+                Button(action: {
+                    navigate(ConnectWalletNavigationPath.external)
+                }) {
+
                     VStack {
                         Image("ur.symbols.wallet")
                             .resizable()
@@ -88,15 +114,15 @@ struct ConnectWalletSheetView: View {
                             .padding()
                             .background(.urLightBlue)
                             .cornerRadius(12)
-                        
+
 
                         Text("Other")
                             .font(themeManager.currentTheme.secondaryBodyFont)
                             .foregroundColor(themeManager.currentTheme.textColor)
                     }
-                    
+
                 }
-                
+
             }
             
             Spacer().frame(height: 16)
@@ -124,7 +150,7 @@ struct ConnectWalletSheetView: View {
     }
 
     private func showWalletOpenFailed() {
-        snackbarManager.showSnackbar(message: "Couldn't open wallet. Please install it and try again.")
+        snackbarManager.showSnackbar(message: String(localized: "Couldn't open wallet. Please install it and try again."))
     }
 }
 

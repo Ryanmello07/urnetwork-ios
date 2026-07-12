@@ -46,6 +46,7 @@ struct ProviderListItemView: View {
                 HStack(spacing: 0) {
                  
                     if let providerCount = providerCount, providerCount > 0 {
+                        // real plural rules live in Localizable.xcstrings ("%d providers")
                         Text("\(providerCount) providers")
                             .font(themeManager.currentTheme.secondaryBodyFont)
                             .foregroundColor(themeManager.currentTheme.textMutedColor)

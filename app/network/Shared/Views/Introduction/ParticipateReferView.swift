@@ -85,7 +85,7 @@ struct ParticipateReferView: View {
                             copyToPasteboard(referralCode)
                             
                             // snackbar not showing above fullScreenCover
-                            snackbarManager.showSnackbar(message: "Bonus referral code copied to clipboard")
+                            snackbarManager.showSnackbar(message: String(localized: "Bonus referral code copied to clipboard"))
                             
                         }) {
                             HStack {
@@ -117,9 +117,8 @@ struct ParticipateReferView: View {
                         Spacer().frame(height: 16)
                         
                         ShareLink(
-                            item: URL(string: "https://ur.io/app?bonus=\(referralCode)")!,
-                            subject: Text("URnetwork Referral Code"),
-                            message: Text("All the content in the world from URnetwork"))
+                            item: String(localized: "Join me on URnetwork! Get the app and enter referral code \(referralCode) when you sign up."),
+                            subject: Text("URnetwork Referral Code"))
                         {
                             Text("Refer a friend")
                                 .font(themeManager.currentTheme.toolbarTitleFont.bold())

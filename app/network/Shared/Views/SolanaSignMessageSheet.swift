@@ -166,6 +166,11 @@ struct SolanaSignMessageSheet: View {
                                         setIsSigningMessage(false)
                                     }
                                 )
+                            case .bittensor:
+                                // bittensor signs through the ur.io/wallet-connect
+                                // bridge, not this solana sheet
+                                setIsSigningMessage(false)
+                                return
                             }
 
                             if !didStartSigning {
@@ -187,7 +192,7 @@ struct SolanaSignMessageSheet: View {
     }
 
     private func showWalletOpenFailed() {
-        snackbarManager.showSnackbar(message: "Couldn't open wallet. Please install it and try again.")
+        snackbarManager.showSnackbar(message: String(localized: "Couldn't open wallet. Please install it and try again."))
     }
 }
 

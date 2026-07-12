@@ -169,12 +169,12 @@ struct WalletsView: View {
                             await payoutWalletViewModel.fetchPayoutWallet()
                             viewModel.presentConnectWalletSheet = false
                         case .failure(let error):
-                            snackbarManager.showSnackbar(message: "There was an error connecting your wallet: \(error.localizedDescription)")
+                            snackbarManager.showSnackbar(message: String(localized: "There was an error connecting your wallet: \(error.localizedDescription)"))
                         }
                     }
                 },
                 onError: { _ in
-                    snackbarManager.showSnackbar(message: "There was an error connecting your wallet.")
+                    snackbarManager.showSnackbar(message: String(localized: "There was an error connecting your wallet."))
                 }
             )
         }

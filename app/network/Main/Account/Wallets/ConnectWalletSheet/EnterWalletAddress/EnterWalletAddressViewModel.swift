@@ -54,23 +54,25 @@ extension EnterWalletAddressView {
 
                 let solanaResult = await self.validateAddress(addressToValidate, chain: "SOL")
                 guard !Task.isCancelled, self.walletAddress == addressToValidate else { return }
-    
-                switch (solanaResult) {
-                case (.success(let isSolanaValid)):
-    
-                    if isSolanaValid {
-                        self.chain = WalletChain.sol
-                        self.isValidWalletAddress = true
-                    } else {
-                        self.chain = WalletChain.invalid
-                        self.isValidWalletAddress = false
-                    }
-    
-                default:
-                    print("\(domain) validation failed")
+
+                if case .success(true) = solanaResult {
+                    self.chain = WalletChain.sol
+                    self.isValidWalletAddress = true
+                    print("is valid wallet address: \(self.isValidWalletAddress)")
+                    print("chain is \(self.chain)")
+                    return
+                }
+
+                // bittensor (ss58) wallets are recorded for future use only
+                let taoResult = await self.validateAddress(addressToValidate, chain: "TAO")
+                guard !Task.isCancelled, self.walletAddress == addressToValidate else { return }
+
+                if case .success(true) = taoResult {
+                    self.chain = WalletChain.tao
+                    self.isValidWalletAddress = true
+                } else {
                     self.chain = WalletChain.invalid
                     self.isValidWalletAddress = false
-    
                 }
                 print("is valid wallet address: \(self.isValidWalletAddress)")
                 print("chain is \(self.chain)")

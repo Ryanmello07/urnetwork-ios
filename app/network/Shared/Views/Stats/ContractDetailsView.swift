@@ -131,6 +131,7 @@ struct ContractDetailsView: View {
                                 HStack(spacing: 4) {
                                     Image(systemName: "arrow.up")
                                         .font(.system(size: 10, weight: .semibold))
+                                    // real plural rules live in Localizable.xcstrings ("%lld new")
                                     Text("\(pending) new")
                                         .font(.system(size: 12, weight: .medium).monospacedDigit())
                                 }
@@ -223,6 +224,7 @@ struct ContractClientRowView: View {
                     }
 
                 if 1 < row.pairCount {
+                    // real plural rules live in Localizable.xcstrings ("%lld contracts")
                     Text("\(row.pairCount) contracts")
                         .font(themeManager.currentTheme.secondaryBodyFont)
                         .foregroundColor(themeManager.currentTheme.textMutedColor)
@@ -251,7 +253,7 @@ struct ContractClientRowView: View {
         pasteboard.clearContents()
         pasteboard.setString(row.clientId, forType: .string)
         #endif
-        snackbarManager.showSnackbar(message: "Client ID copied")
+        snackbarManager.showSnackbar(message: String(localized: "Client ID copied"))
     }
 }
 

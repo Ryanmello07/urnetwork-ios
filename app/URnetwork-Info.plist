@@ -39,6 +39,11 @@
 		<string>solflare</string>
 		<string>phantom</string>
 	</array>
+	<!-- WalletConnect Cloud project id for the Bittensor wallet sign in, passed
+	     to the ur.io/wallet-connect bridge. When empty, the bridge falls back to
+	     injected wallets only (browser extension / wallet in-app browser). -->
+	<key>URWalletConnectProjectId</key>
+	<string></string>
 	<key>NEVPNConfiguration</key>
 	<array>
 		<string>network.ur.extension</string>

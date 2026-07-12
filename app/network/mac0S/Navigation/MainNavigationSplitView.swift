@@ -164,6 +164,7 @@ struct MainNavigationSplitView: View {
                     promptMoreDataFlow: { displayIntroduction = true },
                     meanReliabilityWeight: networkReliabilityStore.reliabilityWindow?.meanReliabilityWeight ?? 0,
                     totalReferrals: referralLinkViewModel.totalReferrals,
+                    referralCode: referralLinkViewModel.referralCode,
                     isPro: isPro
                 )
             case .account:

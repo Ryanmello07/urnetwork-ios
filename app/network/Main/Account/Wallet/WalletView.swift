@@ -22,14 +22,18 @@ struct WalletView: View {
     let fetchPayments: () async -> Void
     
     var walletName: String {
-        
+
         if wallet.blockchain == "SOL" {
             return "Solana"
         }
-        
+
+        if wallet.blockchain == "TAO" {
+            return "Bittensor"
+        }
+
         // otherwise, POLY
         return "Polygon"
-        
+
     }
     
     init(
@@ -93,15 +97,28 @@ struct WalletView: View {
                  * Actions
                  */
                 VStack {
-                    
-                    if !isPayoutWallet {
-                        
+
+                    /**
+                     * bittensor wallets are recorded for future use only and
+                     * cannot be the payout wallet
+                     */
+                    if wallet.blockchain == "TAO" {
+
+                        Text("Bittensor wallets are stored for future use and can't receive payouts yet.")
+                            .font(themeManager.currentTheme.secondaryBodyFont)
+                            .foregroundColor(themeManager.currentTheme.textMutedColor)
+                            .multilineTextAlignment(.center)
+
+                        Spacer().frame(height: 8)
+
+                    } else if !isPayoutWallet {
+
                         UrButton(text: "Make default", action: {
                             makeDefaultWallet()
                         })
-                        
+
                         Spacer().frame(height: 8)
-                        
+
                     }
                         
                     UrButton(
@@ -161,17 +178,17 @@ struct WalletView: View {
     private func makeDefaultWallet() {
         
         guard let walletId = wallet.walletId else {
-            snackbarManager.showSnackbar(message: "Error setting default wallet")
-            
+            snackbarManager.showSnackbar(message: String(localized: "Error setting default wallet"))
+
             return
         }
-        
+
         Task {
             switch await payoutWalletViewModel.updatePayoutWallet(walletId) {
             case .success:
-                snackbarManager.showSnackbar(message: "Payout wallet updated")
+                snackbarManager.showSnackbar(message: String(localized: "Payout wallet updated"))
             case .failure(let error):
-                snackbarManager.showSnackbar(message: "Error setting default wallet: \(error.localizedDescription)")
+                snackbarManager.showSnackbar(message: String(localized: "Error setting default wallet: \(error.localizedDescription)"))
             }
         }
     }

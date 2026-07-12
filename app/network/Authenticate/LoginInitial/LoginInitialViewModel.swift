@@ -18,6 +18,7 @@ extension LoginInitialView {
         case apple
         case google
         case solana
+        case bittensor
     }
     
     @MainActor
@@ -261,17 +262,37 @@ extension LoginInitialView.ViewModel {
 // MARK: Solana Sign in
 extension LoginInitialView.ViewModel {
     func createSolanaAuthLoginArgs(message: String, signature: String, publicKey: String) -> Result<SdkAuthLoginArgs, Error> {
-        
+
         let args = SdkAuthLoginArgs()
         let walletAuth = SdkWalletAuthArgs()
         walletAuth.blockchain = SdkSOL
         walletAuth.message = message
         walletAuth.signature = signature
         walletAuth.publicKey = publicKey
-        
+
         args.walletAuth = walletAuth
-        
+
         return .success(args)
-        
+
+    }
+}
+
+// MARK: Bittensor Sign in
+extension LoginInitialView.ViewModel {
+    func createBittensorAuthLoginArgs(message: String, signature: String, publicKey: String) -> Result<SdkAuthLoginArgs, Error> {
+
+        let args = SdkAuthLoginArgs()
+        let walletAuth = SdkWalletAuthArgs()
+        // publicKey is the ss58 address; the signature is sr25519 hex from
+        // the ur.io/wallet-connect bridge
+        walletAuth.blockchain = SdkTAO
+        walletAuth.message = message
+        walletAuth.signature = signature
+        walletAuth.publicKey = publicKey
+
+        args.walletAuth = walletAuth
+
+        return .success(args)
+
     }
 }

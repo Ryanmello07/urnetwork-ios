@@ -26,14 +26,17 @@ struct UsageBar: View {
     let totalReferrals: Int
     let cappedReliabilityData: Double
     let dailyBalanceByteCount: Int
-    
+    // when set, the referral row is a share link that opens the referral flow
+    let referralCode: String?
+
     init(
         availableByteCount: Int,
         pendingByteCount: Int,
         usedByteCount: Int,
         meanReliabilityWeight: Double,
         totalReferrals: Int,
-        dailyBalanceByteCount: Int
+        dailyBalanceByteCount: Int,
+        referralCode: String? = nil
     ) {
         self.data = [
             .init(name: "Used", bytes: usedByteCount),
@@ -47,6 +50,7 @@ struct UsageBar: View {
         
         cappedReliabilityData = min(meanReliabilityWeight * 100, 100)
         self.dailyBalanceByteCount = dailyBalanceByteCount
+        self.referralCode = referralCode
     }
     
     func minNonZeroValue(_ bytes: Int) -> Int {
@@ -147,25 +151,60 @@ struct UsageBar: View {
             
             Spacer().frame(height: 8)
 
-            HStack {
-                
-                Text("Total Referrals: \(totalReferrals)")
-                    .font(themeManager.currentTheme.secondaryBodyFont)
-                    .foregroundStyle(themeManager.currentTheme.textMutedColor)
-                
-                Spacer()
-             
-                Text("+\(totalReferrals * 30) GiB/Month")
-                    .font(themeManager.currentTheme.secondaryBodyFont)
-                    .foregroundStyle(themeManager.currentTheme.textMutedColor)
-                
-                
+            /**
+             * referrals. tapping shares the referral link, to make it easy to
+             * refer people from anywhere the bar is shown
+             */
+            if let referralCode = referralCode {
+                ShareLink(
+                    item: referralShareMessage(referralCode),
+                    subject: Text("URnetwork Referral Code")
+                ) {
+                    referralRow(showsShareIcon: true)
+                }
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+            } else {
+                referralRow(showsShareIcon: false)
             }
-            
+
         }
-        
+
     }
-    
+
+    private func referralShareMessage(_ code: String) -> String {
+        // referrals no longer use deep links; friends enter the code on sign up.
+        // share a generic invite until the code loads (see ReferralShareLink)
+        if !code.isEmpty {
+            return String(localized: "Join me on URnetwork! Get the app and enter referral code \(code) when you sign up.")
+        }
+        return String(localized: "Join me on URnetwork! Get the app and enter my referral code when you sign up.")
+    }
+
+    private func referralRow(showsShareIcon: Bool) -> some View {
+        HStack {
+
+            // real plural rules live in Localizable.xcstrings
+            // ("Total referrals: %lld")
+            Text("Total referrals: \(totalReferrals)")
+                .font(themeManager.currentTheme.secondaryBodyFont)
+                .foregroundStyle(themeManager.currentTheme.textMutedColor)
+
+            Spacer()
+
+            Text("+\(totalReferrals * 30) GiB/Month")
+                .font(themeManager.currentTheme.secondaryBodyFont)
+                .foregroundStyle(themeManager.currentTheme.textMutedColor)
+
+            if showsShareIcon {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(themeManager.currentTheme.textMutedColor)
+            }
+
+        }
+    }
+
 }
 
 #Preview {
