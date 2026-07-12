@@ -136,6 +136,30 @@ extension LoginInitialView {
                 return false
             }
         }
+
+        /**
+         * Bittensor
+         */
+        @Published private(set) var bittensorChallengeMessage: String?
+
+        /// Same server-issued challenge flow as prepareSolanaChallenge(), for
+        /// the Bittensor wallet-connect bridge. Must be called again for
+        /// every sign attempt - the server invalidates a challenge the
+        /// moment it is checked, whether the check succeeds or fails.
+        func prepareBittensorChallenge() async -> Bool {
+            let args = SdkAuthWalletChallengeArgs()
+            args.blockchain = "bittensor"
+
+            do {
+                let result = try await urApiService.authWalletChallenge(args)
+                bittensorChallengeMessage = result.messageTemplate
+                return true
+            } catch {
+                bittensorChallengeMessage = nil
+                setLoginErrorMessage("There was an error connecting to the network")
+                return false
+            }
+        }
         
         let termsLink = "https://ur.io/terms"
         
