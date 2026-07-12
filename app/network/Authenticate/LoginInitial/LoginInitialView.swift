@@ -434,13 +434,27 @@ struct LoginInitialView: View {
                 // the wallet challenge behind authLoginArgs was already
                 // consumed by the /auth/login call that just returned this
                 // .create case — fetch and sign a brand-new one before
-                // creating the network
+                // creating the network. Which wallet flow to re-arm depends
+                // on which one the user actually signed in with, not just
+                // "any wallet" - bittensor and solana each need their own
+                // challenge fetch and reopen the right sign-in surface.
                 viewModel.isSigningForCreateNetwork = true
-                let ok = await viewModel.prepareSolanaChallenge()
-                if ok {
-                    viewModel.setPresentSigninWithSolanaSheet(true)
+                if connectWalletProviderViewModel.connectedWalletProvider == .bittensor {
+                    let ok = await viewModel.prepareBittensorChallenge()
+                    if ok {
+                        connectWalletProviderViewModel.openBittensorSignIn(
+                            message: viewModel.bittensorChallengeMessage ?? ""
+                        )
+                    } else {
+                        viewModel.isSigningForCreateNetwork = false
+                    }
                 } else {
-                    viewModel.isSigningForCreateNetwork = false
+                    let ok = await viewModel.prepareSolanaChallenge()
+                    if ok {
+                        viewModel.setPresentSigninWithSolanaSheet(true)
+                    } else {
+                        viewModel.isSigningForCreateNetwork = false
+                    }
                 }
             } else {
                 navigate(.createNetwork(authLoginArgs))
@@ -482,16 +496,38 @@ struct LoginInitialView: View {
     }
 
     /**
-     * Bittensor sign in: opens the ur.io/wallet-connect bridge; the wallet
-     * returns through onOpenURL with the ss58 address and sr25519 signature
+     * Bittensor sign in: fetches a fresh server-issued challenge (same
+     * flow as Solana), then opens the ur.io/wallet-connect bridge; the
+     * wallet returns through onOpenURL with the ss58 address and sr25519
+     * signature over that challenge.
      */
     private func handleBittensorSignIn() {
-        connectWalletProviderViewModel.openBittensorSignIn(
-            message: connectWalletProviderViewModel.welcomeMessage
-        )
+        Task {
+            let ok = await viewModel.prepareBittensorChallenge()
+            if ok {
+                connectWalletProviderViewModel.openBittensorSignIn(
+                    message: viewModel.bittensorChallengeMessage ?? ""
+                )
+            }
+        }
     }
 
     private func handleBittensorWalletResult(message: String, signature: String, publicKey: String) async {
+
+        if viewModel.isSigningForCreateNetwork {
+            viewModel.isSigningForCreateNetwork = false
+            viewModel.setIsSigningMessage(false)
+
+            let createArgsResult = viewModel.createBittensorAuthLoginArgs(message: message, signature: signature, publicKey: publicKey)
+            switch createArgsResult {
+            case .success(let args):
+                navigate(.createNetwork(args))
+            case .failure(let error):
+                print("error create args result: \(error.localizedDescription)")
+                viewModel.setLoginErrorMessage("There was an error logging in")
+            }
+            return
+        }
 
         guard viewModel.beginLoginAction(.bittensor) else {
             return
