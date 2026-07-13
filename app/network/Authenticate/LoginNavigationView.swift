@@ -15,6 +15,7 @@ struct LoginNavigationView: View {
     @StateObject private var guestUpgradeViewModel: GuestUpgradeViewModel
     
     @EnvironmentObject var themeManager: ThemeManager
+    @EnvironmentObject var deviceManager: DeviceManager
     
     var api: SdkApi
     let urApiService: UrApiServiceProtocol
@@ -40,6 +41,7 @@ struct LoginNavigationView: View {
                 handleSuccess: handleSuccess,
                 guestUpgradeViewModel: guestUpgradeViewModel
             )
+            .id(deviceManager.activeHostName)
             .background(themeManager.currentTheme.backgroundColor.ignoresSafeArea())
             .navigationDestination(for: LoginInitialNavigationPath.self) { path in
                 switch path {
