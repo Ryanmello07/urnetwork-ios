@@ -249,20 +249,22 @@ struct LoginInitialView: View {
                     }
 
                         Task {
+                        Task {
                             if connectWalletProviderViewModel.connectedWalletProvider == .bittensor {
                                 await handleBittensorWalletResult(
-                                    message: connectWalletProviderViewModel.welcomeMessage,
+                                    message: viewModel.bittensorChallengeMessage ?? "",
                                     signature: signature,
                                     publicKey: pk
                                 )
                             } else {
                                 await handleSolanaWalletResult(
-                                    message: connectWalletProviderViewModel.welcomeMessage,
+                                    message: viewModel.solanaChallengeMessage ?? "",
                                     signature: signature,
                                     publicKey: pk
                                 )
                             }
                         }
+
 
                     },
                     onError: { _ in
@@ -1079,8 +1081,10 @@ private struct SSOButtons: View {
 
             HStack {
                 /**
-                 * Bittensor sign in, placed before Solana. Runs through the
-                 * ur.io/wallet-connect bridge (browser extension wallets)
+                 * Bittensor sign in. Runs through the ur.io/wallet-connect
+                 * bridge (browser extension wallets), which works on desktop
+                 * unlike Solana's Phantom/Solflare deep-link detection - see
+                 * the note on the removed macOS Solana button below.
                  */
                 Button(action: signInWithBittensor) {
                     HStack {
@@ -1106,26 +1110,10 @@ private struct SSOButtons: View {
 
                 Spacer().frame(width: 8)
 
-                Button(action: presentSignInWithSolanaSheet) {
-                    HStack {
-                        Image("solana.gradient.logo")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 16)
-                        Spacer().frame(width: 8)
-                        Text("Sign in with Solana")
-                            .foregroundColor(themeManager.currentTheme.inverseTextColor)
-                                .font(
-                                    Font.system(size: 12, weight: .medium)
-                                )
-                    }
-                }
-                .frame(height: 30)
-                .frame(maxWidth: .infinity)
-                .background(.white)
-                .cornerRadius(6)
-                .buttonStyle(.plain)
-                .disabled(isLoginActionInFlight)
+                // no Solana button here: unlike Bittensor, Solana sign-in relies on
+                // Phantom/Solflare app-installed detection with no macOS equivalent
+                // yet (see ios: remove Solana sign-in button from macOS login screen)
+                Spacer().frame(maxWidth: .infinity)
             }
             .frame(maxWidth: .infinity)
         }
