@@ -29,10 +29,9 @@ enum NetworkServerUtils {
         // bracketed IPv6 literal like [2001:db8::1]:8080. A bare IPv6
         // address (no brackets) must not be mangled — there is no
         // reliable way to distinguish its colons from a port separator.
-        if value.hasSuffix("]"), let bracketStart = value.range(of: "["),
-           let portColon = value.range(of: "]:", options: .backwards) {
-            // IPv6 literal with port: "[...]:port" — keep the brackets
-            value = String(value[..<portColon.upperBound])
+        if let portRange = value.range(of: "]:", options: .backwards) {
+            // IPv6 literal with port: "[...]:port" — strip the port but keep brackets
+            value = String(value[..<portRange.lowerBound]) + "]"
         } else if !value.contains("[") && !value.contains(":") {
             // Plain hostname — no colon, nothing to strip
         } else if let colonRange = value.range(of: ":", options: .backwards),
