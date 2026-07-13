@@ -84,6 +84,9 @@ struct LoginInitialView: View {
                             signInWithBittensor: {
                                 handleBittensorSignIn()
                             },
+                            signInWithBittensor: {
+                                handleBittensorSignIn()
+                            },
                             presentAuthCodeLoginSheet: {
                                 viewModel.setPresentAuthCodeLoginSheet(true)
                             },
@@ -119,6 +122,9 @@ struct LoginInitialView: View {
                                         viewModel.setPresentSigninWithSolanaSheet(true)
                                     }
                                 }
+                            },
+                            signInWithBittensor: {
+                                handleBittensorSignIn()
                             },
                             signInWithBittensor: {
                                 handleBittensorSignIn()
