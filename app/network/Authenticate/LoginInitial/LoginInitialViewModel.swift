@@ -128,6 +128,11 @@ extension LoginInitialView {
 
             do {
                 let result = try await urApiService.authWalletChallenge(args)
+                guard !result.messageTemplate.isEmpty else {
+                    solanaChallengeMessage = nil
+                    setLoginErrorMessage("There was an error connecting to the network")
+                    return false
+                }
                 solanaChallengeMessage = result.messageTemplate
                 return true
             } catch {
@@ -157,6 +162,11 @@ extension LoginInitialView {
 
             do {
                 let result = try await urApiService.authWalletChallenge(args)
+                guard !result.messageTemplate.isEmpty else {
+                    bittensorChallengeMessage = nil
+                    setLoginErrorMessage("There was an error connecting to the network")
+                    return false
+                }
                 bittensorChallengeMessage = result.messageTemplate
                 return true
             } catch {
