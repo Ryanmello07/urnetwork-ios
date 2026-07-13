@@ -320,6 +320,7 @@ class ConnectWalletProviderViewModel: ObservableObject {
         
         let connectedWalletProvider = (host == "solflare-connect" || host == "solflare-sign-message") ? ConnectedWalletProvider.solflare : ConnectedWalletProvider.phantom
         
+        self.connectedWalletProvider = connectedWalletProvider
         let isConnecting = host == "solflare-connect" || host == "phantom-connect"
         
         if isConnecting {
