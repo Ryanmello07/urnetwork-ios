@@ -113,6 +113,68 @@ extension LoginInitialView {
         func setIsSigningMessage(_ isSigning: Bool) -> Void {
             isSigningMessage = isSigning
         }
+
+        @Published private(set) var solanaChallengeMessage: String?
+
+        @Published var isSigningForCreateNetwork: Bool = false
+
+        /// Fetches a fresh, server-issued wallet-auth challenge and stores its
+        /// message template for the wallet to sign. Must be called again for
+        /// every sign attempt — the server invalidates a challenge the moment
+        /// it is checked, whether the check succeeds or fails.
+        func prepareSolanaChallenge() async -> Bool {
+            let args = SdkAuthWalletChallengeArgs()
+            args.blockchain = "solana"
+
+            do {
+                let result = try await urApiService.authWalletChallenge(args)
+                guard !result.messageTemplate.isEmpty else {
+                    solanaChallengeMessage = nil
+                    setLoginErrorMessage("There was an error connecting to the network")
+                    return false
+                }
+                solanaChallengeMessage = result.messageTemplate
+                return true
+            } catch {
+                solanaChallengeMessage = nil
+                setLoginErrorMessage("There was an error connecting to the network")
+                return false
+            }
+        }
+
+        /**
+         * Bittensor
+         */
+        @Published private(set) var bittensorChallengeMessage: String?
+
+        /// Same server-issued challenge flow as prepareSolanaChallenge(), for
+        /// the Bittensor wallet-connect bridge. Must be called again for
+        /// every sign attempt - the server invalidates a challenge the
+        /// moment it is checked, whether the check succeeds or fails.
+        ///
+        /// The server accepts blockchain="bittensor" (case-insensitively,
+        /// also "tao"/"TAO") — confirmed against urnetwork/server#402 after
+        /// that PR was extended to support Bittensor wallets alongside
+        /// Solana in the challenge-based wallet auth flow.
+        func prepareBittensorChallenge() async -> Bool {
+            let args = SdkAuthWalletChallengeArgs()
+            args.blockchain = "bittensor"
+
+            do {
+                let result = try await urApiService.authWalletChallenge(args)
+                guard !result.messageTemplate.isEmpty else {
+                    bittensorChallengeMessage = nil
+                    setLoginErrorMessage("There was an error connecting to the network")
+                    return false
+                }
+                bittensorChallengeMessage = result.messageTemplate
+                return true
+            } catch {
+                bittensorChallengeMessage = nil
+                setLoginErrorMessage("There was an error connecting to the network")
+                return false
+            }
+        }
         
         let termsLink = "https://ur.io/terms"
         

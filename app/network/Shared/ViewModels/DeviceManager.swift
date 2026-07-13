@@ -28,6 +28,8 @@ class DeviceManager: ObservableObject {
             // updateParsedJwt()
         }
     }
+
+    @Published private(set) var networkSpaceManager: SdkNetworkSpaceManager?
     
     var api: SdkApi? {
         get {
@@ -543,23 +545,23 @@ extension DeviceManager {
         
         let deviceSpecs = self.getDeviceSpecs()
         let networkSpaceManager = URnetworkSdk.SdkNewNetworkSpaceManager(storagePath)
+        self.networkSpaceManager = networkSpaceManager
         
-        let hostName = "ur.network"
-        let envName = "main"
+        let hostName = NetworkConfig.officialHostName
+        let envName = NetworkConfig.officialEnvName
         let networkSpaceKey = URnetworkSdk.SdkNewNetworkSpaceKey(hostName, envName)
         
         networkSpaceManager?.updateNetworkSpace(networkSpaceKey, callback: NetworkSpaceUpdateCallback(
             c: { networkSpaceValues in
-                // TODO: this should be moved into a config
-                networkSpaceValues.envSecret = ""
+                networkSpaceValues.envSecret = NetworkConfig.envSecret
                 networkSpaceValues.bundled = true
-                networkSpaceValues.netExposeServerIps = true
-                networkSpaceValues.netExposeServerHostNames = true
-                networkSpaceValues.linkHostName = "ur.io"
-                networkSpaceValues.migrationHostName = "bringyour.com"
-                networkSpaceValues.store = ""
-                networkSpaceValues.wallet = "circle"
-                networkSpaceValues.ssoGoogle = false
+                networkSpaceValues.netExposeServerIps = NetworkConfig.netExposeServerIps
+                networkSpaceValues.netExposeServerHostNames = NetworkConfig.netExposeServerHostNames
+                networkSpaceValues.linkHostName = NetworkConfig.officialLinkHostName
+                networkSpaceValues.migrationHostName = NetworkConfig.officialMigrationHostName
+                networkSpaceValues.store = NetworkConfig.store
+                networkSpaceValues.wallet = NetworkConfig.wallet
+                networkSpaceValues.ssoGoogle = NetworkConfig.ssoGoogle
             }
         ))
             
@@ -593,6 +595,73 @@ extension DeviceManager {
         
     }
     
+}
+
+// MARK: Network server selection
+@MainActor
+extension DeviceManager {
+
+    var activeHostName: String {
+        networkSpace?.getHostName() ?? NetworkConfig.officialHostName
+    }
+
+    var activeApiUrl: String {
+        networkSpace?.getApiUrl() ?? ""
+    }
+
+    var activePlatformUrl: String {
+        networkSpace?.getPlatformUrl() ?? ""
+    }
+
+    var configuredApiUrl: String {
+        networkSpace?.getConfiguredApiUrl() ?? ""
+    }
+
+    var configuredPlatformUrl: String {
+        networkSpace?.getConfiguredPlatformUrl() ?? ""
+    }
+
+    /// Switches the active network space to `hostName`, deriving api/connect
+    /// urls unless explicit overrides are given. Mirrors Android's
+    /// `NetworkServerSelector`/`updateNetworkSpace` flow - both platforms
+    /// share the same underlying Go `NetworkSpaceManager`.
+    func applyNetworkSpace(
+        hostName: String,
+        apiUrl: String,
+        connectUrl: String
+    ) -> Bool {
+        guard let networkSpaceManager else {
+            return false
+        }
+
+        let isOfficial = hostName == NetworkConfig.officialHostName
+        let hasExplicitUrls = !apiUrl.isEmpty || !connectUrl.isEmpty
+        let key = URnetworkSdk.SdkNewNetworkSpaceKey(hostName, NetworkConfig.officialEnvName)
+
+        let updated = networkSpaceManager.updateNetworkSpace(key, callback: NetworkSpaceUpdateCallback(
+            c: { values in
+                values.envSecret = NetworkConfig.envSecret
+                values.bundled = isOfficial && !hasExplicitUrls
+                values.netExposeServerIps = NetworkConfig.netExposeServerIps
+                values.netExposeServerHostNames = NetworkConfig.netExposeServerHostNames
+                values.linkHostName = isOfficial ? NetworkConfig.officialLinkHostName : hostName
+                values.migrationHostName = isOfficial ? NetworkConfig.officialMigrationHostName : ""
+                values.store = NetworkConfig.store
+                values.wallet = NetworkConfig.wallet
+                values.ssoGoogle = NetworkConfig.ssoGoogle
+                values.apiUrl = apiUrl
+                values.platformUrl = connectUrl
+            }
+        ))
+
+        guard let updated else {
+            return false
+        }
+
+        networkSpaceManager.setActiveNetworkSpace(updated)
+        self.networkSpace = updated
+        return true
+    }
 }
 
 // MARK: Device handlers

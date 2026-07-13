@@ -74,7 +74,12 @@ struct LoginInitialView: View {
                             loginErrorMessage: viewModel.loginErrorMessage,
                             deviceExists: deviceExists,
                             presentSignInWithSolanaSheet: {
-                                viewModel.setPresentSigninWithSolanaSheet(true)
+                                Task {
+                                    let ok = await viewModel.prepareSolanaChallenge()
+                                    if ok {
+                                        viewModel.setPresentSigninWithSolanaSheet(true)
+                                    }
+                                }
                             },
                             signInWithBittensor: {
                                 handleBittensorSignIn()
@@ -108,7 +113,12 @@ struct LoginInitialView: View {
                             loginErrorMessage: viewModel.loginErrorMessage,
                             deviceExists: deviceExists,
                             presentSignInWithSolanaSheet: {
-                                viewModel.setPresentSigninWithSolanaSheet(true)
+                                Task {
+                                    let ok = await viewModel.prepareSolanaChallenge()
+                                    if ok {
+                                        viewModel.setPresentSigninWithSolanaSheet(true)
+                                    }
+                                }
                             },
                             signInWithBittensor: {
                                 handleBittensorSignIn()
@@ -135,7 +145,7 @@ struct LoginInitialView: View {
                     setIsSigningMessage: viewModel.setIsSigningMessage,
                     signButtonText: "Sign in with Solana",
                     signButtonLabelText: "Sign in",
-                    message: connectWalletProviderViewModel.welcomeMessage,
+                    message: viewModel.solanaChallengeMessage ?? "",
                     dismiss: {
                         viewModel.setPresentSigninWithSolanaSheet(false)
                     }
@@ -239,20 +249,22 @@ struct LoginInitialView: View {
                     }
 
                         Task {
+                        Task {
                             if connectWalletProviderViewModel.connectedWalletProvider == .bittensor {
                                 await handleBittensorWalletResult(
-                                    message: connectWalletProviderViewModel.welcomeMessage,
+                                    message: viewModel.bittensorChallengeMessage ?? "",
                                     signature: signature,
                                     publicKey: pk
                                 )
                             } else {
                                 await handleSolanaWalletResult(
-                                    message: connectWalletProviderViewModel.welcomeMessage,
+                                    message: viewModel.solanaChallengeMessage ?? "",
                                     signature: signature,
                                     publicKey: pk
                                 )
                             }
                         }
+
 
                     },
                     onError: { _ in
@@ -266,37 +278,53 @@ struct LoginInitialView: View {
     
     private func handleSolanaWalletResult(message: String, signature: String, publicKey: String) async {
         print("handleSolanaWalletResult")
-        
+
+        if viewModel.isSigningForCreateNetwork {
+            viewModel.isSigningForCreateNetwork = false
+            viewModel.setIsSigningMessage(false)
+            viewModel.presentSigninWithSolanaSheet = false
+
+            let createArgsResult = viewModel.createSolanaAuthLoginArgs(message: message, signature: signature, publicKey: publicKey)
+            switch createArgsResult {
+            case .success(let args):
+                navigate(.createNetwork(args))
+            case .failure(let error):
+                print("error create args result: \(error.localizedDescription)")
+                viewModel.setLoginErrorMessage("There was an error logging in")
+            }
+            return
+        }
+
         guard viewModel.beginLoginAction(.solana) else {
             return
         }
-        
+
         defer {
             viewModel.endLoginAction(.solana)
         }
-        
+
         let createArgsResult = viewModel.createSolanaAuthLoginArgs(message: message, signature: signature, publicKey: publicKey)
         switch createArgsResult {
         case .success(let args):
-            
+
             if deviceManager.device != nil {
-                
+
                 let upgradeArgs = self.createUpgradeSolanaWalletArgs(args)
-                
+
                 let result = await guestUpgradeViewModel.linkGuestToExistingLogin(args: upgradeArgs)
-                
+
                 await self.handleAuthLoginResult(result)
                 viewModel.presentSigninWithSolanaSheet = false
                 viewModel.setIsSigningMessage(false)
-                
-                
+
+
             } else {
                 let result = await viewModel.authLogin(args: args)
                 await self.handleAuthLoginResult(result)
                 viewModel.presentSigninWithSolanaSheet = false
                 viewModel.setIsSigningMessage(false)
             }
-        
+
         case .failure(let error):
             print("error create args result: \(error.localizedDescription)")
             viewModel.setIsSigningMessage(false)
@@ -403,7 +431,36 @@ struct LoginInitialView: View {
 
         case .create(let authLoginArgs):
             viewModel.setIsCheckingUserAuth(false)
-            navigate(.createNetwork(authLoginArgs))
+
+            if authLoginArgs.walletAuth != nil {
+                // the wallet challenge behind authLoginArgs was already
+                // consumed by the /auth/login call that just returned this
+                // .create case — fetch and sign a brand-new one before
+                // creating the network. Which wallet flow to re-arm depends
+                // on which one the user actually signed in with, not just
+                // "any wallet" - bittensor and solana each need their own
+                // challenge fetch and reopen the right sign-in surface.
+                viewModel.isSigningForCreateNetwork = true
+                if connectWalletProviderViewModel.connectedWalletProvider == .bittensor {
+                    let ok = await viewModel.prepareBittensorChallenge()
+                    if ok {
+                        connectWalletProviderViewModel.openBittensorSignIn(
+                            message: viewModel.bittensorChallengeMessage ?? ""
+                        )
+                    } else {
+                        viewModel.isSigningForCreateNetwork = false
+                    }
+                } else {
+                    let ok = await viewModel.prepareSolanaChallenge()
+                    if ok {
+                        viewModel.setPresentSigninWithSolanaSheet(true)
+                    } else {
+                        viewModel.isSigningForCreateNetwork = false
+                    }
+                }
+            } else {
+                navigate(.createNetwork(authLoginArgs))
+            }
             break
 
         case .verificationRequired(let userAuth):
@@ -441,16 +498,38 @@ struct LoginInitialView: View {
     }
 
     /**
-     * Bittensor sign in: opens the ur.io/wallet-connect bridge; the wallet
-     * returns through onOpenURL with the ss58 address and sr25519 signature
+     * Bittensor sign in: fetches a fresh server-issued challenge (same
+     * flow as Solana), then opens the ur.io/wallet-connect bridge; the
+     * wallet returns through onOpenURL with the ss58 address and sr25519
+     * signature over that challenge.
      */
     private func handleBittensorSignIn() {
-        connectWalletProviderViewModel.openBittensorSignIn(
-            message: connectWalletProviderViewModel.welcomeMessage
-        )
+        Task {
+            let ok = await viewModel.prepareBittensorChallenge()
+            if ok {
+                connectWalletProviderViewModel.openBittensorSignIn(
+                    message: viewModel.bittensorChallengeMessage ?? ""
+                )
+            }
+        }
     }
 
     private func handleBittensorWalletResult(message: String, signature: String, publicKey: String) async {
+
+        if viewModel.isSigningForCreateNetwork {
+            viewModel.isSigningForCreateNetwork = false
+            viewModel.setIsSigningMessage(false)
+
+            let createArgsResult = viewModel.createBittensorAuthLoginArgs(message: message, signature: signature, publicKey: publicKey)
+            switch createArgsResult {
+            case .success(let args):
+                navigate(.createNetwork(args))
+            case .failure(let error):
+                print("error create args result: \(error.localizedDescription)")
+                viewModel.setLoginErrorMessage("There was an error logging in")
+            }
+            return
+        }
 
         guard viewModel.beginLoginAction(.bittensor) else {
             return
@@ -567,6 +646,7 @@ struct LoginInitialView: View {
 private struct LoginInitialFormView: View {
     
     @EnvironmentObject var themeManager: ThemeManager
+    @EnvironmentObject var deviceManager: DeviceManager
     
     @Binding var userAuth: String
     let handleUserAuth: () async -> Void
@@ -582,6 +662,7 @@ private struct LoginInitialFormView: View {
     let presentAuthCodeLoginSheet: () -> Void
 
     @Binding var presentGuestNetworkSheet: Bool
+    @State private var presentNetworkServerSheet = false
     
     var body: some View {
         
@@ -698,8 +779,45 @@ private struct LoginInitialFormView: View {
 
             }
             
+            Spacer()
+                .frame(height: 8)
+
+            HStack {
+                Button(action: {
+                    presentNetworkServerSheet = true
+                }) {
+                    Text("Change Network API")
+                        .font(themeManager.currentTheme.secondaryBodyFont)
+                        .foregroundColor(themeManager.currentTheme.textMutedColor)
+                }
+                .buttonStyle(.plain)
+                .disabled(isLoginActionInFlight)
+
+                Spacer()
+            }
+            
         }
         .frame(maxWidth: 400)
+        .sheet(isPresented: $presentNetworkServerSheet) {
+            NetworkServerSheet(
+                initialHostName: deviceManager.activeHostName,
+                currentApiUrl: deviceManager.activeApiUrl,
+                currentConnectUrl: deviceManager.activePlatformUrl,
+                configuredApiUrl: deviceManager.configuredApiUrl,
+                configuredConnectUrl: deviceManager.configuredPlatformUrl,
+                managerAvailable: deviceManager.networkSpaceManager != nil,
+                onApply: { hostName, apiUrl, connectUrl in
+                    deviceManager.applyNetworkSpace(hostName: hostName, apiUrl: apiUrl, connectUrl: connectUrl)
+                },
+                dismiss: {
+                    presentNetworkServerSheet = false
+                }
+            )
+            .environmentObject(themeManager)
+            #if os(macOS)
+            .frame(minWidth: 420, minHeight: 480)
+            #endif
+        }
     }
 }
 
@@ -963,8 +1081,10 @@ private struct SSOButtons: View {
 
             HStack {
                 /**
-                 * Bittensor sign in, placed before Solana. Runs through the
-                 * ur.io/wallet-connect bridge (browser extension wallets)
+                 * Bittensor sign in. Runs through the ur.io/wallet-connect
+                 * bridge (browser extension wallets), which works on desktop
+                 * unlike Solana's Phantom/Solflare deep-link detection - see
+                 * the note on the removed macOS Solana button below.
                  */
                 Button(action: signInWithBittensor) {
                     HStack {
@@ -990,29 +1110,14 @@ private struct SSOButtons: View {
 
                 Spacer().frame(width: 8)
 
-                Button(action: presentSignInWithSolanaSheet) {
-                    HStack {
-                        Image("solana.gradient.logo")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 16)
-                        Spacer().frame(width: 8)
-                        Text("Sign in with Solana")
-                            .foregroundColor(themeManager.currentTheme.inverseTextColor)
-                                .font(
-                                    Font.system(size: 12, weight: .medium)
-                                )
-                    }
-                }
-                .frame(height: 30)
-                .frame(maxWidth: .infinity)
-                .background(.white)
-                .cornerRadius(6)
-                .buttonStyle(.plain)
-                .disabled(isLoginActionInFlight)
+                // no Solana button here: unlike Bittensor, Solana sign-in relies on
+                // Phantom/Solflare app-installed detection with no macOS equivalent
+                // yet (see ios: remove Solana sign-in button from macOS login screen)
+                Spacer().frame(maxWidth: .infinity)
             }
             .frame(maxWidth: .infinity)
             
+
         }
         
     }

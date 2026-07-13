@@ -37,6 +37,7 @@ protocol UrApiServiceProtocol {
     func upgradeGuest(_ args: SdkUpgradeGuestArgs) async throws -> LoginNetworkResult
     func createAuthCode() async throws -> SdkAuthCodeCreateResult
     func authCodeLogin(_ args: SdkAuthCodeLoginArgs) async throws -> SdkAuthCodeLoginResult
+    func authWalletChallenge(_ args: SdkAuthWalletChallengeArgs) async throws -> SdkAuthWalletChallengeResult
     
     /**
      * Subscription
