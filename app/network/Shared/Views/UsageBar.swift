@@ -38,10 +38,12 @@ struct UsageBar: View {
         dailyBalanceByteCount: Int,
         referralCode: String? = nil
     ) {
+        // the series names are also the chart legend labels, so they localize;
+        // they must match the chartForegroundStyleScale keys below exactly
         self.data = [
-            .init(name: "Used", bytes: usedByteCount),
-            .init(name: "Pending", bytes: pendingByteCount),
-            .init(name: "Available", bytes: availableByteCount),
+            .init(name: String(localized: "Used"), bytes: usedByteCount),
+            .init(name: String(localized: "Pending"), bytes: pendingByteCount),
+            .init(name: String(localized: "Available"), bytes: availableByteCount),
         ]
         self.totalBytes = availableByteCount + pendingByteCount + usedByteCount
         
@@ -128,7 +130,9 @@ struct UsageBar: View {
             .chartXAxis(.hidden)
             .frame(height: 32)
             .chartForegroundStyleScale([
-                "Used": .urElectricBlue, "Pending": .urCoral, "Available": themeManager.currentTheme.textFaintColor
+                String(localized: "Used"): Color.urElectricBlue,
+                String(localized: "Pending"): Color.urCoral,
+                String(localized: "Available"): themeManager.currentTheme.textFaintColor,
             ])
             
             Spacer().frame(height: 16)

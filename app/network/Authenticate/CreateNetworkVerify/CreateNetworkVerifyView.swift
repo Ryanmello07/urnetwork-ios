@@ -165,7 +165,7 @@ struct CreateNetworkVerifyView: View {
                                         break
                                     case .failure(let error):
                                         print("error resending OTP \(error.localizedDescription)")
-                                        viewModel.setResendErrorMessage("There was an error sending the verification code.")
+                                        viewModel.setResendErrorMessage(String(localized: "There was an error sending the verification code."))
                                         
                                         break
                                         

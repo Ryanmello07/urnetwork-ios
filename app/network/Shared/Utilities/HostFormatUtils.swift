@@ -35,7 +35,7 @@ func formatHostClusterText(hosts: [String], ips: [String]) -> String {
 
     let items = displayHosts + ips
     if items.isEmpty {
-        return "unknown"
+        return String(localized: "unknown")
     }
 
     return compactValueList(items)
@@ -63,7 +63,8 @@ private func compactValueList(_ values: [String]) -> String {
         + ", …, " + middle.joined(separator: ", ")
         + ", …, " + last.joined(separator: ", ")
     if 0 < omitted {
-        text += " + \(omitted) more"
+        // plural rules live in Localizable.xcstrings ("+ %lld more")
+        text += " " + String(localized: "+ \(omitted) more")
     }
     return text
 }

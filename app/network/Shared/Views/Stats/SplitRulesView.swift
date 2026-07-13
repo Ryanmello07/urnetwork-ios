@@ -376,17 +376,20 @@ struct BlockActionRowView: View {
         .padding(.vertical, 2)
     }
 
+    private static let relativeTimeFormatter: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        formatter.dateTimeStyle = .named
+        return formatter
+    }()
+
     private func relativeTime(_ date: Date) -> String {
+        // the formatter localizes for every locale; under 5s reads as "now"
         let seconds = max(0, Int(Date().timeIntervalSince(date)))
         if seconds < 5 {
-            return "now"
-        } else if seconds < 60 {
-            return "\(seconds)s ago"
-        } else if seconds < 3600 {
-            return "\(seconds / 60)m ago"
-        } else {
-            return "\(seconds / 3600)h ago"
+            return Self.relativeTimeFormatter.localizedString(fromTimeInterval: 0)
         }
+        return Self.relativeTimeFormatter.localizedString(for: date, relativeTo: Date())
     }
 }
 

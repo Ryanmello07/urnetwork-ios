@@ -216,6 +216,6 @@ class ContractDetailsStore: ObservableObject {
         if let contractId = details.contractId {
             return contractId.idStr
         }
-        return "unknown"
+        return String(localized: "unknown")
     }
 }

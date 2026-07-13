@@ -710,8 +710,8 @@ class ConnectWalletProviderViewModel: ObservableObject {
         case .solflare:
             scheme = "solflare://"
         case .bittensor:
-            // Bittensor wallets are browser extensions — always reachable
-            // through the ur.io/wallet-connect bridge.
+            // bittensor connects through the ur.io/wallet-connect bridge, not a
+            // native app scheme, so there's nothing to probe — always offer it
             return true
         }
         guard let url = URL(string: scheme) else { return false }
