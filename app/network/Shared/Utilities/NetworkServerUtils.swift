@@ -25,12 +25,19 @@ enum NetworkServerUtils {
         if let atRange = value.range(of: "@") {
             value = String(value[atRange.upperBound...])
         }
-        // Strip a trailing :port - the network domain field is a bare host
-        // used to derive api.<host>/connect.<host>; a custom port belongs in
-        // the explicit API/connect URL overrides, not baked into the derived
-        // subdomain (which would otherwise produce invalid hosts like
-        // "api.192.168.1.5:8080").
-        if let colonRange = value.range(of: ":", options: .backwards) {
+        // Strip a trailing :port when it looks like an IPv4 host:port or a
+        // bracketed IPv6 literal like [2001:db8::1]:8080. A bare IPv6
+        // address (no brackets) must not be mangled — there is no
+        // reliable way to distinguish its colons from a port separator.
+        if value.hasSuffix("]"), let bracketStart = value.range(of: "["),
+           let portColon = value.range(of: "]:", options: .backwards) {
+            // IPv6 literal with port: "[...]:port" — keep the brackets
+            value = String(value[..<portColon.upperBound])
+        } else if !value.contains("[") && !value.contains(":") {
+            // Plain hostname — no colon, nothing to strip
+        } else if let colonRange = value.range(of: ":", options: .backwards),
+                  !value.contains("[") {
+            // IPv4 host:port — strip after the last colon
             value = String(value[..<colonRange.lowerBound])
         }
         return value.trimmingCharacters(in: .whitespacesAndNewlines)
