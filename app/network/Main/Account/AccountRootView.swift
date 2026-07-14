@@ -480,6 +480,7 @@ struct AccountRootView: View {
                     }
                 }
             )
+            .id(deviceManager.activeHostName)
         }
         .toolbar {
             ToolbarItem {
@@ -508,6 +509,7 @@ struct AccountRootView: View {
                     }
                 }
             )
+            .id(deviceManager.activeHostName)
             .environmentObject(themeManager)
             .environmentObject(deviceManager)
             .environmentObject(snackbarManager)

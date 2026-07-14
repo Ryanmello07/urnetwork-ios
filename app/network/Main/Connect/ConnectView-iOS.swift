@@ -394,6 +394,7 @@ struct ConnectView_iOS: View {
                         }
                     }
                 )
+                .id(deviceManager.activeHostName)
             }
             .onChange(of: connectViewModel.connectionStatus) { _ in
                 checkTunnelStatus()
