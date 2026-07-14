@@ -41,6 +41,7 @@ struct ContentView: View {
                         api: api,
                         handleSuccess: handleSuccessWithJwt
                     )
+                    .id(deviceManager.activeHostName)
                     .opacity(opacity)
 
                 case .main:
