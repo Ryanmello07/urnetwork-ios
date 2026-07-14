@@ -18,13 +18,24 @@ struct LoginNavigationView: View {
     @EnvironmentObject var deviceManager: DeviceManager
     
     var api: SdkApi
-    let urApiService: UrApiServiceProtocol
     var cancel: (() -> Void)? = nil
     var handleSuccess: (_ jwt: String) async -> Void
+
+    // Built from a live closure over `deviceManager.api` (an @EnvironmentObject,
+    // not available yet at init time) rather than the `api` snapshot passed
+    // in, so that switching the active network space (Settings > Change
+    // Network API) while this view is on screen is picked up immediately by
+    // every subsequent API call - including wallet-auth challenge/login,
+    // which previously kept hitting the network active when the login flow
+    // was first presented until the app was restarted.
+    private var urApiService: UrApiServiceProtocol {
+        UrApiService(apiProvider: { [weak deviceManager] in
+            deviceManager?.api ?? api
+        })
+    }
     
     init(api: SdkApi, cancel: (() -> Void)? = nil, handleSuccess: @escaping (_ jwt: String) async -> Void) {
         self.api = api
-        self.urApiService = UrApiService(api: api)
         self.cancel = cancel
         self.handleSuccess = handleSuccess
         _guestUpgradeViewModel = StateObject(wrappedValue: GuestUpgradeViewModel(api: api))

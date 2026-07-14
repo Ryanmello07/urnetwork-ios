@@ -10,12 +10,41 @@ import URnetworkSdk
 
 class UrApiService: UrApiServiceProtocol {
     
-    private let api: SdkApi
+    // Resolved live on every call instead of captured once at init. This
+    // mirrors Android's `application.api` (a `get() = networkSpaceManagerProvider
+    // .getNetworkSpace()?.api` computed property) so that switching the
+    // active network space (Settings > Change Network API) is picked up
+    // immediately by any in-flight or new API call, without needing to
+    // tear down and recreate the whole view hierarchy that holds this
+    // service (which proved unreliable via SwiftUI .id() invalidation).
+    private let apiProvider: () -> SdkApi?
+    private var api: SdkApi? {
+        apiProvider()
+    }
     
     let domain = "UrApiService"
     
+    /// Fixed-api initializer, kept for call sites/tests that already have a
+    /// concrete `SdkApi` and don't need to react to network switches (e.g.
+    /// once a device is fully initialized and logged in, the api rarely
+    /// changes for the lifetime of that screen).
     init(api: SdkApi) {
-        self.api = api
+        self.apiProvider = { api }
+    }
+
+    /// Live-provider initializer. Pass a closure that always resolves the
+    /// current api (e.g. `{ deviceManager.api }`) so this service tracks
+    /// network-space changes made while the view using it is still on
+    /// screen (the login flow, most notably).
+    init(apiProvider: @escaping () -> SdkApi?) {
+        self.apiProvider = apiProvider
+    }
+
+    private func requireApi() throws -> SdkApi {
+        guard let api else {
+            throw NSError(domain: domain, code: -1, userInfo: [NSLocalizedDescriptionKey: "No active network API available"])
+        }
+        return api
     }
 
     private func nonEmptyJwt(_ jwt: String, context: String) -> Result<String, Error> {
@@ -36,6 +65,8 @@ extension UrApiService {
      */
     func getLeaderboard() async throws -> [LeaderboardEntry] {
         let args = SdkGetLeaderboardArgs()
+        
+        let api = try requireApi()
         
         let result: SdkLeaderboardResult = try await withCheckedThrowingContinuation { continuation in
             
@@ -59,7 +90,7 @@ extension UrApiService {
                 continuation.resume(returning: result)
             }
             
-            self.api.getLeaderboard(args, callback: callback)
+            api.getLeaderboard(args, callback: callback)
         }
         
         var earners: [LeaderboardEntry] = []
@@ -94,6 +125,8 @@ extension UrApiService {
      * Networks are by default private in the leaderboard
      */
     func setNetworkRankingPublic(_ isPublic: Bool) async throws {
+        
+        let api = try requireApi()
         
         let _: SdkSetNetworkRankingPublicResult = try await withCheckedThrowingContinuation { continuation in
 
@@ -131,6 +164,8 @@ extension UrApiService {
      * Get current network ranking
      */
     func getLeaderboardRanking() async throws -> SdkGetNetworkRankingResult {
+        
+        let api = try requireApi()
         
         return try await withCheckedThrowingContinuation { continuation in
 
@@ -170,6 +205,7 @@ extension UrApiService {
         feedback: String,
         starCount: Int
     ) async throws -> SdkFeedbackSendResult {
+        let api = try requireApi()
         return try await withCheckedThrowingContinuation { continuation in
             
             let callback = SendFeedbackCallback { result, err in
@@ -208,6 +244,7 @@ extension UrApiService {
      * Search providers
      */
     func searchProviders(_ query: String) async throws -> SdkFilteredLocations {
+        let api = try requireApi()
         return try await withCheckedThrowingContinuation { continuation in
             
             let callback = FindLocationsCallback { result, err in
@@ -239,6 +276,7 @@ extension UrApiService {
      * Get all providers
      */
     func getAllProviders() async throws -> SdkFilteredLocations {
+        let api = try requireApi()
         return try await withCheckedThrowingContinuation { continuation in
             
             let callback = FindLocationsCallback { result, err in
@@ -270,6 +308,7 @@ extension UrApiService {
 extension UrApiService {
     
     func authLogin(_ args: SdkAuthLoginArgs) async throws -> AuthLoginResult {
+        let api = try requireApi()
         return try await withCheckedThrowingContinuation { continuation in
             
             let callback = AuthLoginCallback { result, error in
@@ -357,6 +396,7 @@ extension UrApiService {
     }
     
     func createNetwork(_ args: SdkNetworkCreateArgs) async throws -> LoginNetworkResult {
+        let api = try requireApi()
         return try await withCheckedThrowingContinuation { continuation in
             
             let callback = NetworkCreateCallback { result, err in
@@ -402,6 +442,7 @@ extension UrApiService {
     }
     
     func upgradeGuest(_ args: SdkUpgradeGuestArgs) async throws -> LoginNetworkResult {
+        let api = try requireApi()
         return try await withCheckedThrowingContinuation { continuation in
             
             let callback = UpgradeGuestCallback { result, err in
@@ -448,6 +489,8 @@ extension UrApiService {
     
     func createAuthCode() async throws -> SdkAuthCodeCreateResult {
         
+        let api = try requireApi()
+        
         return try await withCheckedThrowingContinuation { continuation in
             
             let callback = AuthCodeCreateCallback { result, err in
@@ -481,6 +524,7 @@ extension UrApiService {
     }
     
     func authCodeLogin(_ args: SdkAuthCodeLoginArgs) async throws -> SdkAuthCodeLoginResult {
+        let api = try requireApi()
         return try await withCheckedThrowingContinuation { continuation in
             
             let callback = AuthCodeLoginCallback { result, err in
@@ -516,6 +560,7 @@ extension UrApiService {
     }
 
     func authWalletChallenge(_ args: SdkAuthWalletChallengeArgs) async throws -> SdkAuthWalletChallengeResult {
+        let api = try requireApi()
         return try await withCheckedThrowingContinuation { continuation in
 
             let callback = AuthWalletChallengeCallback { result, err in
@@ -550,6 +595,7 @@ extension UrApiService {
 extension UrApiService {
     
     func validateReferralCode(_ code: String) async throws -> SdkValidateReferralCodeResult {
+        let api = try requireApi()
         return try await withCheckedThrowingContinuation { continuation in
             
             let callback = ValidateReferralCallback { result, err in
@@ -584,6 +630,8 @@ extension UrApiService {
     
     func fetchSubscriptionBalance() async throws -> SdkSubscriptionBalanceResult {
         
+        let api = try requireApi()
+        
         return try await withCheckedThrowingContinuation { continuation in
             
             let callback = GetSubscriptionBalanceCallback { result, err in
@@ -608,6 +656,8 @@ extension UrApiService {
     }
     
     func redeemBalanceCode(_ code: String) async throws -> SdkRedeemBalanceCodeResult {
+        
+        let api = try requireApi()
         
         return try await withCheckedThrowingContinuation { continuation in
             
@@ -636,6 +686,7 @@ extension UrApiService {
     }
     
     func getRedeemedBalanceCodes() async throws -> SdkGetNetworkRedeemedBalanceCodesResult {
+        let api = try requireApi()
         return try await withCheckedThrowingContinuation { continuation in
             
             let callback = GetNetworkRedeemedBalanceCodesCallback { result, err in
@@ -670,6 +721,8 @@ extension UrApiService {
     
     func blockLocation(_ locationId: SdkId) async throws -> SdkNetworkBlockLocationResult {
         
+        let api = try requireApi()
+        
         return try await withCheckedThrowingContinuation { continuation in
             
             let callback = BlockLocationCallback { result, err in
@@ -698,6 +751,8 @@ extension UrApiService {
     
     func unblockLocation(_ locationId: SdkId) async throws -> SdkNetworkUnblockLocationResult {
         
+        let api = try requireApi()
+        
         return try await withCheckedThrowingContinuation { continuation in
             
             let callback = UnblockLocationCallback { result, err in
@@ -725,6 +780,8 @@ extension UrApiService {
     }
     
     func getBlockedLocations() async throws -> SdkGetNetworkBlockedLocationsResult {
+        
+        let api = try requireApi()
         
         return try await withCheckedThrowingContinuation { continuation in
             
@@ -756,6 +813,8 @@ extension UrApiService {
     
     func deleteAccount() async throws -> SdkNetworkDeleteResult {
         
+        let api = try requireApi()
+        
         return try await withCheckedThrowingContinuation { continuation in
             
             let callback = NetworkDeleteCallback { result, err in
@@ -782,6 +841,8 @@ extension UrApiService {
     
     func getReferralNetwork() async throws -> SdkGetReferralNetworkResult {
         
+        let api = try requireApi()
+        
         return try await withCheckedThrowingContinuation { continuation in
 
             let callback = GetNetworkReferralCallback { result, err in
@@ -805,6 +866,8 @@ extension UrApiService {
     }
     
     func setNetworkReferral(_ referralCode: String) async throws -> SdkSetNetworkReferralResult {
+        
+        let api = try requireApi()
         
         return try await withCheckedThrowingContinuation { continuation in
 
@@ -833,6 +896,7 @@ extension UrApiService {
     }
     
     func unlinkReferralNetwork() async throws -> SdkUnlinkReferralNetworkResult {
+        let api = try requireApi()
         return try await withCheckedThrowingContinuation { continuation in
 
             let callback = UnlinkReferralNetworkCallback { result, err in
@@ -861,6 +925,8 @@ extension UrApiService {
 extension UrApiService {
     
     func getNetworkReliability() async throws -> SdkGetNetworkReliabilityResult {
+        
+        let api = try requireApi()
         
         return try await withCheckedThrowingContinuation { continuation in
             
@@ -891,6 +957,8 @@ extension UrApiService {
 extension UrApiService {
     
     func validateWalletAddress(address: String, chain: String) async throws -> Bool {
+        
+        let api = try requireApi()
         
         return try await withCheckedThrowingContinuation { continuation in
 
@@ -1160,6 +1228,7 @@ enum UpdateReferralNetworkError: Error {
 extension UrApiService {
 
     func getNetworkClients() async throws -> SdkNetworkClientsResult {
+        let api = try requireApi()
         return try await withCheckedThrowingContinuation { continuation in
 
             let callback = GetNetworkClientsCallback { result, err in
@@ -1183,6 +1252,7 @@ extension UrApiService {
     }
 
     func deviceSetName(deviceId: SdkId, deviceName: String) async throws -> Void {
+        let api = try requireApi()
         let _: SdkDeviceSetNameResult = try await withCheckedThrowingContinuation { continuation in
 
             let args = SdkDeviceSetNameArgs()
