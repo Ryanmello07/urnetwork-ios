@@ -395,6 +395,104 @@ extension UrApiService {
         }
     }
     
+    func loginWithSeedphrase(seedphrase: String) async throws -> AuthLoginResult {
+        let api = try requireApi()
+        return try await withCheckedThrowingContinuation { continuation in
+            
+            let callback = AuthLoginCallback { result, error in
+                
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                
+                guard let result else {
+                    continuation.resume(throwing: NSError(domain: "UrApiService", code: -1, userInfo: [NSLocalizedDescriptionKey: "No result found"]))
+                    return
+                }
+                
+                if let resultError = result.error {
+                    continuation.resume(throwing: NSError(domain: "UrApiService", code: -1, userInfo: [NSLocalizedDescriptionKey: "result.error exists \(resultError.message)"]))
+                    return
+                }
+                
+                if let network = result.network {
+                    switch self.nonEmptyJwt(network.byJwt, context: "loginWithSeedphrase") {
+                    case .success(let jwt):
+                        continuation.resume(returning: .login(jwt))
+                    case .failure(let error):
+                        continuation.resume(throwing: error)
+                    }
+                    return
+                }
+                
+                continuation.resume(returning: .failure(NSError(domain: "UrApiService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Seedphrase login returned no network"])))
+                
+            }
+            
+            let args = SdkAuthLoginArgs()
+            // Normalize: lowercase, trim, collapse multiple spaces
+            let normalized = seedphrase
+                .lowercased()
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .components(separatedBy: .whitespacesAndNewlines)
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+            args.seedphrase = normalized
+            api.authLogin(args, callback: callback)
+
+        }
+    }
+    
+    func createInstantAccount() async throws -> (jwt: String, seedphrase: String) {
+        let api = try requireApi()
+        return try await withCheckedThrowingContinuation { continuation in
+            
+            let callback = NetworkCreateCallback { result, err in
+                
+                if let err = err {
+                    continuation.resume(throwing: err)
+                    return
+                }
+                
+                guard let result = result else {
+                    continuation.resume(throwing: NSError(domain: "UrApiService", code: -1, userInfo: [NSLocalizedDescriptionKey: "createInstantAccount returned nil result"]))
+                    return
+                }
+
+                if let resultError = result.error {
+                    continuation.resume(throwing: NSError(domain: "UrApiService", code: -1, userInfo: [NSLocalizedDescriptionKey: resultError.message]))
+                    return
+                }
+
+                guard let seedphrase = result.seedphrase, !seedphrase.isEmpty else {
+                    continuation.resume(throwing: NSError(domain: "UrApiService", code: -1, userInfo: [NSLocalizedDescriptionKey: "No seedphrase in result"]))
+                    return
+                }
+
+                if let network = result.network {
+                    switch self.nonEmptyJwt(network.byJwt, context: "createInstantAccount") {
+                    case .success(let jwt):
+                        continuation.resume(returning: (jwt, seedphrase))
+                    case .failure(let error):
+                        continuation.resume(throwing: error)
+                    }
+                    return
+                } else {
+                    continuation.resume(throwing: NSError(domain: "UrApiService", code: 0, userInfo: [NSLocalizedDescriptionKey: "No network object found in result"]))
+                    return
+                }
+
+            }
+
+            let args = SdkNetworkCreateArgs()
+            args.terms = true
+            // No userAuth, password, authJwt, walletAuth — triggers seedphrase path
+            api.networkCreate(args, callback: callback)
+            
+        }
+    }
+    
     func createNetwork(_ args: SdkNetworkCreateArgs) async throws -> LoginNetworkResult {
         let api = try requireApi()
         return try await withCheckedThrowingContinuation { continuation in
