@@ -78,18 +78,28 @@ struct CreateNetworkInstantView: View {
 
             }
             .padding()
-            .frame(maxWidth: 400)
             .frame(maxWidth: .infinity)
+            .frame(maxWidth: 400)
         }
         .background(themeManager.currentTheme.backgroundColor.ignoresSafeArea())
         .toolbar {
+            #if os(iOS)
             ToolbarItem(placement: .navigationBarLeading) {
                 Button(action: { back() }) {
                     Image(systemName: "chevron.left")
                         .foregroundColor(themeManager.currentTheme.textColor)
                 }
             }
+            #elseif os(macOS)
+            ToolbarItem {
+                Button(action: { back() }) {
+                    Image(systemName: "chevron.left")
+                        .foregroundColor(themeManager.currentTheme.textColor)
+                }
+            }
+            #endif
         }
+        #if os(iOS)
         .navigationBarBackButtonHidden(true)
         .fullScreenCover(item: $accountResult) { result in
             SeedphraseDisplayView(
@@ -103,6 +113,7 @@ struct CreateNetworkInstantView: View {
             )
             .environmentObject(themeManager)
         }
+        #endif
     }
 
 }

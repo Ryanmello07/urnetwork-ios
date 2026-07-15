@@ -635,6 +635,8 @@ private struct LoginInitialFormView: View {
                 presentSignInWithSolanaSheet: presentSignInWithSolanaSheet,
                 signInWithBittensor: signInWithBittensor,
                 presentAuthCodeLoginSheet: presentAuthCodeLoginSheet,
+                presentSeedphraseLogin: presentSeedphraseLogin,
+                presentCreateInstant: presentCreateInstant,
                 activeLoginAction: activeLoginAction,
                 isLoginActionInFlight: isLoginActionInFlight
             )

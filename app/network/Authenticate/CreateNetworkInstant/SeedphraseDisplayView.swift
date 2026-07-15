@@ -124,7 +124,12 @@ struct SeedphraseDisplayView: View {
         UrButton(
             text: hasCopied ? "Copied!" : "Copy to Clipboard",
             action: {
+                #if os(iOS)
                 UIPasteboard.general.string = seedphrase
+                #elseif os(macOS)
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(seedphrase, forType: .string)
+                #endif
                 hasCopied = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                     hasCopied = false
