@@ -17,9 +17,15 @@ struct SeedphraseDisplayView: View {
     private let words: [String]
 
     init(seedphrase: String, onConfirmed: @escaping (String) -> Void) {
-        self.seedphrase = seedphrase
+        // Normalize: trim whitespace and collapse multiple spaces
+        let normalized = seedphrase
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        self.seedphrase = normalized
         self.onConfirmed = onConfirmed
-        self.words = seedphrase.components(separatedBy: " ")
+        self.words = normalized.components(separatedBy: " ")
     }
 
     var body: some View {
