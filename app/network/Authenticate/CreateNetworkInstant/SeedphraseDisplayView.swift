@@ -116,7 +116,7 @@ struct SeedphraseDisplayView: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 8)
-        .background(themeManager.currentTheme.surfaceColor)
+        .background(themeManager.currentTheme.tintedBackgroundBase)
         .cornerRadius(6)
     }
 
