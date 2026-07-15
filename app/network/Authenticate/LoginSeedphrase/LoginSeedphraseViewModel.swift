@@ -23,12 +23,16 @@ extension LoginSeedphraseView {
 
         @Published private(set) var isLoggingIn: Bool = false
 
-        @Published private(set) var errorMessage: String?
+        @Published var errorMessage: String?
 
         let domain = "LoginSeedphraseViewModel"
 
         init(urApiService: UrApiServiceProtocol) {
             self.urApiService = urApiService
+        }
+
+        func setErrorMessage(_ message: String?) {
+            errorMessage = message
         }
 
         var isSeedphraseValid: Bool {

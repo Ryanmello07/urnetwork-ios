@@ -94,7 +94,7 @@ struct CreateNetworkInstantView: View {
         .fullScreenCover(item: $accountResult) { result in
             SeedphraseDisplayView(
                 seedphrase: result.seedphrase,
-                onConfirmed: {
+                onConfirmed: { _ in
                     accountResult = nil
                     Task {
                         await handleSuccess(result.jwt)

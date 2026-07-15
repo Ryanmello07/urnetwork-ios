@@ -354,6 +354,56 @@ struct LoginInitialView: View {
         
     }
     
+    private func handleGoogleSignInButton() async {
+        
+        guard viewModel.beginLoginAction(.google) else {
+            return
+        }
+        
+        defer {
+            viewModel.endLoginAction(.google)
+        }
+        
+        do {
+            #if os(iOS)
+            
+            guard let rootViewController = getRootViewController() else {
+                print("no root view controller found")
+                viewModel.setLoginErrorMessage(String(localized: "There was an error logging in"))
+                return
+            }
+            
+            let signInResult = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController)
+            #elseif os(macOS)
+            
+            guard let presentingWindow = NSApplication.shared.windows.first else {
+              print("There is no presenting window!")
+              viewModel.setLoginErrorMessage(String(localized: "There was an error logging in"))
+              return
+            }
+            
+            let signInResult = try await GIDSignIn.sharedInstance.signIn(withPresenting: presentingWindow)
+            #endif
+            
+            let createArgsResult = viewModel.createGoogleAuthLoginArgs(signInResult)
+            switch createArgsResult {
+            case .success(let args):
+                let result = await viewModel.authLogin(args: args)
+                await self.handleAuthLoginResult(result)
+            
+            case .failure(let error):
+                print("error create args result: \(error.localizedDescription)")
+                viewModel.setLoginErrorMessage(String(localized: "There was an error logging in"))
+            }
+            
+         } catch {
+             print("Error signing in: \(error.localizedDescription)")
+             viewModel.setLoginErrorMessage(String(localized: "There was an error logging in"))
+         }
+        
+        
+    }
+    
     private func handleAuthLoginResult(_ authLoginResult: AuthLoginResult) async {
         
         switch authLoginResult {

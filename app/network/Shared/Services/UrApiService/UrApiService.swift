@@ -465,10 +465,12 @@ extension UrApiService {
                     return
                 }
 
-                guard let seedphrase = result.seedphrase, !seedphrase.isEmpty else {
+                guard !result.seedphrase.isEmpty else {
                     continuation.resume(throwing: NSError(domain: "UrApiService", code: -1, userInfo: [NSLocalizedDescriptionKey: "No seedphrase in result"]))
                     return
                 }
+
+                let seedphrase = result.seedphrase
 
                 if let network = result.network {
                     switch self.nonEmptyJwt(network.byJwt, context: "createInstantAccount") {

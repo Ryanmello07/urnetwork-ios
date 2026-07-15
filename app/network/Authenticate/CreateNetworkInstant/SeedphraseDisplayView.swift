@@ -52,7 +52,8 @@ struct SeedphraseDisplayView: View {
                     Spacer().frame(height: 32)
 
                     // Seedphrase grid display
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 2), spacing: 8) {
+                    let gridColumns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 2)
+                    LazyVGrid(columns: gridColumns, spacing: 8) {
                         ForEach(Array(words.enumerated()), id: \.offset) { index, word in
                             HStack(spacing: 4) {
                                 Text("\(index + 1).")
