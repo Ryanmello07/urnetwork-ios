@@ -97,6 +97,14 @@ class MockUrApiService: UrApiServiceProtocol {
         return SdkUnlinkReferralNetworkResult()
     }
     
+    func loginWithSeedphrase(seedphrase: String) async throws -> AuthLoginResult {
+        return AuthLoginResult.failure(LoginError.inProgress)
+    }
+    
+    func createInstantAccount() async throws -> (jwt: String, seedphrase: String) {
+        return ("mock-jwt", "mock seedphrase words here for testing purposes only")
+    }
+    
     func redeemBalanceCode(_ code: String) async throws -> SdkRedeemBalanceCodeResult {
         return SdkRedeemBalanceCodeResult()
     }
