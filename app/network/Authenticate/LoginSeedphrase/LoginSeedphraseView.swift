@@ -71,6 +71,16 @@ struct LoginSeedphraseView: View {
 
                 Spacer().frame(height: 8)
 
+                if let wordCountWarning = viewModel.wordCountWarning {
+                    Text(wordCountWarning)
+                        .foregroundColor(.urYellow)
+                        .font(themeManager.currentTheme.secondaryBodyFont)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+
+                    Spacer().frame(height: 8)
+                }
+
                 UrInlineErrorText(message: viewModel.errorMessage)
 
             }

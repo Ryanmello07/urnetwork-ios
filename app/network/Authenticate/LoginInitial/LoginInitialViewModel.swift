@@ -275,22 +275,6 @@ extension LoginInitialView.ViewModel {
     
 }
 
-// MARK: create instant seedphrase account
-extension LoginInitialView.ViewModel {
-    
-    func createInstantAccount() async -> (jwt: String, seedphrase: String)? {
-        
-        do {
-            let result = try await urApiService.createInstantAccount()
-            return result
-        } catch {
-            return nil
-        }
-        
-    }
-    
-}
-
 // MARK: Solana Sign in
 extension LoginInitialView.ViewModel {
     func createSolanaAuthLoginArgs(message: String, signature: String, publicKey: String) -> Result<SdkAuthLoginArgs, Error> {

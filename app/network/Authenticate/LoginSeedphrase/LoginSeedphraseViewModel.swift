@@ -19,6 +19,8 @@ extension LoginSeedphraseView {
             }
         }
 
+        @Published private(set) var wordCountWarning: String?
+
         @Published private(set) var isLoggingIn: Bool = false
 
         @Published private(set) var errorMessage: String?
@@ -33,6 +35,33 @@ extension LoginSeedphraseView {
             !seedphrase.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
 
+        var normalizedSeedphrase: String {
+            seedphrase
+                .lowercased()
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .components(separatedBy: .whitespacesAndNewlines)
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+        }
+
+        var wordCount: Int {
+            normalizedSeedphrase.isEmpty ? 0 : normalizedSeedphrase.components(separatedBy: " ").count
+        }
+
+        func validateWordCount() -> Bool {
+            let count = wordCount
+            if count == 12 || count == 24 {
+                wordCountWarning = nil
+                return true
+            }
+            if count > 0 {
+                wordCountWarning = "Seedphrase should be 12 or 24 words (you entered \(count))"
+            } else {
+                wordCountWarning = nil
+            }
+            return false
+        }
+
         func login() async -> AuthLoginResult {
 
             if isLoggingIn {
@@ -43,6 +72,9 @@ extension LoginSeedphraseView {
                 return .failure(NSError(domain: domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "Seedphrase is empty"]))
             }
 
+            // Warn but don't block on word count — server handles validation
+            validateWordCount()
+
             isLoggingIn = true
             errorMessage = nil
 
@@ -51,7 +83,7 @@ extension LoginSeedphraseView {
             }
 
             do {
-                let result = try await urApiService.loginWithSeedphrase(seedphrase: seedphrase)
+                let result = try await urApiService.loginWithSeedphrase(seedphrase: normalizedSeedphrase)
                 return result
             } catch {
                 return .failure(error)
