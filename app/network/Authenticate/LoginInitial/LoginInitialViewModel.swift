@@ -73,18 +73,6 @@ extension LoginInitialView {
         }
         
         /**
-         * Guest mode
-         */
-        @Published private(set) var isCreatingGuestNetwork: Bool = false
-        @Published var presentGuestNetworkSheet: Bool = false
-        @Published var termsAgreed: Bool = false
-        @Published private(set) var guestNetworkErrorMessage: String?
-        
-        func setGuestNetworkErrorMessage(_ message: String?) -> Void {
-            guestNetworkErrorMessage = message
-        }
-        
-        /**
          * Auth code login
          */
         @Published var presentAuthCodeLoginSheet: Bool = false
@@ -287,34 +275,16 @@ extension LoginInitialView.ViewModel {
     
 }
 
-// MARK: create guest network
+// MARK: create instant seedphrase account
 extension LoginInitialView.ViewModel {
     
-    func createGuestNetwork() async -> LoginNetworkResult {
-        
-        if self.isCreatingGuestNetwork {
-            return .failure(LoginError.inProgress)
-        }
-        
-        self.isCreatingGuestNetwork = true
-        self.guestNetworkErrorMessage = nil
+    func createInstantAccount() async -> (jwt: String, seedphrase: String)? {
         
         do {
-            
-            let args = SdkNetworkCreateArgs()
-            args.terms = true
-            args.guestMode = true
-            
-            let result = try await urApiService.createNetwork(args)
-            
-            self.isCreatingGuestNetwork = false
-            
-            
+            let result = try await urApiService.createInstantAccount()
             return result
-            
-        } catch(let error) {
-            self.isCreatingGuestNetwork = false
-            return .failure(error)
+        } catch {
+            return nil
         }
         
     }
