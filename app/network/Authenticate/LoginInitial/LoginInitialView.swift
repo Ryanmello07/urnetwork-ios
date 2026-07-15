@@ -751,6 +751,8 @@ private struct SSOButtons: View {
     let presentSignInWithSolanaSheet: () -> Void
     let signInWithBittensor: () -> Void
     let presentAuthCodeLoginSheet: () -> Void
+    let presentSeedphraseLogin: () -> Void
+    let presentCreateInstant: () -> Void
     let activeLoginAction: LoginInitialView.LoginAction?
     let isLoginActionInFlight: Bool
     
