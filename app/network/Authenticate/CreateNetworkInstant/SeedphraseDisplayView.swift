@@ -5,6 +5,11 @@
 
 import SwiftUI
 
+private struct SeedWord: Identifiable {
+    let id: Int
+    let word: String
+}
+
 struct SeedphraseDisplayView: View {
 
     @EnvironmentObject var themeManager: ThemeManager
@@ -14,7 +19,7 @@ struct SeedphraseDisplayView: View {
 
     @State private var hasCopied = false
 
-    private let words: [String]
+    private let words: [SeedWord]
 
     init(seedphrase: String, onConfirmed: @escaping (String) -> Void) {
         // Normalize: trim whitespace and collapse multiple spaces
@@ -25,7 +30,8 @@ struct SeedphraseDisplayView: View {
             .joined(separator: " ")
         self.seedphrase = normalized
         self.onConfirmed = onConfirmed
-        self.words = normalized.components(separatedBy: " ")
+        let tokens = normalized.components(separatedBy: " ")
+        self.words = tokens.enumerated().map { SeedWord(id: $0.offset, word: $0.element) }
     }
 
     var body: some View {
@@ -33,76 +39,18 @@ struct SeedphraseDisplayView: View {
             ScrollView {
                 VStack(alignment: .center) {
 
-                    Text("Your Seedphrase")
-                        .foregroundColor(.urWhite)
-                        .font(themeManager.currentTheme.titleFont)
-
-                    Spacer().frame(height: 16)
-
-                    Text("⚠️ This is the ONLY time you'll see this.")
-                        .foregroundColor(.urYellow)
-                        .font(themeManager.currentTheme.bodyFont.bold())
-                        .multilineTextAlignment(.center)
-
-                    Text("Write it down and store it somewhere safe. If you lose it, you'll lose access to your account.")
-                        .foregroundColor(themeManager.currentTheme.textMutedColor)
-                        .font(themeManager.currentTheme.secondaryBodyFont)
-                        .multilineTextAlignment(.center)
+                    titleView
+                    warningView
+                    instructionsView
 
                     Spacer().frame(height: 32)
 
-                    // Seedphrase grid display
-                    let gridColumns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 2)
-                    LazyVGrid(columns: gridColumns, spacing: 8) {
-                        ForEach(Array(words.enumerated()), id: \.offset) { index, word in
-                            HStack(spacing: 4) {
-                                Text("\(index + 1).")
-                                    .foregroundColor(themeManager.currentTheme.textMutedColor)
-                                    .font(.system(.caption, design: .monospaced))
-                                    .frame(width: 24, alignment: .trailing)
-                                Text(word)
-                                    .foregroundColor(.urWhite)
-                                    .font(.system(.body, design: .monospaced))
-                                    .lineLimit(1)
-                                Spacer()
-                            }
-                            .padding(.vertical, 6)
-                            .padding(.horizontal, 8)
-                            .background(themeManager.currentTheme.surfaceColor)
-                            .cornerRadius(6)
-                        }
-                    }
-                    .padding(12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(themeManager.currentTheme.textMutedColor.opacity(0.3), lineWidth: 1)
-                    )
+                    wordGridView
 
                     Spacer().frame(height: 24)
 
-                    UrButton(
-                        text: hasCopied ? "Copied!" : "Copy to Clipboard",
-                        action: {
-                            UIPasteboard.general.string = seedphrase
-                            hasCopied = true
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                hasCopied = false
-                            }
-                        },
-                        enabled: !hasCopied
-                    )
-
-                    Spacer().frame(height: 16)
-
-                    UrButton(
-                        text: "I've Saved My Seedphrase",
-                        action: {
-                            onConfirmed(seedphrase)
-                        },
-                        enabled: true,
-                        isProcessing: false
-                    )
-                    .tint(.urGreen)
+                    copyButton
+                    confirmationButton
 
                 }
                 .padding()
@@ -118,6 +66,84 @@ struct SeedphraseDisplayView: View {
                 }
             }
         }
+    }
+
+    private var titleView: some View {
+        Text("Your Seedphrase")
+            .foregroundColor(.urWhite)
+            .font(themeManager.currentTheme.titleFont)
+    }
+
+    private var warningView: some View {
+        Text("⚠️ This is the ONLY time you'll see this.")
+            .foregroundColor(.urYellow)
+            .font(themeManager.currentTheme.bodyFont.bold())
+            .multilineTextAlignment(.center)
+    }
+
+    private var instructionsView: some View {
+        Text("Write it down and store it somewhere safe. If you lose it, you'll lose access to your account.")
+            .foregroundColor(themeManager.currentTheme.textMutedColor)
+            .font(themeManager.currentTheme.secondaryBodyFont)
+            .multilineTextAlignment(.center)
+    }
+
+    private var wordGridView: some View {
+        let columns = [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
+        return LazyVGrid(columns: columns, spacing: 8) {
+            ForEach(words) { seedWord in
+                wordRowView(index: seedWord.id, word: seedWord.word)
+            }
+        }
+        .padding(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(themeManager.currentTheme.textMutedColor.opacity(0.3), lineWidth: 1)
+        )
+    }
+
+    private func wordRowView(index: Int, word: String) -> some View {
+        HStack(spacing: 4) {
+            Text(String(index + 1) + ".")
+                .foregroundColor(themeManager.currentTheme.textMutedColor)
+                .font(.system(.caption, design: .monospaced))
+                .frame(width: 24, alignment: .trailing)
+            Text(word)
+                .foregroundColor(.urWhite)
+                .font(.system(.body, design: .monospaced))
+                .lineLimit(1)
+            Spacer()
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
+        .background(themeManager.currentTheme.surfaceColor)
+        .cornerRadius(6)
+    }
+
+    private var copyButton: some View {
+        UrButton(
+            text: hasCopied ? "Copied!" : "Copy to Clipboard",
+            action: {
+                UIPasteboard.general.string = seedphrase
+                hasCopied = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    hasCopied = false
+                }
+            },
+            enabled: !hasCopied
+        )
+    }
+
+    private var confirmationButton: some View {
+        UrButton(
+            text: "I've Saved My Seedphrase",
+            action: {
+                onConfirmed(seedphrase)
+            },
+            enabled: true,
+            isProcessing: false
+        )
+        .tint(.urGreen)
     }
 
 }
