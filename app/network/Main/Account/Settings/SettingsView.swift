@@ -193,7 +193,7 @@ struct SettingsView: View {
             ) {
                 Button("Generate") {
                     Task {
-                        await viewModel.executeGenerateSeedphrase()
+                        await viewModel.executePendingSeedphraseAction()
                     }
                 }
                 Button("Cancel", role: .cancel) {}
@@ -317,7 +317,7 @@ struct SettingsView: View {
             ) {
                 Button("Generate") {
                     Task {
-                        await viewModel.executeGenerateSeedphrase()
+                        await viewModel.executePendingSeedphraseAction()
                     }
                 }
                 Button("Cancel", role: .cancel) {}

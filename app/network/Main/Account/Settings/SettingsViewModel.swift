@@ -280,15 +280,32 @@ extension SettingsView {
         @Published var isGeneratingSeedphrase: Bool = false
         @Published var isRegeneratingSeedphrase: Bool = false
         @Published var presentSeedphraseConfirmation: Bool = false
-        @Published var isRegenerating: Bool = false
         @Published var seedphraseError: String?
         
+        private var pendingSeedphraseAction: SeedphraseAction = .generate
+        
+        enum SeedphraseAction {
+            case generate
+            case regenerate
+        }
+        
         func confirmGenerateSeedphrase() {
+            pendingSeedphraseAction = .generate
             presentSeedphraseConfirmation = true
         }
         
         func confirmRegenerateSeedphrase() {
+            pendingSeedphraseAction = .regenerate
             presentSeedphraseConfirmation = true
+        }
+        
+        func executePendingSeedphraseAction() async {
+            switch pendingSeedphraseAction {
+            case .generate:
+                await executeGenerateSeedphrase()
+            case .regenerate:
+                await executeRegenerateSeedphrase()
+            }
         }
         
         func executeGenerateSeedphrase() async {

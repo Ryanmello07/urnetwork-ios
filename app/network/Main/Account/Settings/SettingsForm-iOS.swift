@@ -514,16 +514,16 @@ struct SettingsForm_iOS: View {
         if !authType.isEmpty { methods.append(authType) }
         // The SDK SdkNetworkUser currently only exposes a single authType.
         // Future expansion could read from an array returned by the endpoint.
-        // For now the user's primary auth type is shown.
         
-        // If there's a userAuth for email, include "email" as a method
+        // If there's a userAuth, include it as a method label
         if let userAuth = networkUser.userAuth, !userAuth.isEmpty {
-            if !methods.contains("email") {
-                methods.append("email")
+            let methodLabel = userAuth.contains("@") ? "email" : userAuth
+            if !methods.contains(methodLabel) {
+                methods.append(methodLabel)
             }
         }
         
-        return methods.isEmpty ? ["seedphrase"] : methods
+        return methods
     }
     
     private func methodDisplayName(_ method: String) -> String {

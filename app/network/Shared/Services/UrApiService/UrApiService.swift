@@ -561,6 +561,11 @@ extension UrApiService {
                     return
                 }
 
+                if let errMsg = result.error?.message {
+                    continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: errMsg]))
+                    return
+                }
+
                 continuation.resume(returning: result)
             }
 
@@ -582,6 +587,11 @@ extension UrApiService {
 
                 guard let result = result else {
                     continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: "regenerateSeedphrase returned nil result"]))
+                    return
+                }
+
+                if let errMsg = result.error?.message {
+                    continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: errMsg]))
                     return
                 }
 
