@@ -541,6 +541,8 @@ extension UrApiService {
         }
     }
     
+}
+
 // MARK: — Account Management: Seedphrase
 
 extension UrApiService {
