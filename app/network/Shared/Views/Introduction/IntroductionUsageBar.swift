@@ -54,7 +54,7 @@ struct IntroductionUsageBar: View {
                     
                     Spacer().frame(height: 16)
                     
-                    IntroBulletPoint(text: "Refer a friend = +30 GiB/Month")
+                    IntroBulletPoint(text: "Refer a friend = +3 GiB/Day")
                     
                     Spacer()
                     

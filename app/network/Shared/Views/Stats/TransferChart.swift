@@ -292,18 +292,29 @@ struct TransferChart: View {
         let first = entries[0]
         let last = entries[lastIndex]
 
-        // pad the series so the baseline spans the full width: zeros back to
-        // the window start on the left (flat baseline over the not-yet-filled
-        // region) and a hold of the latest value out to the right edge
+        // pad the series so the baseline spans the full width: a flat run of
+        // zeros back to the window start on the left (the not-yet-filled
+        // region) and a hold of the latest value out to the right edge. the
+        // left zeros are laid at the sample cadence rather than as a single
+        // far-left point, so the points feeding the spline stay evenly spaced
+        // -- a lone real sample sitting after one giant gap back to the window
+        // start is what makes the curve loop on itself.
         var padded = entries
         let windowStart = now - window
         if windowStart < first.time {
             let step = 2 <= entries.count ? max(0.2, entries[1].time - first.time) : 1.0
-            let rampTime = first.time - step
-            if windowStart < rampTime {
-                padded.insert(Entry(time: rampTime, sample: .zero), at: 0)
+            // walk back from just before the first real sample to the window
+            // start, one bucket at a time, so the ramp-in from zero is uniform
+            var rampTimes: [TimeInterval] = []
+            var t = first.time - step
+            while windowStart < t {
+                rampTimes.append(t)
+                t -= step
             }
-            padded.insert(Entry(time: windowStart, sample: .zero), at: 0)
+            // anchor the baseline exactly at the window start so it reaches the
+            // left edge
+            rampTimes.append(windowStart)
+            padded.insert(contentsOf: rampTimes.reversed().map { Entry(time: $0, sample: .zero) }, at: 0)
         }
         if last.time < now {
             padded.append(Entry(time: now, sample: last.sample))
@@ -447,8 +458,15 @@ struct TransferChart: View {
             let p1 = points[i - 1]
             let p2 = points[i]
             let p3 = points[min(i + 1, points.count - 1)]
-            let c1 = CGPoint(x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6)
-            let c2 = CGPoint(x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6)
+            var c1 = CGPoint(x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6)
+            var c2 = CGPoint(x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6)
+            // the x axis is time and strictly increasing, so keep both control
+            // points within the segment's x span. clamping x keeps the cubic
+            // monotonic in x -- it can never bow back on itself into a loop when
+            // a neighbour is far away (an outlier, or the zero baseline across a
+            // gap). y is left free so the curve still eases naturally.
+            c1.x = min(max(c1.x, p1.x), p2.x)
+            c2.x = min(max(c2.x, p1.x), p2.x)
             path.addCurve(to: p2, control1: c1, control2: c2)
         }
         return path

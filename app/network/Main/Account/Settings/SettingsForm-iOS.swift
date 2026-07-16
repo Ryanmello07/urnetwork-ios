@@ -22,10 +22,8 @@ struct SettingsForm_iOS: View {
     let referralNetworkName: String?
     let version: String
     let isUpdatingAccountPreferences: Bool
-    let isSeekerOrSagaHolder: Bool
     let copyToPasteboard: (_ value: String) -> Void
     let presentUpdateReferralNetworkSheet: () -> Void
-    let presentSigninWithSolanaSheet: () -> Void
     let presentDeleteAccountConfirmation: () -> Void
     let navigate: (AccountNavigationPath) -> Void
     let provideEnabled: Bool
@@ -337,60 +335,6 @@ struct SettingsForm_iOS: View {
                 }
             }
             
-            Section("Earning multipliers") {
-                
-                VStack {
-                 
-                    HStack {
-                        Text("Claim multiplier")
-                            .font(themeManager.currentTheme.bodyFont)
-                        Spacer()
-                        
-                        if (isSeekerOrSagaHolder) {
-                            Image(systemName: "checkmark")
-                                .foregroundColor(.urGreen)
-                                .frame(width: 16)
-                        } else {
-                            Button(action: {
-                                presentSigninWithSolanaSheet()
-                            }) {
-                                Text("Verify")
-                            }
-                        }
-                        
-                    }
-                    
-                    HStack {
-                        Text("Connect a wallet with the Seeker Pre-Order Token")
-                            .font(themeManager.currentTheme.secondaryBodyFont)
-                            .foregroundColor(themeManager.currentTheme.textMutedColor)
-                        
-                        Spacer()
-                    }
-                    
-                }
-                
-                /**
-                 * Learn more about Solana Seeker x URnetwork collab
-                 */
-                HStack {
-                    Text("Learn more about the multiplier")
-                        .font(themeManager.currentTheme.bodyFont)
-                        .foregroundColor(themeManager.currentTheme.textColor)
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        if let url = URL(string: "https://ur.io/seeker") {
-                            UIApplication.shared.open(url, options: [:], completionHandler: nil)
-                        }
-                    }) {
-                        Image(systemName: "arrow.up.right.square")
-                            .foregroundColor(themeManager.currentTheme.textMutedColor)
-                    }
-                }
-                
-            }
             
             Section("Danger") {
                 Button(role: .destructive, action: {

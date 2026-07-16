@@ -274,25 +274,19 @@ struct ContractPairViz: View {
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
 
-            // a replaced contract (new id) slides out to the side and fades while
-            // the new one fades in over the same slot; within a contract the disc
-            // just resizes. the ZStack keeps the outgoing/incoming circles
-            // overlapped in a fixed slot so the row never jumps (parity with
-            // Android's AnimatedContent).
-            ZStack {
-                contractCircle(
-                    used: row.contractUsedByteCount,
-                    total: row.contractByteCount,
-                    color: contractColor,
-                    label: "Contract"
-                )
-                .id(row.contractId)
-                .transition(.asymmetric(
-                    insertion: .opacity,
-                    removal: .move(edge: .leading).combined(with: .opacity)
-                ))
-            }
-            .animation(.easeInOut(duration: 0.5), value: row.contractId)
+            // a replaced contract (new id) slides its outer ring out to the side
+            // and fades while the new ring fades into the same fixed slot; the
+            // inner disc persists across the swap and just resizes. the fixed
+            // slot keeps the row from jumping (parity with Android's
+            // AnimatedContent).
+            contractCircle(
+                contractId: row.contractId,
+                used: row.contractUsedByteCount,
+                total: row.contractByteCount,
+                color: contractColor,
+                label: "Contract",
+                removalEdge: .leading
+            )
 
             VStack(spacing: 12) {
                 Spacer().frame(height: 2)
@@ -310,29 +304,25 @@ struct ContractPairViz: View {
             .frame(maxWidth: .infinity)
             .frame(height: circleSize)
 
-            ZStack {
-                contractCircle(
-                    used: row.companionContractUsedByteCount,
-                    total: row.companionContractByteCount,
-                    color: companionColor,
-                    label: "Companion"
-                )
-                .id(row.companionContractId)
-                .transition(.asymmetric(
-                    insertion: .opacity,
-                    removal: .move(edge: .trailing).combined(with: .opacity)
-                ))
-            }
-            .animation(.easeInOut(duration: 0.5), value: row.companionContractId)
+            contractCircle(
+                contractId: row.companionContractId,
+                used: row.companionContractUsedByteCount,
+                total: row.companionContractByteCount,
+                color: companionColor,
+                label: "Companion",
+                removalEdge: .trailing
+            )
 
         }
     }
 
     private func contractCircle(
+        contractId: String,
         used: Int64,
         total: Int64,
         color: Color,
-        label: LocalizedStringKey
+        label: LocalizedStringKey,
+        removalEdge: Edge
     ) -> some View {
 
         // area-proportional inner disc, with a minimum visible size
@@ -342,21 +332,35 @@ struct ContractPairViz: View {
         return VStack(spacing: 8) {
 
             ZStack {
-                Circle()
-                    .stroke(color.opacity(0.8), lineWidth: 1)
-                    .frame(width: circleSize, height: circleSize)
 
-                if 0 < innerSize {
-                    Circle()
-                        .fill(color.opacity(0.3))
-                        .overlay(
-                            Circle().stroke(color.opacity(0.6), lineWidth: 0.5)
-                        )
-                        .frame(width: innerSize, height: innerSize)
-                        // grow/shrink smoothly, matching the transfer-chart transition
-                        .animation(.easeOut(duration: 0.5), value: innerSize)
-                }
+                // the outer ring carries the contract identity. On a replacement
+                // the old ring is ejected -- it slides out toward removalEdge and
+                // fades on its own fixed schedule, never reversing, and the new
+                // ring fades into the slot only once every ejecting ring has left.
+                // ContractRing supports multiple concurrent ejections (see it).
+                ContractRing(
+                    contractId: contractId,
+                    color: color,
+                    removalEdge: removalEdge,
+                    circleSize: circleSize,
+                    // a closing row (its last contract closed) ejects its ring and
+                    // shows nothing after — the "eject" for a client leaving
+                    visible: !row.closing
+                )
+
+                // the inner disc is a sibling with no id, so it persists across
+                // a contract swap and simply resizes -- morphing to the new
+                // level rather than popping. framing to zero when empty animates
+                // the grow-in / drain instead of an insert/remove pop.
+                Circle()
+                    .fill(color.opacity(0.3))
+                    .overlay(
+                        Circle().stroke(color.opacity(0.6), lineWidth: 0.5)
+                    )
+                    .frame(width: innerSize, height: innerSize)
+                    .animation(.easeOut(duration: 0.5), value: innerSize)
             }
+            .frame(width: circleSize, height: circleSize)
 
             VStack(spacing: 2) {
                 Text("\(formatByteCountCompact(used))")
@@ -403,6 +407,146 @@ struct ContractPairViz: View {
             }
             .opacity(active ? 0.9 : 0.25)
 
+        }
+    }
+}
+
+/**
+ * The outer identity ring of a contract circle.
+ *
+ * When the contract id changes, the ring on screen is *ejected*: it slides out
+ * toward `removalEdge` and fades on its own fixed schedule and is never reversed,
+ * even if further contracts change while it is still leaving. Each ejection is an
+ * independent instance, so multiple rings can be leaving at once and are all
+ * rendered; the incoming ring fades into the slot only once the LAST ejecting
+ * ring has finished leaving. This is the "eject one contract per change" analogy,
+ * replacing the single interruptible `.id()` cross-fade that slid a ring back in
+ * then out again when another change landed mid-slide.
+ *
+ * iOS 16 has no `withAnimation` completion handler, so each ejection's removal is
+ * timed to the slide duration.
+ */
+private struct ContractRing: View {
+
+    let contractId: String
+    let color: Color
+    let removalEdge: Edge
+    let circleSize: CGFloat
+    // whether a ring should occupy the slot. When it goes false (the client's
+    // last contract closed) the on-screen ring ejects and nothing takes its place.
+    var visible: Bool = true
+
+    private static let slideDuration: Double = 0.5
+    private static let fadeInDuration: Double = 0.35
+
+    // one in-flight ejection: an independent slide-out + fade that runs once
+    private struct Ejection: Identifiable {
+        let id = UUID()
+        var offset: CGFloat = 0
+        var faded: Bool = false
+    }
+
+    // the ring currently occupying the slot (the latest contract id)
+    @State private var currentId: String
+    // whether the current ring has faded in — false while ejections are leaving,
+    // so a not-yet-shown ring is never itself ejected (nothing to slide off)
+    @State private var currentVisible: Bool
+    // mirrors `visible` in state so the async ejection completion reads the live
+    // intent (a plain input would be captured stale)
+    @State private var present: Bool
+    @State private var ejections: [Ejection] = []
+
+    init(contractId: String, color: Color, removalEdge: Edge, circleSize: CGFloat, visible: Bool = true) {
+        self.contractId = contractId
+        self.color = color
+        self.removalEdge = removalEdge
+        self.circleSize = circleSize
+        self.visible = visible
+        // the first ring occupies the slot immediately if wanted — no ejection
+        _currentId = State(initialValue: contractId)
+        _currentVisible = State(initialValue: visible)
+        _present = State(initialValue: visible)
+    }
+
+    // slide fully clear of the circle's slot
+    private var offscreenOffset: CGFloat {
+        let distance = circleSize * 3
+        return removalEdge == .leading ? -distance : distance
+    }
+
+    private var ring: some View {
+        Circle()
+            .stroke(color.opacity(0.8), lineWidth: 1)
+            .frame(width: circleSize, height: circleSize)
+    }
+
+    var body: some View {
+        ZStack {
+            // ejecting rings, each leaving on its own schedule
+            ForEach(ejections) { ejection in
+                ring
+                    .offset(x: ejection.offset)
+                    .opacity(ejection.faded ? 0 : 1)
+            }
+
+            // the incoming/settled ring; hidden until every ejection has left
+            ring
+                .opacity(currentVisible ? 1 : 0)
+        }
+        .frame(width: circleSize, height: circleSize)
+        .onChange(of: contractId) { newId in
+            guard newId != currentId else { return }
+            // eject the on-screen ring (if any), then admit the new id
+            if currentVisible {
+                ejectCurrentRing()
+            }
+            currentId = newId
+            currentVisible = false
+            // nothing leaving -> the new ring can fade in right away
+            if present && ejections.isEmpty {
+                fadeInCurrent()
+            }
+        }
+        .onChange(of: visible) { nowVisible in
+            present = nowVisible
+            if nowVisible {
+                if !currentVisible && ejections.isEmpty {
+                    fadeInCurrent()
+                }
+            } else if currentVisible {
+                // the client is leaving: eject the ring and show nothing after
+                ejectCurrentRing()
+                currentVisible = false
+            }
+        }
+    }
+
+    private func fadeInCurrent() {
+        withAnimation(.easeInOut(duration: Self.fadeInDuration)) {
+            currentVisible = true
+        }
+    }
+
+    // spawn an independent slide-out of the on-screen ring; once started it always
+    // runs to completion (never reverses), even if more changes land meanwhile
+    private func ejectCurrentRing() {
+        let ejection = Ejection()
+        let key = ejection.id
+        ejections.append(ejection)
+
+        withAnimation(.easeInOut(duration: Self.slideDuration)) {
+            if let i = ejections.firstIndex(where: { $0.id == key }) {
+                ejections[i].offset = offscreenOffset
+                ejections[i].faded = true
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.slideDuration) {
+            ejections.removeAll { $0.id == key }
+            // admit the waiting ring only once the last one has left and if a ring
+            // is still wanted in the slot
+            if ejections.isEmpty && present && !currentVisible {
+                fadeInCurrent()
+            }
         }
     }
 }

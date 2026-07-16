@@ -57,6 +57,7 @@ struct ConnectStatsSections: View {
                     points: throughputStore.clientPoints,
                     route: .block,
                     title: "Blocked",
+                    height: 64,  // secondary series — half height
                     window: throughputStore.windowDuration,
                     byteColor: .urCoral,
                     packetColor: .urMutedCoral
@@ -76,6 +77,7 @@ struct ConnectStatsSections: View {
                     points: throughputStore.clientPoints,
                     route: .local,
                     title: "Local",
+                    height: 64,  // secondary series — half height
                     window: throughputStore.windowDuration
                 )
 

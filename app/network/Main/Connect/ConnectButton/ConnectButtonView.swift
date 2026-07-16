@@ -72,9 +72,19 @@ struct ConnectButtonView: View {
                      * view is otherwise never removed from the tree.
                      */
                     ZStack {
-                        if connectionStatus == .connecting || connectionStatus == .destinationSet {
-                            ConnectCanvasConnectingStateView(gridPoints: gridPoints, gridWidth: gridWidth)
-                                .transition(.opacity)
+                        if connectionStatus == .connecting || connectionStatus == .destinationSet || connectionStatus == .connected {
+                            // Stays mounted through the connected state so its globe
+                            // lines + grid dots persist as the background layer beneath
+                            // the connected connector circles (globe -> dots -> circles).
+                            // Once connected the grid freezes (isConnecting == false) so
+                            // the 60fps timer still tears down; the view fully unmounts
+                            // (and stops) only on disconnect.
+                            ConnectCanvasConnectingStateView(
+                                gridPoints: gridPoints,
+                                gridWidth: gridWidth,
+                                isConnecting: connectionStatus == .connecting || connectionStatus == .destinationSet
+                            )
+                            .transition(.opacity)
                         }
                     }
                     .animation(.easeInOut(duration: 0.5), value: connectionStatus)

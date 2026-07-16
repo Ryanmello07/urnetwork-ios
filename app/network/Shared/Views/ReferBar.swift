@@ -21,7 +21,7 @@ struct ReferBar: View {
     @EnvironmentObject var themeManager: ThemeManager
     
     let data: [ReferDataUsage]
-    let total: Int = 5
+    let total: Int = 20
     let cornerRadius: CGFloat = 12
     
     init(referralCount: Int) {
