@@ -249,7 +249,9 @@ struct SettingsView: View {
                 presentRenameDevice: viewModel.presentRenameDevice,
                 canReceiveNotifications: $viewModel.canReceiveNotifications,
                 canReceiveProductUpdates: $accountPreferencesViewModel.canReceiveProductUpdates,
-                launchAtStartupEnabled: $viewModel.launchAtStartupEnabled
+                launchAtStartupEnabled: $viewModel.launchAtStartupEnabled,
+                networkUserViewModel: networkUserViewModel,
+                viewModel: viewModel
             )
             .task {
                 await viewModel.fetchDeviceInfo(clientId)
@@ -298,6 +300,49 @@ struct SettingsView: View {
                     referralNetwork: viewModel.referralNetwork
                 )
                 .environmentObject(themeManager)
+            }
+            .sheet(isPresented: $viewModel.presentSeedphraseSheet) {
+                SeedphraseDisplayView(
+                    seedphrase: viewModel.generatedSeedphrase,
+                    onConfirmed: { _ in
+                        viewModel.dismissSeedphraseSheet()
+                    }
+                )
+                .environmentObject(themeManager)
+            }
+            .confirmationDialog(
+                "Generate a recovery seedphrase?",
+                isPresented: $viewModel.presentSeedphraseConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Generate") {
+                    Task {
+                        await viewModel.executeGenerateSeedphrase()
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("A seedphrase lets you recover your account if you lose access. Store it safely.")
+            }
+            .confirmationDialog(
+                "Remove this sign-in method?",
+                isPresented: $viewModel.presentRemoveAuthConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Remove", role: .destructive) {
+                    Task {
+                        await viewModel.executeRemoveAuth()
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                if let authType = viewModel.authTypeToRemove {
+                    Text("Are you sure you want to remove \(authType) as a sign-in method?")
+                }
+            }
+            .sheet(isPresented: $viewModel.presentAddAuthSheet) {
+                AddAuthSheet(api: api)
+                    .environmentObject(themeManager)
             }
         
         #endif

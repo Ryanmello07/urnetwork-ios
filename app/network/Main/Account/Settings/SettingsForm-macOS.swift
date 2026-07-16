@@ -38,6 +38,9 @@ struct SettingsForm_macOS: View {
     @Binding var canReceiveProductUpdates: Bool
     @Binding var launchAtStartupEnabled: Bool
     
+    let networkUserViewModel: NetworkUserViewModel?
+    let viewModel: SettingsView.ViewModel
+    
     var provideIndicatorColor: Color {
         if !provideEnabled {
             return .urCoral
@@ -172,6 +175,124 @@ struct SettingsForm_macOS: View {
                     
                     Spacer().frame(height: 32)
                     
+                    // MARK: - Seedphrase Management
+                    
+                    HStack {
+                        UrLabel(text: "Seedphrase")
+                        
+                        Spacer()
+                    }
+                    
+                    VStack(alignment: .leading) {
+                        if let networkUser = networkUserViewModel?.networkUser {
+                            if networkUser.authType == "seedphrase" {
+                                HStack {
+                                    Button(action: {
+                                        viewModel.confirmRegenerateSeedphrase()
+                                    }) {
+                                        Text("Regenerate Seedphrase")
+                                    }
+                                    if viewModel.isRegeneratingSeedphrase {
+                                        ProgressView().scaleEffect(0.7)
+                                    }
+                                    Spacer()
+                                }
+                                .disabled(viewModel.isRegeneratingSeedphrase)
+                            } else {
+                                HStack {
+                                    Button(action: {
+                                        viewModel.confirmGenerateSeedphrase()
+                                    }) {
+                                        Text("Generate Seedphrase")
+                                    }
+                                    if viewModel.isGeneratingSeedphrase {
+                                        ProgressView().scaleEffect(0.7)
+                                    }
+                                    Spacer()
+                                }
+                                .disabled(viewModel.isGeneratingSeedphrase)
+                            }
+                        } else {
+                            HStack {
+                                Button(action: {
+                                    viewModel.confirmGenerateSeedphrase()
+                                }) {
+                                    Text("Generate Seedphrase")
+                                }
+                                if viewModel.isGeneratingSeedphrase {
+                                    ProgressView().scaleEffect(0.7)
+                                }
+                                Spacer()
+                            }
+                            .disabled(viewModel.isGeneratingSeedphrase)
+                        }
+                        
+                        Text("A seedphrase lets you recover your account if you lose access.")
+                            .font(themeManager.currentTheme.secondaryBodyFont)
+                            .foregroundColor(themeManager.currentTheme.textMutedColor)
+                    }
+                    .padding()
+                    .background(themeManager.currentTheme.tintedBackgroundBase)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    
+                    Spacer().frame(height: 32)
+                    
+                    // MARK: - Sign-In Methods
+                    
+                    HStack {
+                        UrLabel(text: "Sign-In Methods")
+                        
+                        Spacer()
+                    }
+                    
+                    VStack(alignment: .leading) {
+                        if let networkUser = networkUserViewModel?.networkUser {
+                            let hasEmail = !(networkUser.userAuth ?? "").isEmpty
+                            
+                            if hasEmail {
+                                HStack {
+                                    Text("Email")
+                                        .font(themeManager.currentTheme.bodyFont)
+                                    Spacer()
+                                    Text(networkUser.userAuth ?? "")
+                                        .font(themeManager.currentTheme.secondaryBodyFont)
+                                        .foregroundColor(themeManager.currentTheme.textMutedColor)
+                                }
+                                Spacer().frame(height: 8)
+                            }
+                            
+                            HStack {
+                                Text(methodDisplayName(networkUser.authType))
+                                    .font(themeManager.currentTheme.bodyFont)
+                                Spacer()
+                            }
+                            
+                            Spacer().frame(height: 12)
+                            
+                            Button(action: {
+                                viewModel.presentAddAuthSheet = true
+                            }) {
+                                Text("Add sign-in method")
+                            }
+                        } else {
+                            HStack {
+                                Text("Loading sign-in methods...")
+                                    .font(themeManager.currentTheme.secondaryBodyFont)
+                                    .foregroundColor(themeManager.currentTheme.textMutedColor)
+                                Spacer()
+                                ProgressView().scaleEffect(0.7)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(themeManager.currentTheme.tintedBackgroundBase)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    
+                    Spacer().frame(height: 32)
+                    
+                    /**
+                     * System
+                     */
                     HStack {
                         UrLabel(text: "System")
                         
@@ -237,7 +358,6 @@ struct SettingsForm_macOS: View {
                         .contentShape(Rectangle())
                         .onTapGesture {
                             navigate(.transferBalanceCodes)
-                            // navigate to blocked
                         }
                         
                         
@@ -369,7 +489,6 @@ struct SettingsForm_macOS: View {
                         .contentShape(Rectangle())
                         .onTapGesture {
                             navigate(.blockedLocations)
-                            // navigate to blocked
                         }
                         
                     }
@@ -499,6 +618,70 @@ struct SettingsForm_macOS: View {
 
                     Spacer().frame(height: 64)
                     
+                    HStack {
+                        UrLabel(text: "Earning multipliers")
+                        
+                        Spacer()
+                    }
+                    
+                    VStack {
+                     
+                        HStack {
+                            Text("Claim multiplier")
+                                .font(themeManager.currentTheme.bodyFont)
+                            Spacer()
+                            
+                            if (isSeekerOrSagaHolder) {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.urGreen)
+                                    .frame(width: 16)
+                            } else {
+                                Button(action: {
+                                    presentSigninWithSolanaSheet()
+                                }) {
+                                    Text("Verify")
+                                }
+                            }
+                            
+                        }
+                        
+                        HStack {
+                            Text("Connect a wallet with the Seeker Pre-Order Token")
+                                .font(themeManager.currentTheme.secondaryBodyFont)
+                                .foregroundColor(themeManager.currentTheme.textMutedColor)
+                            
+                            Spacer()
+                        }
+                        
+                    }
+                    .padding()
+                    .background(themeManager.currentTheme.tintedBackgroundBase)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    
+                    Spacer().frame(height: 32)
+                    
+                    HStack {
+                        Text("Learn more about the multiplier")
+                            .font(themeManager.currentTheme.bodyFont)
+                            .foregroundColor(themeManager.currentTheme.textColor)
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            if let url = URL(string: "https://ur.io/seeker") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }) {
+                            Image(systemName: "arrow.forward")
+                                .foregroundColor(themeManager.currentTheme.textColor)
+                        }
+                    }
+                    .padding()
+                    .background(themeManager.currentTheme.tintedBackgroundBase)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    
+                    Spacer().frame(height: 32)
+                    
                     Button(role: .destructive, action: {
                         presentDeleteAccountConfirmation()
                     }) {
@@ -514,6 +697,19 @@ struct SettingsForm_macOS: View {
                 .frame(minHeight: geometry.size.height)
                 
             }
+        }
+    }
+    
+    // MARK: - Helpers
+    
+    private func methodDisplayName(_ method: String) -> String {
+        switch method {
+        case "email": return "Email"
+        case "google": return "Google"
+        case "apple": return "Apple"
+        case "solana": return "Solana Wallet"
+        case "seedphrase": return "Seedphrase"
+        default: return method.capitalized
         }
     }
 }
