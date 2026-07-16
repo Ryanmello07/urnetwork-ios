@@ -121,6 +121,22 @@ jobs:
           fi
           ditto -c -k --sequesterRsrc --keepParent "$APP" URnetwork-beta-macOS.zip
 
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: URnetwork-beta-ios
+          path: urnetwork-ios/app/URnetwork-beta.ipa
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: URnetwork-beta-macOS
+          path: urnetwork-ios/app/URnetwork-beta-macOS.zip
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Create prerelease
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
