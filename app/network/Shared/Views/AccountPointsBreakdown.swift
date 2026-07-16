@@ -106,8 +106,8 @@ struct AccountPointsBreakdown: View {
                             
                             Text("Seeker Token Verified!")
                                 .font(themeManager.currentTheme.bodyFont)
-                            
-                            Text("You're earning 2x points")
+
+                            Text("2x your free and referral data")
                                 .font(themeManager.currentTheme.secondaryBodyFont)
                                 .foregroundColor(themeManager.currentTheme.textMutedColor)
                             

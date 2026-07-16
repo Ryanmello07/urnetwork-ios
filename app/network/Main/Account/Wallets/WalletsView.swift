@@ -390,6 +390,7 @@ struct ProviderStatsSection: View {
                     points: throughputStore.providerPoints,
                     route: .block,
                     title: "Blocked",
+                    height: 64,  // secondary series — half height
                     window: throughputStore.windowDuration,
                     byteColor: .urCoral,
                     packetColor: .urMutedCoral

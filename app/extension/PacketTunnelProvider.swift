@@ -559,21 +559,15 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         networkSettings.ipv6Settings = ipv6Settings
 
         // DNS from the SDK device, like the tunnel address: the dns settings'
-        // unencrypted local servers when set, otherwise the default plain 1.1.1.1
-        // (see `tunnelDnsServers`). Plain :53 lets the UpgradeMux intercept and
-        // upgrade it; a DoH setting is applied at the OS level and bypasses the mux.
+        // unencrypted local servers when set, otherwise the default plain-DNS
+        // resolvers (see `tunnelDnsServers`). Always plain :53, never OS-level
+        // encrypted DNS (DoH/DoT): the UpgradeMux claims :53 and performs the
+        // unencrypted-DNS -> DoH upgrade itself, so enabling encrypted DNS at the OS
+        // level here (e.g. NEDNSOverHTTPSSettings/NEDNSOverTLSSettings) would bypass
+        // the mux and hide queries from it.
         let dnsServers = self.tunnelDnsServers()
         self.appliedTunnelDnsServers = dnsServers
-        let tunnelDns = self.device?.tunnelDnsSetting()
-        let dnsSettings: NEDNSSettings
-        if let tunnelDns = tunnelDns, tunnelDns.doh, !tunnelDns.dohUrl.isEmpty {
-            let dnsServer = tunnelDns.server.isEmpty ? "1.1.1.1" : tunnelDns.server
-            let dohSettings = NEDNSOverHTTPSSettings(servers: [dnsServer])
-            dohSettings.serverURL = URL(string: tunnelDns.dohUrl)
-            dnsSettings = dohSettings
-        } else {
-            dnsSettings = NEDNSSettings(servers: dnsServers)
-        }
+        let dnsSettings = NEDNSSettings(servers: dnsServers)
         // route every DNS query to the tunnel resolver (empty string matches all
         // domains). without this the OS may not send :53 queries into the tunnel, so
         // the UpgradeMux never sees them and resolution fails.
@@ -587,8 +581,8 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     }
 
     /// The plain-dns servers for the tunnel, from the sdk device like the tunnel
-    /// address: the dns settings' unencrypted local servers when set, otherwise
-    /// the default plain 1.1.1.1 (which the UpgradeMux can intercept and upgrade).
+    /// address: the dns settings' unencrypted local servers when set, otherwise the
+    /// default plain-DNS resolvers (which the UpgradeMux can intercept and upgrade).
     /// The tunnel is ipv4-only (no ipv6 addresses or routes), so only the ipv4
     /// resolvers apply.
     func tunnelDnsServers() -> [String] {
@@ -599,7 +593,10 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             }
         }
         if servers.isEmpty {
-            servers = ["1.1.1.1"]
+            // static fallback matching the SDK default tunnel resolvers; Quad9
+            // (9.9.9.9) leads so no resolver the OS would auto-upgrade to encrypted
+            // DNS is applied alone (see the SDK's defaultTunnelDnsServersIpv4)
+            servers = ["9.9.9.9", "1.1.1.1"]
         }
         return servers
     }

@@ -58,13 +58,9 @@ struct SettingsView: View {
                 referralNetworkName: viewModel.referralNetwork?.name,
                 version: viewModel.version,
                 isUpdatingAccountPreferences: accountPreferencesViewModel.isUpdatingAccountPreferences,
-                isSeekerOrSagaHolder: accountWalletsViewModel.isSeekerOrSagaHolder,
                 copyToPasteboard: copyToPasteboard,
                 presentUpdateReferralNetworkSheet: {
                     viewModel.presentUpdateReferralNetworkSheet = true
-                },
-                presentSigninWithSolanaSheet: {
-                    viewModel.presentSigninWithSolanaSheet = true
                 },
                 presentDeleteAccountConfirmation: {
                     viewModel.isPresentedDeleteAccountConfirmation = true
@@ -111,49 +107,6 @@ struct SettingsView: View {
                     
                 }
             }
-            .sheet(isPresented: $viewModel.presentSigninWithSolanaSheet) {
-                
-                SolanaSignMessageSheet(
-                    isSigningMessage: viewModel.isSigningMessage,
-                    setIsSigningMessage: viewModel.setIsSigningMessage,
-                    signButtonText: "Confirm Seeker Token",
-                    signButtonLabelText: "Claim multiplier",
-                    message: connectWalletProviderViewModel.claimSeekerTokenMessage,
-                    dismiss: {
-                        viewModel.presentSigninWithSolanaSheet = false
-                    }
-                )
-                .environmentObject(themeManager)
-                .environmentObject(connectWalletProviderViewModel)
-                .presentationDetents([.height(148)])
-            }
-            .onOpenURL { url in
-                connectWalletProviderViewModel
-                    .handleDeepLink(
-                        url,
-                        onSignature: { signature in
-                            
-                            guard let pk = connectWalletProviderViewModel.connectedPublicKey else {
-                                viewModel.setIsSigningMessage(false)
-                                snackbarManager.showSnackbar(message: String(localized: "Couldn't parse public key, please try again later."))
-                                return
-                            }
-                            
-                            Task {
-                                await handleSolanaWalletSignature(
-                                    message: connectWalletProviderViewModel.claimSeekerTokenMessage,
-                                    signature: signature,
-                                    publicKey: pk
-                                )
-                            }
-                            
-                        },
-                        onError: { _ in
-                            viewModel.setIsSigningMessage(false)
-                            snackbarManager.showSnackbar(message: String(localized: "Sorry, there was an error claiming multiplier."))
-                        }
-                    )
-            }
             .sheet(isPresented: $viewModel.presentUpdateReferralNetworkSheet) {
                 UpdateReferralNetworkSheet(
                     api: api,
@@ -182,13 +135,9 @@ struct SettingsView: View {
                 referralNetworkName: viewModel.referralNetwork?.name,
                 version: viewModel.version,
                 isUpdatingAccountPreferences: accountPreferencesViewModel.isUpdatingAccountPreferences,
-                isSeekerOrSagaHolder: accountWalletsViewModel.isSeekerOrSagaHolder,
                 copyToPasteboard: copyToPasteboard,
                 presentUpdateReferralNetworkSheet: {
                     viewModel.presentUpdateReferralNetworkSheet = true
-                },
-                presentSigninWithSolanaSheet: {
-                    viewModel.presentSigninWithSolanaSheet = true
                 },
                 presentDeleteAccountConfirmation: {
                     viewModel.isPresentedDeleteAccountConfirmation = true
@@ -253,29 +202,6 @@ struct SettingsView: View {
             }
         
         #endif
-        
-    }
-    
-    private func handleSolanaWalletSignature(message: String, signature: String, publicKey: String) async {
-        defer {
-            viewModel.setIsSigningMessage(false)
-        }
-        
-        let result = await accountWalletsViewModel.verifySeekerOrSagaOwnership(
-            publicKey: publicKey,
-            message: message,
-            signature: signature
-        )
-        
-        switch result {
-        case .success(true):
-            snackbarManager.showSnackbar(message: String(localized: "Successfully claimed multiplier!"))
-            viewModel.presentSigninWithSolanaSheet = false
-        case .success(false):
-            snackbarManager.showSnackbar(message: String(localized: "Sorry, there was an error claiming multiplier."))
-        case .failure(let error):
-            snackbarManager.showSnackbar(message: String(localized: "Sorry, there was an error claiming multiplier: \(error.localizedDescription)"))
-        }
         
     }
     

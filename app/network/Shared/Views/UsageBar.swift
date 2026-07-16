@@ -196,7 +196,7 @@ struct UsageBar: View {
 
             Spacer()
 
-            Text("+\(totalReferrals * 30) GiB/Month")
+            Text("+\(totalReferrals * 3) GiB/Day")
                 .font(themeManager.currentTheme.secondaryBodyFont)
                 .foregroundStyle(themeManager.currentTheme.textMutedColor)
 

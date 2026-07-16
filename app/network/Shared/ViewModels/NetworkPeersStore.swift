@@ -57,12 +57,12 @@ struct NetworkPeerItem: Identifiable, Equatable {
     }
 }
 
-private class NetworkPeersListener: NSObject, SdkNetworkPeersChangeListenerProtocol {
+private class PeersListener: NSObject, SdkPeersListenerProtocol {
     private let callback: () -> Void
     init(callback: @escaping () -> Void) {
         self.callback = callback
     }
-    func networkPeersChanged(_ networkPeers: SdkNetworkPeers?) {
+    func peersChanged(_ peers: SdkNetworkPeerList?) {
         callback()
     }
 }
@@ -79,41 +79,41 @@ class NetworkPeersStore: ObservableObject {
     @Published private(set) var connectedProvidePeers: [NetworkPeerItem] = []
 
     private var device: SdkDeviceRemote?
+    private var peerViewController: SdkPeerViewController?
     private var peersSub: SdkSubProtocol?
 
     func setup(_ device: SdkDeviceRemote) {
         reset()
 
         self.device = device
-        self.peersSub = device.add(NetworkPeersListener { [weak self] in
+        // the SDK peer view controller already filters to connected + provide-enabled peers
+        let vc = device.openPeerViewController()
+        self.peerViewController = vc
+        self.peersSub = vc?.add(PeersListener { [weak self] in
             DispatchQueue.main.async {
                 self?.update()
             }
         })
-
-        update()
+        vc?.start()
     }
 
     func reset() {
         peersSub?.close()
         peersSub = nil
+        peerViewController?.close()
+        peerViewController = nil
         device = nil
         connectedProvidePeers = []
     }
 
     private func update() {
-        guard let device = self.device else {
+        guard let vc = self.peerViewController else {
             return
         }
         var peers: [NetworkPeerItem] = []
-        if let networkPeers = device.getNetworkPeers(),
-            let connected = networkPeers.connected
-        {
+        if let connected = vc.getPeers() {
             for i in 0..<connected.len() {
                 guard let peer = connected.get(i), let clientId = peer.clientId else {
-                    continue
-                }
-                if !peer.provideEnabled {
                     continue
                 }
                 peers.append(

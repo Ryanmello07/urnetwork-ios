@@ -36,9 +36,9 @@ struct ParticipateReferView: View {
                     
                     Spacer().frame(height: 16)
                     
-                    IntroBulletPoint(text: "You get 30 GiB/month for life")
-                    
-                    IntroBulletPoint(text: "Your friend gets 30 GiB/month for life")
+                    IntroBulletPoint(text: "You get 3 GiB/day for life")
+
+                    IntroBulletPoint(text: "Your friend gets 3 GiB/day for life")
                     
                     Spacer().frame(height: 16)
                     
@@ -51,7 +51,7 @@ struct ParticipateReferView: View {
                             
                             Spacer()
                             
-                            Text("\(totalReferrals)/5")
+                            Text("\(totalReferrals)/20")
                                 .font(themeManager.currentTheme.toolbarTitleFont)
                             
                         }
