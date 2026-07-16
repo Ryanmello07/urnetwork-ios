@@ -243,7 +243,6 @@ extension SettingsView {
 
             } catch(let error) {
                 print("\(domain) Error fetching transfer stats: \(error)")
-                // isLoadingTransferStats = false
             }
             
         }
@@ -273,6 +272,94 @@ extension SettingsView {
             }
         }
         #endif
+        
+        // MARK: - Seedphrase Management
+        
+        @Published var presentSeedphraseSheet: Bool = false
+        @Published var generatedSeedphrase: String = ""
+        @Published var isGeneratingSeedphrase: Bool = false
+        @Published var isRegeneratingSeedphrase: Bool = false
+        @Published var presentSeedphraseConfirmation: Bool = false
+        @Published var isRegenerating: Bool = false
+        @Published var seedphraseError: String?
+        
+        func confirmGenerateSeedphrase() {
+            presentSeedphraseConfirmation = true
+        }
+        
+        func confirmRegenerateSeedphrase() {
+            presentSeedphraseConfirmation = true
+        }
+        
+        func executeGenerateSeedphrase() async {
+            isGeneratingSeedphrase = true
+            seedphraseError = nil
+            
+            do {
+                let result = try await api.generateSeedphrase()
+                self.generatedSeedphrase = result.seedphrase
+                self.isGeneratingSeedphrase = false
+                self.presentSeedphraseConfirmation = false
+                self.presentSeedphraseSheet = true
+            } catch(let error) {
+                self.isGeneratingSeedphrase = false
+                self.seedphraseError = error.localizedDescription
+                self.presentSeedphraseConfirmation = false
+            }
+        }
+        
+        func executeRegenerateSeedphrase() async {
+            isRegeneratingSeedphrase = true
+            seedphraseError = nil
+            
+            do {
+                let result = try await api.regenerateSeedphrase()
+                self.generatedSeedphrase = result.seedphrase
+                self.isRegeneratingSeedphrase = false
+                self.presentSeedphraseConfirmation = false
+                self.presentSeedphraseSheet = true
+            } catch(let error) {
+                self.isRegeneratingSeedphrase = false
+                self.seedphraseError = error.localizedDescription
+                self.presentSeedphraseConfirmation = false
+            }
+        }
+        
+        func dismissSeedphraseSheet() {
+            self.presentSeedphraseSheet = false
+            self.generatedSeedphrase = ""
+        }
+        
+        // MARK: - Auth Method Management
+        
+        @Published var presentAddAuthSheet: Bool = false
+        @Published var presentRemoveAuthConfirmation: Bool = false
+        @Published var authTypeToRemove: String?
+        @Published var isAddingAuth: Bool = false
+        @Published var isRemovingAuth: Bool = false
+        @Published var addAuthError: String?
+        @Published var removeAuthError: String?
+        
+        func presentRemoveAuth(_ authType: String) {
+            self.authTypeToRemove = authType
+            self.presentRemoveAuthConfirmation = true
+        }
+        
+        func executeRemoveAuth() async {
+            guard let authType = authTypeToRemove else { return }
+            isRemovingAuth = true
+            removeAuthError = nil
+            
+            do {
+                let _ = try await api.removeAuth(authType: authType)
+                self.isRemovingAuth = false
+                self.presentRemoveAuthConfirmation = false
+                self.authTypeToRemove = nil
+            } catch(let error) {
+                self.isRemovingAuth = false
+                self.removeAuthError = error.localizedDescription
+            }
+        }
         
     }
     

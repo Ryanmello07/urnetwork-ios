@@ -34,7 +34,6 @@ protocol UrApiServiceProtocol {
     func authLogin(_ args: SdkAuthLoginArgs) async throws -> AuthLoginResult
     func createNetwork(_ args: SdkNetworkCreateArgs) async throws -> LoginNetworkResult
     func validateReferralCode(_ code: String) async throws -> SdkValidateReferralCodeResult
-    func upgradeGuest(_ args: SdkUpgradeGuestArgs) async throws -> LoginNetworkResult
     func createAuthCode() async throws -> SdkAuthCodeCreateResult
     func authCodeLogin(_ args: SdkAuthCodeLoginArgs) async throws -> SdkAuthCodeLoginResult
     func authWalletChallenge(_ args: SdkAuthWalletChallengeArgs) async throws -> SdkAuthWalletChallengeResult
@@ -72,6 +71,24 @@ protocol UrApiServiceProtocol {
     func getReferralNetwork() async throws -> SdkGetReferralNetworkResult
     func setNetworkReferral(_ referralCode: String) async throws -> SdkSetNetworkReferralResult
     func unlinkReferralNetwork() async throws -> SdkUnlinkReferralNetworkResult
+
+    /**
+     * Account Management — Seedphrase
+     */
+    func generateSeedphrase() async throws -> SdkGenerateSeedphraseResult
+    func regenerateSeedphrase() async throws -> SdkRegenerateSeedphraseResult
+
+    /**
+     * Account Management — Auth Methods
+     */
+    func addAuth(_ args: SdkAddAuthArgs) async throws -> SdkAddAuthResult
+    func removeAuth(authType: String) async throws -> SdkRemoveAuthResult
+
+    /**
+     * Account Management — Network Name
+     */
+    func changeNetworkName(_ newName: String) async throws -> SdkChangeNetworkNameResult
+    func claimNetworkName(_ newName: String) async throws -> SdkClaimNetworkNameResult
 
     /**
      * Device

@@ -37,6 +37,9 @@ struct SettingsForm_iOS: View {
     @Binding var canReceiveNotifications: Bool
     @Binding var canReceiveProductUpdates: Bool
     
+    let networkUserViewModel: NetworkUserViewModel?
+    let viewModel: SettingsView.ViewModel
+    
     var body: some View {
 
         Form {
@@ -134,6 +137,99 @@ struct SettingsForm_iOS: View {
                         Text("Update")
                     }
                     
+                }
+            }
+            
+            // MARK: - Seedphrase Management
+
+            Section("Seedphrase") {
+                VStack(alignment: .leading, spacing: 8) {
+                    if let networkUser = networkUserViewModel?.networkUser {
+                        if hasSeedphrase(networkUser) {
+                            Button(action: {
+                                viewModel.confirmRegenerateSeedphrase()
+                            }) {
+                                HStack {
+                                    Text("Regenerate Seedphrase")
+                                        .font(themeManager.currentTheme.bodyFont)
+                                    Spacer()
+                                    if viewModel.isRegeneratingSeedphrase {
+                                        ProgressView()
+                                    }
+                                }
+                            }
+                            .disabled(viewModel.isRegeneratingSeedphrase)
+                        } else {
+                            Button(action: {
+                                viewModel.confirmGenerateSeedphrase()
+                            }) {
+                                HStack {
+                                    Text("Generate Seedphrase")
+                                        .font(themeManager.currentTheme.bodyFont)
+                                    Spacer()
+                                    if viewModel.isGeneratingSeedphrase {
+                                        ProgressView()
+                                    }
+                                }
+                            }
+                            .disabled(viewModel.isGeneratingSeedphrase)
+                        }
+                    } else {
+                        Button(action: {
+                            viewModel.confirmGenerateSeedphrase()
+                        }) {
+                            HStack {
+                                Text("Generate Seedphrase")
+                                    .font(themeManager.currentTheme.bodyFont)
+                                Spacer()
+                                if viewModel.isGeneratingSeedphrase {
+                                    ProgressView()
+                                }
+                            }
+                        }
+                        .disabled(viewModel.isGeneratingSeedphrase)
+                    }
+                    
+                    Text("A seedphrase lets you recover your account if you lose access.")
+                        .font(themeManager.currentTheme.secondaryBodyFont)
+                        .foregroundColor(themeManager.currentTheme.textMutedColor)
+                }
+            }
+
+            // MARK: - Sign-In Methods
+
+            Section("Sign-In Methods") {
+                if let networkUser = networkUserViewModel?.networkUser {
+                    let authMethods = parseAuthMethods(networkUser)
+                    
+                    ForEach(authMethods, id: \.self) { method in
+                        HStack {
+                            Text(methodDisplayName(method))
+                                .font(themeManager.currentTheme.bodyFont)
+                            Spacer()
+                            if authMethods.count > 1 {
+                                Button(role: .destructive) {
+                                    viewModel.presentRemoveAuth(method)
+                                } label: {
+                                    Text("Remove")
+                                }
+                            }
+                        }
+                    }
+                    
+                    Button(action: {
+                        viewModel.presentAddAuthSheet = true
+                    }) {
+                        Text("Add sign-in method")
+                    }
+                } else {
+                    HStack {
+                        Text("Loading sign-in methods...")
+                            .font(themeManager.currentTheme.secondaryBodyFont)
+                            .foregroundColor(themeManager.currentTheme.textMutedColor)
+                        Spacer()
+                        ProgressView()
+                    }
                 }
             }
             
@@ -404,6 +500,41 @@ struct SettingsForm_iOS: View {
         }
         .scrollContentBackground(.hidden)
         .background(themeManager.currentTheme.backgroundColor)
+    }
+    
+    // MARK: - Helpers
+    
+    private func hasSeedphrase(_ networkUser: SdkNetworkUser) -> Bool {
+        return networkUser.authType == "seedphrase"
+    }
+    
+    private func parseAuthMethods(_ networkUser: SdkNetworkUser) -> [String] {
+        var methods: [String] = []
+        let authType = networkUser.authType
+        if !authType.isEmpty { methods.append(authType) }
+        // The SDK SdkNetworkUser currently only exposes a single authType.
+        // Future expansion could read from an array returned by the endpoint.
+        // For now the user's primary auth type is shown.
+        
+        // If there's a userAuth for email, include "email" as a method
+        if let userAuth = networkUser.userAuth, !userAuth.isEmpty {
+            if !methods.contains("email") {
+                methods.append("email")
+            }
+        }
+        
+        return methods.isEmpty ? ["seedphrase"] : methods
+    }
+    
+    private func methodDisplayName(_ method: String) -> String {
+        switch method {
+        case "email": return "Email"
+        case "google": return "Google"
+        case "apple": return "Apple"
+        case "solana": return "Solana Wallet"
+        case "seedphrase": return "Seedphrase"
+        default: return method.capitalized
+        }
     }
 }
 #endif

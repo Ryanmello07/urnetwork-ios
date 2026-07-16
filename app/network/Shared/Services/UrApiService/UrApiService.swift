@@ -541,54 +541,196 @@ extension UrApiService {
         }
     }
     
-    func upgradeGuest(_ args: SdkUpgradeGuestArgs) async throws -> LoginNetworkResult {
+// MARK: — Account Management: Seedphrase
+
+extension UrApiService {
+
+    func generateSeedphrase() async throws -> SdkGenerateSeedphraseResult {
         let api = try requireApi()
         return try await withCheckedThrowingContinuation { continuation in
-            
-            let callback = UpgradeGuestCallback { result, err in
-                
+
+            let callback = GenerateSeedphraseCallback { result, err in
+
                 if let err = err {
                     continuation.resume(throwing: err)
                     return
                 }
-                
+
                 guard let result = result else {
-                    continuation.resume(throwing: NSError(domain: "UrApiService", code: -1, userInfo: [NSLocalizedDescriptionKey: "upgradeGuest returned nil result"]))
+                    continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: "generateSeedphrase returned nil result"]))
                     return
                 }
 
-                if let resultError = result.error {
-                    continuation.resume(throwing: UrApiError.resultError(message: resultError.message))
-                    return
-                }
-
-                if result.verificationRequired != nil {
-                    continuation.resume(returning: .successWithVerificationRequired)
-                    return
-                }
-
-                if let network = result.network {
-                    switch self.nonEmptyJwt(network.byJwt, context: "upgradeGuest") {
-                    case .success(let jwt):
-                        continuation.resume(returning: .successWithJwt(jwt))
-                    case .failure(let error):
-                        continuation.resume(throwing: error)
-                    }
-                    return
-                } else {
-                    continuation.resume(throwing: NSError(domain: "UrApiService", code: 0, userInfo: [NSLocalizedDescriptionKey: "No network found in result"]))
-                    return
-                }
-
+                continuation.resume(returning: result)
             }
 
-            api.upgradeGuest(args, callback: callback)
-            
+            let args = SdkGenerateSeedphraseArgs()
+            api.generateSeedphrase(args, callback: callback)
         }
     }
-    
+
+    func regenerateSeedphrase() async throws -> SdkRegenerateSeedphraseResult {
+        let api = try requireApi()
+        return try await withCheckedThrowingContinuation { continuation in
+
+            let callback = RegenerateSeedphraseCallback { result, err in
+
+                if let err = err {
+                    continuation.resume(throwing: err)
+                    return
+                }
+
+                guard let result = result else {
+                    continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: "regenerateSeedphrase returned nil result"]))
+                    return
+                }
+
+                continuation.resume(returning: result)
+            }
+
+            let args = SdkRegenerateSeedphraseArgs()
+            api.regenerateSeedphrase(args, callback: callback)
+        }
+    }
+
+}
+
+// MARK: — Account Management: Auth Methods
+
+extension UrApiService {
+
+    func addAuth(_ args: SdkAddAuthArgs) async throws -> SdkAddAuthResult {
+        let api = try requireApi()
+        return try await withCheckedThrowingContinuation { continuation in
+
+            let callback = AddAuthCallback { result, err in
+
+                if let err = err {
+                    continuation.resume(throwing: err)
+                    return
+                }
+
+                guard let result = result else {
+                    continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: "addAuth returned nil result"]))
+                    return
+                }
+
+                if let errMsg = result.error?.message {
+                    continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: errMsg]))
+                    return
+                }
+
+                continuation.resume(returning: result)
+            }
+
+            api.addAuth(args, callback: callback)
+        }
+    }
+
+    func removeAuth(authType: String) async throws -> SdkRemoveAuthResult {
+        let api = try requireApi()
+        return try await withCheckedThrowingContinuation { continuation in
+
+            let callback = RemoveAuthCallback { result, err in
+
+                if let err = err {
+                    continuation.resume(throwing: err)
+                    return
+                }
+
+                guard let result = result else {
+                    continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: "removeAuth returned nil result"]))
+                    return
+                }
+
+                if let errMsg = result.error?.message {
+                    continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: errMsg]))
+                    return
+                }
+
+                continuation.resume(returning: result)
+            }
+
+            let args = SdkRemoveAuthArgs()
+            args.authType = authType
+            api.removeAuth(args, callback: callback)
+        }
+    }
+
+}
+
+// MARK: — Account Management: Network Name
+
+extension UrApiService {
+
+    func changeNetworkName(_ newName: String) async throws -> SdkChangeNetworkNameResult {
+        let api = try requireApi()
+        return try await withCheckedThrowingContinuation { continuation in
+
+            let callback = ChangeNetworkNameCallback { result, err in
+
+                if let err = err {
+                    continuation.resume(throwing: err)
+                    return
+                }
+
+                guard let result = result else {
+                    continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: "changeNetworkName returned nil result"]))
+                    return
+                }
+
+                if let errMsg = result.error?.message {
+                    continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: errMsg]))
+                    return
+                }
+
+                continuation.resume(returning: result)
+            }
+
+            let args = SdkChangeNetworkNameArgs()
+            args.newName = newName
+            api.changeNetworkName(args, callback: callback)
+        }
+    }
+
+    func claimNetworkName(_ newName: String) async throws -> SdkClaimNetworkNameResult {
+        let api = try requireApi()
+        return try await withCheckedThrowingContinuation { continuation in
+
+            let callback = ClaimNetworkNameCallback { result, err in
+
+                if let err = err {
+                    continuation.resume(throwing: err)
+                    return
+                }
+
+                guard let result = result else {
+                    continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: "claimNetworkName returned nil result"]))
+                    return
+                }
+
+                if let errMsg = result.error?.message {
+                    continuation.resume(throwing: NSError(domain: self.domain, code: -1, userInfo: [NSLocalizedDescriptionKey: errMsg]))
+                    return
+                }
+
+                continuation.resume(returning: result)
+            }
+
+            let args = SdkClaimNetworkNameArgs()
+            args.newName = newName
+            api.claimNetworkName(args, callback: callback)
+        }
+    }
+
+}
+
+// MARK: wallet
+
+extension UrApiService {
+
     func createAuthCode() async throws -> SdkAuthCodeCreateResult {
-        
+
         let api = try requireApi()
         
         return try await withCheckedThrowingContinuation { continuation in
@@ -1149,12 +1291,6 @@ private class ValidateReferralCallback: SdkCallback<SdkValidateReferralCodeResul
     }
 }
 
-private class UpgradeGuestCallback: SdkCallback<SdkUpgradeGuestResult, SdkUpgradeGuestCallbackProtocol>, SdkUpgradeGuestCallbackProtocol {
-    func result(_ result: SdkUpgradeGuestResult?, err: Error?) {
-        handleResult(result, err: err)
-    }
-}
-
 private class GetSubscriptionBalanceCallback: SdkCallback<SdkSubscriptionBalanceResult, SdkSubscriptionBalanceCallbackProtocol>, SdkSubscriptionBalanceCallbackProtocol {
     
     func result(_ result: SdkSubscriptionBalanceResult?, err: Error?) {
@@ -1400,6 +1536,44 @@ private class DeviceSetNameCallback: SdkCallback<
 >, SdkDeviceSetNameCallbackProtocol
 {
     func result(_ result: SdkDeviceSetNameResult?, err: Error?) {
+        handleResult(result, err: err)
+    }
+}
+
+// MARK: — Account Management Callbacks
+
+private class GenerateSeedphraseCallback: SdkCallback<SdkGenerateSeedphraseResult, SdkGenerateSeedphraseCallbackProtocol>, SdkGenerateSeedphraseCallbackProtocol {
+    func result(_ result: SdkGenerateSeedphraseResult?, err: Error?) {
+        handleResult(result, err: err)
+    }
+}
+
+private class RegenerateSeedphraseCallback: SdkCallback<SdkRegenerateSeedphraseResult, SdkRegenerateSeedphraseCallbackProtocol>, SdkRegenerateSeedphraseCallbackProtocol {
+    func result(_ result: SdkRegenerateSeedphraseResult?, err: Error?) {
+        handleResult(result, err: err)
+    }
+}
+
+private class AddAuthCallback: SdkCallback<SdkAddAuthResult, SdkAddAuthCallbackProtocol>, SdkAddAuthCallbackProtocol {
+    func result(_ result: SdkAddAuthResult?, err: Error?) {
+        handleResult(result, err: err)
+    }
+}
+
+private class RemoveAuthCallback: SdkCallback<SdkRemoveAuthResult, SdkRemoveAuthCallbackProtocol>, SdkRemoveAuthCallbackProtocol {
+    func result(_ result: SdkRemoveAuthResult?, err: Error?) {
+        handleResult(result, err: err)
+    }
+}
+
+private class ChangeNetworkNameCallback: SdkCallback<SdkChangeNetworkNameResult, SdkChangeNetworkNameCallbackProtocol>, SdkChangeNetworkNameCallbackProtocol {
+    func result(_ result: SdkChangeNetworkNameResult?, err: Error?) {
+        handleResult(result, err: err)
+    }
+}
+
+private class ClaimNetworkNameCallback: SdkCallback<SdkClaimNetworkNameResult, SdkClaimNetworkNameCallbackProtocol>, SdkClaimNetworkNameCallbackProtocol {
+    func result(_ result: SdkClaimNetworkNameResult?, err: Error?) {
         handleResult(result, err: err)
     }
 }

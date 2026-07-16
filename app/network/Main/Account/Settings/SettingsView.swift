@@ -27,6 +27,7 @@ struct SettingsView: View {
     let api: UrApiServiceProtocol
     let navigate: (AccountNavigationPath) -> Void
     let providerCountries: [SdkConnectLocation]
+    let networkUserViewModel: NetworkUserViewModel?
     
     init(
         api: UrApiServiceProtocol,
@@ -35,7 +36,8 @@ struct SettingsView: View {
         referralLinkViewModel: ReferralLinkViewModel,
         accountWalletsViewModel: AccountWalletsViewModel,
         navigate: @escaping (AccountNavigationPath) -> Void,
-        providerCountries: [SdkConnectLocation]
+        providerCountries: [SdkConnectLocation],
+        networkUserViewModel: NetworkUserViewModel? = nil
     ) {
         _viewModel = StateObject(wrappedValue: ViewModel(api: api))
         self.clientId = clientId
@@ -45,6 +47,7 @@ struct SettingsView: View {
         self.navigate = navigate
         self.providerCountries = providerCountries
         self.api = api
+        self.networkUserViewModel = networkUserViewModel
     }
     
     var body: some View {
@@ -77,6 +80,8 @@ struct SettingsView: View {
                 presentRenameDevice: viewModel.presentRenameDevice,
                 canReceiveNotifications: $viewModel.canReceiveNotifications,
                 canReceiveProductUpdates: $accountPreferencesViewModel.canReceiveProductUpdates,
+                networkUserViewModel: networkUserViewModel,
+                viewModel: viewModel,
             )
             .background(themeManager.currentTheme.backgroundColor)
             .task {
@@ -172,7 +177,50 @@ struct SettingsView: View {
                 .presentationDetents([.height(268)])
                 .presentationDragIndicator(.visible)
             }
-        
+            .sheet(isPresented: $viewModel.presentSeedphraseSheet) {
+                SeedphraseDisplayView(
+                    seedphrase: viewModel.generatedSeedphrase,
+                    onConfirmed: { _ in
+                        viewModel.dismissSeedphraseSheet()
+                    }
+                )
+                .environmentObject(themeManager)
+            }
+            .confirmationDialog(
+                "Generate a recovery seedphrase?",
+                isPresented: $viewModel.presentSeedphraseConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Generate") {
+                    Task {
+                        await viewModel.executeGenerateSeedphrase()
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("A seedphrase lets you recover your account if you lose access. Store it safely.")
+            }
+            .confirmationDialog(
+                "Remove this sign-in method?",
+                isPresented: $viewModel.presentRemoveAuthConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Remove", role: .destructive) {
+                    Task {
+                        await viewModel.executeRemoveAuth()
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                if let authType = viewModel.authTypeToRemove {
+                    Text("Are you sure you want to remove \(authType) as a sign-in method?")
+                }
+            }
+            .sheet(isPresented: $viewModel.presentAddAuthSheet) {
+                AddAuthSheet(api: api)
+                    .environmentObject(themeManager)
+            }
+
         #elseif os(macOS)
             SettingsForm_macOS(
                 urApiService: api,

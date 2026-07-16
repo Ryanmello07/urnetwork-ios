@@ -105,7 +105,8 @@ struct AccountNavStackView: View {
                         api: api,
                         back: viewModel.back,
                         networkName: networkName,
-                        userAuth: networkUserViewModel.networkUser?.userAuth
+                        userAuth: networkUserViewModel.networkUser?.userAuth,
+                        authType: networkUserViewModel.networkUser?.authType
                     )
                     .background(themeManager.currentTheme.backgroundColor)
                     .navigationTitle("Profile")
@@ -119,6 +120,7 @@ struct AccountNavStackView: View {
                         accountWalletsViewModel: accountWalletsViewModel,
                         navigate: viewModel.navigate,
                         providerCountries: providerCountries,
+                        networkUserViewModel: networkUserViewModel
                     )
                     .background(themeManager.currentTheme.backgroundColor.ignoresSafeArea())
                     .navigationTitle("Settings")

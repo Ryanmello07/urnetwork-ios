@@ -18,42 +18,103 @@ struct ProfileView: View {
     var back: () -> Void
     var networkName: String?
     var userAuth: String?
+    var authType: String?
     
-    init(api: SdkApi, back: @escaping () -> Void, networkName: String?, userAuth: String?) {
+    init(api: SdkApi, back: @escaping () -> Void, networkName: String?, userAuth: String?, authType: String? = nil) {
         _viewModel = StateObject.init(wrappedValue: ViewModel(
             api: api
         ))
         self.back = back
         self.userAuth = userAuth
         self.networkName = networkName
+        self.authType = authType
     }
     
     var body: some View {
         
         VStack {
-         
-//            HStack {
-//                Text("Profile")
-//                    .font(themeManager.currentTheme.titleFont)
-//                    .foregroundColor(themeManager.currentTheme.textColor)
-//                
-//                Spacer()
-//            }
-//            
-//            Spacer().frame(height: 64)
-            
+        
             HStack {
                 UrLabel(text: "Network name")
                 
                 Spacer()
             }
             
-            HStack {
-                Text(networkName ?? "")
-                    .font(themeManager.currentTheme.bodyFont)
-                    .foregroundColor(themeManager.currentTheme.textColor)
+            if viewModel.isEditingNetworkName {
+                // Editable view
+                HStack {
+                    TextField("Enter network name", text: $viewModel.editedNetworkName)
+                        .textFieldStyle(.plain)
+                        .font(themeManager.currentTheme.bodyFont)
+                        .foregroundColor(themeManager.currentTheme.textColor)
+                        .autocorrectionDisabled()
+                        #if os(iOS)
+                        .autocapitalization(.none)
+                        #endif
+                }
+                .padding()
+                .background(themeManager.currentTheme.tintedBackgroundBase)
+                .cornerRadius(8)
                 
-                Spacer()
+                if let error = viewModel.networkNameError {
+                    Text(error)
+                        .font(themeManager.currentTheme.secondaryBodyFont)
+                        .foregroundColor(.urRed)
+                }
+                
+                HStack(spacing: 12) {
+                    UrButton(
+                        text: "Save",
+                        action: {
+                            Task {
+                                if authType == "seedphrase" {
+                                    let result = await viewModel.claimNetworkName()
+                                    handleNetworkNameResult(result)
+                                } else {
+                                    let result = await viewModel.saveNetworkName()
+                                    handleNetworkNameResult(result)
+                                }
+                            }
+                        },
+                        enabled: !viewModel.isSavingNetworkName && !viewModel.editedNetworkName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                        isProcessing: viewModel.isSavingNetworkName
+                    )
+                    
+                    Button(action: {
+                        viewModel.cancelEditingNetworkName()
+                    }) {
+                        Text("Cancel")
+                    }
+                }
+            } else {
+                // Read-only view
+                HStack {
+                    Text(networkName ?? "")
+                        .font(themeManager.currentTheme.bodyFont)
+                        .foregroundColor(themeManager.currentTheme.textColor)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        viewModel.startEditingNetworkName(currentName: networkName ?? "")
+                    }) {
+                        Image(systemName: "pencil")
+                            .foregroundColor(themeManager.currentTheme.textMutedColor)
+                    }
+                }
+                
+                HStack {
+                    if authType == "seedphrase" {
+                        Text("Claim a custom network name to replace your auto-generated one")
+                            .font(themeManager.currentTheme.secondaryBodyFont)
+                            .foregroundColor(themeManager.currentTheme.textMutedColor)
+                    } else {
+                        Text("Tap the edit icon to change your network name")
+                            .font(themeManager.currentTheme.secondaryBodyFont)
+                            .foregroundColor(themeManager.currentTheme.textMutedColor)
+                    }
+                    Spacer()
+                }
             }
             
             Spacer().frame(height: 32)
@@ -95,6 +156,16 @@ struct ProfileView: View {
             }
         case .failure:
             snackbarManager.showSnackbar(message: String(localized: "Error sending password reset link"))
+        }
+    }
+    
+    private func handleNetworkNameResult(_ result: Result<String, Error>) {
+        switch result {
+        case .success(let newName):
+            snackbarManager.showSnackbar(message: String(localized: "Network name changed to \(newName)"))
+        case .failure(let error):
+            print("Error changing network name: \(error)")
+            snackbarManager.showSnackbar(message: String(localized: "Error changing network name"))
         }
     }
 }
