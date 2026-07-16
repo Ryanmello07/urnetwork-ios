@@ -114,8 +114,8 @@ struct AddAuthSheet: View {
             let args = SdkAddAuthArgs()
             
             if selectedMethod == "email" {
-                args.setUserAuth(email)
-                args.setPassword(password)
+                args.SetUserAuth(email)
+                args.SetPassword(password)
             }
             // seedphrase is generated server-side, no args needed
             
