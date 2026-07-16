@@ -59,7 +59,7 @@ struct ProfileView: View {
                 if let error = viewModel.networkNameError {
                     Text(error)
                         .font(themeManager.currentTheme.secondaryBodyFont)
-                        .foregroundColor(.urRed)
+                        .foregroundColor(.red)
                 }
                 
                 HStack(spacing: 12) {

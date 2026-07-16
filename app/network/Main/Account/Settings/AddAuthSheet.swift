@@ -46,7 +46,7 @@ struct AddAuthSheet: View {
                             label: "Email",
                             placeholder: "your@email.com",
                             keyboardType: .emailAddress,
-                            autocapitalization: .never
+                            disableCapitalization: true
                         )
                         
                         UrTextField(
@@ -68,7 +68,7 @@ struct AddAuthSheet: View {
                     if let error = addError {
                         Text(error)
                             .font(themeManager.currentTheme.secondaryBodyFont)
-                            .foregroundColor(.urRed)
+                            .foregroundColor(.red)
                     }
                     
                     Spacer().frame(height: 16)
@@ -114,8 +114,8 @@ struct AddAuthSheet: View {
             let args = SdkAddAuthArgs()
             
             if selectedMethod == "email" {
-                args.userAuth = email
-                args.password = password
+                args.setUserAuth(email)
+                args.setPassword(password)
             }
             // seedphrase is generated server-side, no args needed
             

@@ -516,7 +516,8 @@ struct SettingsForm_iOS: View {
         // Future expansion could read from an array returned by the endpoint.
         
         // If there's a userAuth, include it as a method label
-        if let userAuth = networkUser.userAuth, !userAuth.isEmpty {
+        let userAuth = networkUser.userAuth
+        if !userAuth.isEmpty {
             let methodLabel = userAuth.contains("@") ? "email" : userAuth
             if !methods.contains(methodLabel) {
                 methods.append(methodLabel)
