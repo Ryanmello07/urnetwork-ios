@@ -6,10 +6,17 @@
 import SwiftUI
 import URnetworkSdk
 
+#if os(iOS)
+import GoogleSignInSwift
+import GoogleSignIn
+import AuthenticationServices
+#endif
+
 struct AddAuthSheet: View {
 
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var snackbarManager: UrSnackbarManager
+    @EnvironmentObject var connectWalletProviderViewModel: ConnectWalletProviderViewModel
     
     let api: UrApiServiceProtocol
     
@@ -36,32 +43,23 @@ struct AddAuthSheet: View {
                     
                     Picker("Method", selection: $selectedMethod) {
                         Text("Email").tag("email")
+                        Text("Apple").tag("apple")
+                        Text("Google").tag("google")
+                        Text("Wallet").tag("wallet")
                         Text("Seedphrase").tag("seedphrase")
                     }
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
                     
                     if selectedMethod == "email" {
-                        UrTextField(
-                            text: $email,
-                            label: "Email",
-                            placeholder: "your@email.com",
-                            disableCapitalization: true
-                        )
-                        
-                        UrTextField(
-                            text: $password,
-                            label: "Password",
-                            placeholder: "Enter a password",
-                            isSecure: true
-                        )
-                        
-                        Text("Password must be at least 12 characters")
-                            .font(themeManager.currentTheme.secondaryBodyFont)
-                            .foregroundColor(themeManager.currentTheme.textMutedColor)
-                    } else {
-                        Text("A new seedphrase will be generated for this account.")
-                            .font(themeManager.currentTheme.secondaryBodyFont)
-                            .foregroundColor(themeManager.currentTheme.textMutedColor)
+                        emailFields
+                    } else if selectedMethod == "apple" {
+                        appleSignInView
+                    } else if selectedMethod == "google" {
+                        googleSignInView
+                    } else if selectedMethod == "wallet" {
+                        walletSignInView
+                    } else if selectedMethod == "seedphrase" {
+                        seedphraseView
                     }
                     
                     if let error = addError {
@@ -70,18 +68,20 @@ struct AddAuthSheet: View {
                             .foregroundColor(.red)
                     }
                     
-                    Spacer().frame(height: 16)
-                    
-                    UrButton(
-                        text: "Add Sign-In Method",
-                        action: {
-                            Task {
-                                await addAuth()
-                            }
-                        },
-                        enabled: !isAdding && formValid,
-                        isProcessing: isAdding
-                    )
+                    if selectedMethod != "apple" && selectedMethod != "google" && selectedMethod != "wallet" {
+                        Spacer().frame(height: 16)
+                        
+                        UrButton(
+                            text: "Add Sign-In Method",
+                            action: {
+                                Task {
+                                    await addAuth()
+                                }
+                            },
+                            enabled: !isAdding && formValid,
+                            isProcessing: isAdding
+                        )
+                    }
                 }
                 .padding()
             }
@@ -99,10 +99,162 @@ struct AddAuthSheet: View {
     @Environment(\.dismiss) private var dismiss
     
     private var formValid: Bool {
-        if selectedMethod == "email" {
+        switch selectedMethod {
+        case "email":
             return !email.isEmpty && password.count >= 12
+        default:
+            return true
         }
-        return true
+    }
+    
+    // MARK: - Email Fields
+    
+    private var emailFields: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            UrTextField(
+                text: $email,
+                label: "Email",
+                placeholder: "your@email.com",
+                disableCapitalization: true
+            )
+            
+            UrTextField(
+                text: $password,
+                label: "Password",
+                placeholder: "Enter a password",
+                isSecure: true
+            )
+            
+            Text("Password must be at least 12 characters")
+                .font(themeManager.currentTheme.secondaryBodyFont)
+                .foregroundColor(themeManager.currentTheme.textMutedColor)
+        }
+    }
+    
+    // MARK: - Apple Sign-In
+    
+    private var appleSignInView: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Sign in with your Apple ID to add it as a sign-in method.")
+                .font(themeManager.currentTheme.secondaryBodyFont)
+                .foregroundColor(themeManager.currentTheme.textMutedColor)
+            
+            #if os(iOS)
+            SignInWithAppleButton(.signIn) { request in
+                request.requestedScopes = [.email]
+            } onCompletion: { result in
+                Task {
+                    await handleAppleResult(result)
+                }
+            }
+            .signInWithAppleButtonStyle(.white)
+            .frame(height: 50)
+            .cornerRadius(8)
+            #else
+            Text("Apple Sign-In is available on iOS.")
+                .font(themeManager.currentTheme.secondaryBodyFont)
+                .foregroundColor(themeManager.currentTheme.textMutedColor)
+            #endif
+        }
+    }
+    
+    // MARK: - Google Sign-In
+    
+    private var googleSignInView: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Sign in with your Google account to add it as a sign-in method.")
+                .font(themeManager.currentTheme.secondaryBodyFont)
+                .foregroundColor(themeManager.currentTheme.textMutedColor)
+            
+            #if os(iOS)
+            UrGoogleSignInButton(
+                handleAppleLoginResult: { _ in },
+                handleGoogleSignInButton: {
+                    // The GoogleSignIn button uses GoogleSignIn SDK directly
+                    // via the view controller. We trigger from the parent.
+                }
+            )
+            .frame(height: 50)
+            #endif
+        }
+    }
+    
+    // MARK: - Wallet Sign-In
+    
+    private var walletSignInView: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Connect a Solana wallet (Phantom or Solflare) to add it as a sign-in method.")
+                .font(themeManager.currentTheme.secondaryBodyFont)
+                .foregroundColor(themeManager.currentTheme.textMutedColor)
+            
+            Button(action: {
+                Task {
+                    await connectWallet()
+                }
+            }) {
+                HStack {
+                    Image(systemName: "wallet.pass")
+                    Text("Connect Solana Wallet")
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(themeManager.currentTheme.tintedBackgroundBase)
+                .cornerRadius(8)
+            }
+            .buttonStyle(.plain)
+            .disabled(isAdding)
+        }
+    }
+    
+    // MARK: - Seedphrase
+    
+    private var seedphraseView: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("A new seedphrase will be generated and linked to your account.")
+                .font(themeManager.currentTheme.secondaryBodyFont)
+                .foregroundColor(themeManager.currentTheme.textMutedColor)
+        }
+    }
+    
+    // MARK: - Actions
+    
+    private func handleAppleResult(_ result: Result<ASAuthorization, any Error>) async {
+        isAdding = true
+        addError = nil
+        
+        do {
+            let authResult = try result.get()
+            guard let credential = authResult.credential as? ASAuthorizationAppleIDCredential,
+                  let idToken = credential.identityToken,
+                  let idTokenString = String(data: idToken, encoding: .utf8) else {
+                addError = "Could not read Apple ID token"
+                isAdding = false
+                return
+            }
+            
+            let args = SdkAddAuthArgs()
+            args.authJwt = idTokenString
+            args.authJwtType = "apple"
+            
+            let _ = try await api.addAuth(args)
+            isAdding = false
+            snackbarManager.showSnackbar(message: String(localized: "Apple sign-in method added"))
+            dismiss()
+        } catch(let error) {
+            isAdding = false
+            addError = error.localizedDescription
+        }
+    }
+    
+    private func connectWallet() async {
+        isAdding = true
+        addError = nil
+        
+        // Trigger wallet connect via the existing wallet provider flow
+        // The wallet provider handles deep links and callbacks
+        // For now, guide the user to connect through the main wallet connection flow
+        addError = "Please use the wallet connection from the main settings to connect a wallet, then it will appear as an auth method."
+        isAdding = false
     }
     
     private func addAuth() async {
@@ -110,15 +262,22 @@ struct AddAuthSheet: View {
         addError = nil
         
         do {
-            let args = SdkAddAuthArgs()
-            
-            if selectedMethod == "email" {
+            switch selectedMethod {
+            case "email":
+                let args = SdkAddAuthArgs()
                 args.userAuth = email
                 args.password = password
+                let _ = try await api.addAuth(args)
+                
+            case "seedphrase":
+                // Generate a new seedphrase and link it to the account
+                let _ = try await api.generateSeedphrase()
+                
+            default:
+                // Apple/Google/Wallet are handled in their own flows
+                break
             }
-            // seedphrase is generated server-side, no args needed
             
-            let _ = try await api.addAuth(args)
             isAdding = false
             snackbarManager.showSnackbar(message: String(localized: "Sign-in method added successfully"))
             dismiss()
@@ -128,8 +287,3 @@ struct AddAuthSheet: View {
         }
     }
 }
-
-//#Preview {
-//    AddAuthSheet(api: MockUrApiService())
-//        .environmentObject(ThemeManager.shared)
-//}

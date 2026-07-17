@@ -219,6 +219,7 @@ struct SettingsView: View {
             .sheet(isPresented: $viewModel.presentAddAuthSheet) {
                 AddAuthSheet(api: api)
                     .environmentObject(themeManager)
+                    .environmentObject(connectWalletProviderViewModel)
             }
 
         #elseif os(macOS)
@@ -343,6 +344,7 @@ struct SettingsView: View {
             .sheet(isPresented: $viewModel.presentAddAuthSheet) {
                 AddAuthSheet(api: api)
                     .environmentObject(themeManager)
+                    .environmentObject(connectWalletProviderViewModel)
             }
         
         #endif
@@ -404,17 +406,3 @@ struct SettingsView: View {
         #endif
     }
 }
-
-//#Preview {
-//    
-//    let themeManager = ThemeManager.shared
-//    let accountPreferenceViewModel = AccountPreferencesViewModel(api: SdkApi())
-//    
-//    SettingsView(
-//        api: SdkApi(),
-//        clientId: nil,
-//        accountPreferencesViewModel: accountPreferenceViewModel
-//    )
-//    .environmentObject(themeManager)
-//    .background(themeManager.currentTheme.backgroundColor.ignoresSafeArea())
-//}

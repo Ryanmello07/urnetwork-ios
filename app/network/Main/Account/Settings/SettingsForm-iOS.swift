@@ -144,36 +144,20 @@ struct SettingsForm_iOS: View {
 
             Section("Seedphrase") {
                 VStack(alignment: .leading, spacing: 8) {
-                    if let networkUser = networkUserViewModel?.networkUser {
-                        if hasSeedphrase(networkUser) {
-                            Button(action: {
-                                viewModel.confirmRegenerateSeedphrase()
-                            }) {
-                                HStack {
-                                    Text("Regenerate Seedphrase")
-                                        .font(themeManager.currentTheme.bodyFont)
-                                    Spacer()
-                                    if viewModel.isRegeneratingSeedphrase {
-                                        ProgressView()
-                                    }
+                    if viewModel.hasSeedphraseLocally || hasSeedphrase(networkUserViewModel?.networkUser) {
+                        Button(action: {
+                            viewModel.confirmRegenerateSeedphrase()
+                        }) {
+                            HStack {
+                                Text("Regenerate Seedphrase")
+                                    .font(themeManager.currentTheme.bodyFont)
+                                Spacer()
+                                if viewModel.isRegeneratingSeedphrase {
+                                    ProgressView()
                                 }
                             }
-                            .disabled(viewModel.isRegeneratingSeedphrase)
-                        } else {
-                            Button(action: {
-                                viewModel.confirmGenerateSeedphrase()
-                            }) {
-                                HStack {
-                                    Text("Generate Seedphrase")
-                                        .font(themeManager.currentTheme.bodyFont)
-                                    Spacer()
-                                    if viewModel.isGeneratingSeedphrase {
-                                        ProgressView()
-                                    }
-                                }
-                            }
-                            .disabled(viewModel.isGeneratingSeedphrase)
                         }
+                        .disabled(viewModel.isRegeneratingSeedphrase)
                     } else {
                         Button(action: {
                             viewModel.confirmGenerateSeedphrase()
@@ -207,12 +191,10 @@ struct SettingsForm_iOS: View {
                             Text(methodDisplayName(method))
                                 .font(themeManager.currentTheme.bodyFont)
                             Spacer()
-                            if authMethods.count > 1 {
-                                Button(role: .destructive) {
-                                    viewModel.presentRemoveAuth(method)
-                                } label: {
-                                    Text("Remove")
-                                }
+                            Button(role: .destructive) {
+                                viewModel.presentRemoveAuth(method)
+                            } label: {
+                                Text("Remove")
                             }
                         }
                     }
@@ -504,7 +486,8 @@ struct SettingsForm_iOS: View {
     
     // MARK: - Helpers
     
-    private func hasSeedphrase(_ networkUser: SdkNetworkUser) -> Bool {
+    private func hasSeedphrase(_ networkUser: SdkNetworkUser?) -> Bool {
+        guard let networkUser = networkUser else { return false }
         return networkUser.authType == "seedphrase"
     }
     

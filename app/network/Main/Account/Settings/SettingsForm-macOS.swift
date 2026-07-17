@@ -184,34 +184,19 @@ struct SettingsForm_macOS: View {
                     }
                     
                     VStack(alignment: .leading) {
-                        if let networkUser = networkUserViewModel?.networkUser {
-                            if networkUser.authType == "seedphrase" {
-                                HStack {
-                                    Button(action: {
-                                        viewModel.confirmRegenerateSeedphrase()
-                                    }) {
-                                        Text("Regenerate Seedphrase")
-                                    }
-                                    if viewModel.isRegeneratingSeedphrase {
-                                        ProgressView().scaleEffect(0.7)
-                                    }
-                                    Spacer()
+                        if viewModel.hasSeedphraseLocally || (networkUserViewModel?.networkUser?.authType == "seedphrase") {
+                            HStack {
+                                Button(action: {
+                                    viewModel.confirmRegenerateSeedphrase()
+                                }) {
+                                    Text("Regenerate Seedphrase")
                                 }
-                                .disabled(viewModel.isRegeneratingSeedphrase)
-                            } else {
-                                HStack {
-                                    Button(action: {
-                                        viewModel.confirmGenerateSeedphrase()
-                                    }) {
-                                        Text("Generate Seedphrase")
-                                    }
-                                    if viewModel.isGeneratingSeedphrase {
-                                        ProgressView().scaleEffect(0.7)
-                                    }
-                                    Spacer()
+                                if viewModel.isRegeneratingSeedphrase {
+                                    ProgressView().scaleEffect(0.7)
                                 }
-                                .disabled(viewModel.isGeneratingSeedphrase)
+                                Spacer()
                             }
+                            .disabled(viewModel.isRegeneratingSeedphrase)
                         } else {
                             HStack {
                                 Button(action: {

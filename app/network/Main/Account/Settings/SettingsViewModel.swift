@@ -281,6 +281,7 @@ extension SettingsView {
         @Published var isRegeneratingSeedphrase: Bool = false
         @Published var presentSeedphraseConfirmation: Bool = false
         @Published var seedphraseError: String?
+        @Published var hasSeedphraseLocally: Bool = false
         
         private var pendingSeedphraseAction: SeedphraseAction = .generate
         
@@ -318,6 +319,7 @@ extension SettingsView {
                 self.isGeneratingSeedphrase = false
                 self.presentSeedphraseConfirmation = false
                 self.presentSeedphraseSheet = true
+                self.hasSeedphraseLocally = true
             } catch(let error) {
                 self.isGeneratingSeedphrase = false
                 self.seedphraseError = error.localizedDescription
@@ -335,6 +337,7 @@ extension SettingsView {
                 self.isRegeneratingSeedphrase = false
                 self.presentSeedphraseConfirmation = false
                 self.presentSeedphraseSheet = true
+                self.hasSeedphraseLocally = true
             } catch(let error) {
                 self.isRegeneratingSeedphrase = false
                 self.seedphraseError = error.localizedDescription
