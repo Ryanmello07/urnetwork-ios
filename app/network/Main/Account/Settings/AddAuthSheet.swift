@@ -45,7 +45,6 @@ struct AddAuthSheet: View {
                             text: $email,
                             label: "Email",
                             placeholder: "your@email.com",
-                            keyboardType: .emailAddress,
                             disableCapitalization: true
                         )
                         
