@@ -219,7 +219,6 @@ struct SettingsView: View {
             .sheet(isPresented: $viewModel.presentAddAuthSheet) {
                 AddAuthSheet(api: api)
                     .environmentObject(themeManager)
-                    .environmentObject(connectWalletProviderViewModel)
             }
 
         #elseif os(macOS)
@@ -344,7 +343,6 @@ struct SettingsView: View {
             .sheet(isPresented: $viewModel.presentAddAuthSheet) {
                 AddAuthSheet(api: api)
                     .environmentObject(themeManager)
-                    .environmentObject(connectWalletProviderViewModel)
             }
         
         #endif

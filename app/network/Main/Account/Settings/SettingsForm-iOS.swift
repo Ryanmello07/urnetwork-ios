@@ -184,21 +184,23 @@ struct SettingsForm_iOS: View {
 
             Section("Sign-In Methods") {
                 if let networkUser = networkUserViewModel?.networkUser {
-                    let authMethods = parseAuthMethods(networkUser)
-                    
+                    let authMethods = parseAuthMethods(networkUser, hasSeedphraseLocally: viewModel.hasSeedphraseLocally)
+
                     ForEach(authMethods, id: \.self) { method in
                         HStack {
                             Text(methodDisplayName(method))
                                 .font(themeManager.currentTheme.bodyFont)
                             Spacer()
-                            Button(role: .destructive) {
-                                viewModel.presentRemoveAuth(method)
-                            } label: {
-                                Text("Remove")
+                            if method != "seedphrase" || viewModel.hasSeedphraseLocally {
+                                Button(role: .destructive) {
+                                    viewModel.presentRemoveAuth(method)
+                                } label: {
+                                    Text("Remove")
+                                }
                             }
                         }
                     }
-                    
+
                     Button(action: {
                         viewModel.presentAddAuthSheet = true
                     }) {
@@ -491,12 +493,17 @@ struct SettingsForm_iOS: View {
         return networkUser.authType == "seedphrase"
     }
     
-    private func parseAuthMethods(_ networkUser: SdkNetworkUser) -> [String] {
+    private func parseAuthMethods(_ networkUser: SdkNetworkUser, hasSeedphraseLocally: Bool = false) -> [String] {
         var methods: [String] = []
         let authType = networkUser.authType
         if !authType.isEmpty { methods.append(authType) }
         // The SDK SdkNetworkUser currently only exposes a single authType.
         // Future expansion could read from an array returned by the endpoint.
+        
+        // If the user has a seedphrase (detected locally via generate/regenerate), include it
+        if hasSeedphraseLocally && !methods.contains("seedphrase") {
+            methods.append("seedphrase")
+        }
         
         // If there's a userAuth, include it as a method label
         let userAuth = networkUser.userAuth
