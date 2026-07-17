@@ -105,58 +105,16 @@ struct SettingsView: View {
                 titleVisibility: .visible
             ) {
                 Button("Delete account", role: .destructive) {
-                    
                     Task {
                         let result = await viewModel.deleteAccount()
                         self.handleResult(result)
                     }
-                    
                 }
             }
-            .sheet(isPresented: $viewModel.presentSigninWithSolanaSheet) {
-                
-                SolanaSignMessageSheet(
-                    isSigningMessage: viewModel.isSigningMessage,
-                    setIsSigningMessage: viewModel.setIsSigningMessage,
-                    signButtonText: "Confirm Seeker Token",
-                    signButtonLabelText: "Claim multiplier",
-                    message: connectWalletProviderViewModel.claimSeekerTokenMessage,
-                    dismiss: {
-                        viewModel.presentSigninWithSolanaSheet = false
-                    }
-                )
-                .environmentObject(themeManager)
-                .environmentObject(connectWalletProviderViewModel)
-                .presentationDetents([.height(148)])
-            }
-            .sheet(isPresented: $viewModel.presentUpdateReferralNetworkSheet) {
-                UpdateReferralNetworkSheet(
-                    api: api,
-                    onSuccess: {
-                        Task {
-                            await viewModel.fetchReferralNetwork()
-                        }
-                        viewModel.presentUpdateReferralNetworkSheet = false
-                    },
-                    dismiss: {
-                        viewModel.presentUpdateReferralNetworkSheet = false
-                    },
-                    referralNetwork: viewModel.referralNetwork
-                )
-                .environmentObject(themeManager)
-                .presentationDetents([.height(268)])
-                .presentationDragIndicator(.visible)
-            }
+            .sheet(isPresented: $viewModel.presentSigninWithSolanaSheet, content: signInSolanaSheet)
+            .sheet(isPresented: $viewModel.presentUpdateReferralNetworkSheet, content: updateReferralSheet)
         }
-        .sheet(isPresented: $viewModel.presentSeedphraseSheet) {
-            SeedphraseDisplayView(
-                seedphrase: viewModel.generatedSeedphrase,
-                onConfirmed: { _ in
-                    viewModel.dismissSeedphraseSheet()
-                }
-            )
-            .environmentObject(themeManager)
-        }
+        .sheet(isPresented: $viewModel.presentSeedphraseSheet, content: seedphraseDisplaySheet)
         .confirmationDialog(
             "Generate a recovery seedphrase?",
             isPresented: $viewModel.presentSeedphraseConfirmation,
@@ -187,12 +145,7 @@ struct SettingsView: View {
                 Text("Are you sure you want to remove \(authType) as a sign-in method?")
             }
         }
-        .sheet(isPresented: $viewModel.presentAddAuthSheet) {
-            AddAuthSheet(api: api)
-                .environmentObject(themeManager)
-                .environmentObject(snackbarManager)
-                .environmentObject(connectWalletProviderViewModel)
-        }
+        .sheet(isPresented: $viewModel.presentAddAuthSheet, content: addAuthSheet)
         .onOpenURL { url in
             handleWalletDeepLink(url)
         }
@@ -321,6 +274,60 @@ struct SettingsView: View {
         #endif
         
     }
+    
+    #if os(iOS)
+    @ViewBuilder private var signInSolanaSheet: some View {
+        SolanaSignMessageSheet(
+            isSigningMessage: viewModel.isSigningMessage,
+            setIsSigningMessage: viewModel.setIsSigningMessage,
+            signButtonText: "Confirm Seeker Token",
+            signButtonLabelText: "Claim multiplier",
+            message: connectWalletProviderViewModel.claimSeekerTokenMessage,
+            dismiss: {
+                viewModel.presentSigninWithSolanaSheet = false
+            }
+        )
+        .environmentObject(themeManager)
+        .environmentObject(connectWalletProviderViewModel)
+        .presentationDetents([.height(148)])
+    }
+    
+    @ViewBuilder private var updateReferralSheet: some View {
+        UpdateReferralNetworkSheet(
+            api: api,
+            onSuccess: {
+                Task {
+                    await viewModel.fetchReferralNetwork()
+                }
+                viewModel.presentUpdateReferralNetworkSheet = false
+            },
+            dismiss: {
+                viewModel.presentUpdateReferralNetworkSheet = false
+            },
+            referralNetwork: viewModel.referralNetwork
+        )
+        .environmentObject(themeManager)
+        .presentationDetents([.height(268)])
+        .presentationDragIndicator(.visible)
+    }
+    
+    @ViewBuilder private var seedphraseDisplaySheet: some View {
+        SeedphraseDisplayView(
+            seedphrase: viewModel.generatedSeedphrase,
+            onConfirmed: { _ in
+                viewModel.dismissSeedphraseSheet()
+            }
+        )
+        .environmentObject(themeManager)
+    }
+    
+    @ViewBuilder private var addAuthSheet: some View {
+        AddAuthSheet(api: api)
+            .environmentObject(themeManager)
+            .environmentObject(snackbarManager)
+            .environmentObject(connectWalletProviderViewModel)
+    }
+    #endif
     
     private func handleWalletDeepLink(_ url: URL) {
         let vm = connectWalletProviderViewModel
