@@ -21,6 +21,14 @@ extension SettingsView {
         
         @Published var presentUpdateReferralNetworkSheet: Bool = false
         
+        // MARK: - Solana/Wallet Sign-In (restored from upstream merge)
+        @Published var presentSigninWithSolanaSheet: Bool = false
+        @Published private(set) var isSigningMessage: Bool = false
+        
+        func setIsSigningMessage(_ isSigning: Bool) -> Void {
+            isSigningMessage = isSigning
+        }
+        
         @Published var version: String = ""
         
         init(api: UrApiServiceProtocol) {

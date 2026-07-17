@@ -28,6 +28,7 @@ class ConnectWalletProviderViewModel: ObservableObject {
     var connectedWalletProvider: ConnectedWalletProvider? = nil
     
     let welcomeMessage = "Welcome to URnetwork"
+    let claimSeekerTokenMessage = "Claim point multiplier by holding Seeker Pre-order or Saga Genesis token"
 
     /**
      * Solflare

@@ -53,36 +53,33 @@ struct SettingsView: View {
     var body: some View {
         
         #if os(iOS)
-        let form = SettingsForm_iOS(
-            urApiService: api,
-            clientId: clientId,
-            referralCode: referralLinkViewModel.referralCode,
-            totalReferrals: referralLinkViewModel.totalReferrals,
-            referralNetworkName: viewModel.referralNetwork?.name,
-            version: viewModel.version,
-            isUpdatingAccountPreferences: accountPreferencesViewModel.isUpdatingAccountPreferences,
-            copyToPasteboard: copyToPasteboard,
-            presentUpdateReferralNetworkSheet: {
-                viewModel.presentUpdateReferralNetworkSheet = true
-            },
-            presentDeleteAccountConfirmation: {
-                viewModel.isPresentedDeleteAccountConfirmation = true
-            },
-            navigate: navigate,
-            provideEnabled: deviceManager.provideEnabled,
-            providePaused: deviceManager.providePaused,
-            deviceName: viewModel.deviceName,
-            deviceSpec: viewModel.deviceSpec,
-            presentRenameDevice: viewModel.presentRenameDevice,
-            canReceiveNotifications: $viewModel.canReceiveNotifications,
-            canReceiveProductUpdates: $accountPreferencesViewModel.canReceiveProductUpdates,
-            networkUserViewModel: networkUserViewModel,
-            viewModel: viewModel,
-        )
-        .background(themeManager.currentTheme.backgroundColor)
-        
-        let coreMods = Color.clear
-            .frame(width: 0, height: 0)
+            SettingsForm_iOS(
+                urApiService: api,
+                clientId: clientId,
+                referralCode: referralLinkViewModel.referralCode,
+                totalReferrals: referralLinkViewModel.totalReferrals,
+                referralNetworkName: viewModel.referralNetwork?.name,
+                version: viewModel.version,
+                isUpdatingAccountPreferences: accountPreferencesViewModel.isUpdatingAccountPreferences,
+                copyToPasteboard: copyToPasteboard,
+                presentUpdateReferralNetworkSheet: {
+                    viewModel.presentUpdateReferralNetworkSheet = true
+                },
+                presentDeleteAccountConfirmation: {
+                    viewModel.isPresentedDeleteAccountConfirmation = true
+                },
+                navigate: navigate,
+                provideEnabled: deviceManager.provideEnabled,
+                providePaused: deviceManager.providePaused,
+                deviceName: viewModel.deviceName,
+                deviceSpec: viewModel.deviceSpec,
+                presentRenameDevice: viewModel.presentRenameDevice,
+                canReceiveNotifications: $viewModel.canReceiveNotifications,
+                canReceiveProductUpdates: $accountPreferencesViewModel.canReceiveProductUpdates,
+                networkUserViewModel: networkUserViewModel,
+                viewModel: viewModel,
+            )
+            .background(themeManager.currentTheme.backgroundColor)
             .task {
                 await viewModel.fetchDeviceInfo(clientId)
             }
@@ -107,13 +104,16 @@ struct SettingsView: View {
                 titleVisibility: .visible
             ) {
                 Button("Delete account", role: .destructive) {
+                    
                     Task {
                         let result = await viewModel.deleteAccount()
                         self.handleResult(result)
                     }
+                    
                 }
             }
             .sheet(isPresented: $viewModel.presentSigninWithSolanaSheet) {
+                
                 SolanaSignMessageSheet(
                     isSigningMessage: viewModel.isSigningMessage,
                     setIsSigningMessage: viewModel.setIsSigningMessage,
@@ -127,6 +127,9 @@ struct SettingsView: View {
                 .environmentObject(themeManager)
                 .environmentObject(connectWalletProviderViewModel)
                 .presentationDetents([.height(148)])
+            }
+            .onOpenURL { url in
+                handleWalletDeepLink(url)
             }
             .sheet(isPresented: $viewModel.presentUpdateReferralNetworkSheet) {
                 UpdateReferralNetworkSheet(
@@ -146,9 +149,6 @@ struct SettingsView: View {
                 .presentationDetents([.height(268)])
                 .presentationDragIndicator(.visible)
             }
-        
-        let authMods = Color.clear
-            .frame(width: 0, height: 0)
             .sheet(isPresented: $viewModel.presentSeedphraseSheet) {
                 SeedphraseDisplayView(
                     seedphrase: viewModel.generatedSeedphrase,
@@ -195,46 +195,34 @@ struct SettingsView: View {
                     .environmentObject(connectWalletProviderViewModel)
             }
         
-        return ZStack {
-            form
-            coreMods
-            authMods
-        }
-        .onOpenURL { url in
-            handleWalletDeepLink(url)
-        }
-        
         #elseif os(macOS)
-        let macForm = SettingsForm_macOS(
-            urApiService: api,
-            clientId: clientId,
-            referralCode: referralLinkViewModel.referralCode,
-            totalReferrals: referralLinkViewModel.totalReferrals,
-            referralNetworkName: viewModel.referralNetwork?.name,
-            version: viewModel.version,
-            isUpdatingAccountPreferences: accountPreferencesViewModel.isUpdatingAccountPreferences,
-            copyToPasteboard: copyToPasteboard,
-            presentUpdateReferralNetworkSheet: {
-                viewModel.presentUpdateReferralNetworkSheet = true
-            },
-            presentDeleteAccountConfirmation: {
-                viewModel.isPresentedDeleteAccountConfirmation = true
-            },
-            navigate: navigate,
-            provideEnabled: deviceManager.provideEnabled,
-            providePaused: deviceManager.providePaused,
-            deviceName: viewModel.deviceName,
-            deviceSpec: viewModel.deviceSpec,
-            presentRenameDevice: viewModel.presentRenameDevice,
-            canReceiveNotifications: $viewModel.canReceiveNotifications,
-            canReceiveProductUpdates: $accountPreferencesViewModel.canReceiveProductUpdates,
-            launchAtStartupEnabled: $viewModel.launchAtStartupEnabled,
-            networkUserViewModel: networkUserViewModel,
-            viewModel: viewModel
-        )
-        
-        let macCoreMods = Color.clear
-            .frame(width: 0, height: 0)
+            SettingsForm_macOS(
+                urApiService: api,
+                clientId: clientId,
+                referralCode: referralLinkViewModel.referralCode,
+                totalReferrals: referralLinkViewModel.totalReferrals,
+                referralNetworkName: viewModel.referralNetwork?.name,
+                version: viewModel.version,
+                isUpdatingAccountPreferences: accountPreferencesViewModel.isUpdatingAccountPreferences,
+                copyToPasteboard: copyToPasteboard,
+                presentUpdateReferralNetworkSheet: {
+                    viewModel.presentUpdateReferralNetworkSheet = true
+                },
+                presentDeleteAccountConfirmation: {
+                    viewModel.isPresentedDeleteAccountConfirmation = true
+                },
+                navigate: navigate,
+                provideEnabled: deviceManager.provideEnabled,
+                providePaused: deviceManager.providePaused,
+                deviceName: viewModel.deviceName,
+                deviceSpec: viewModel.deviceSpec,
+                presentRenameDevice: viewModel.presentRenameDevice,
+                canReceiveNotifications: $viewModel.canReceiveNotifications,
+                canReceiveProductUpdates: $accountPreferencesViewModel.canReceiveProductUpdates,
+                launchAtStartupEnabled: $viewModel.launchAtStartupEnabled,
+                networkUserViewModel: networkUserViewModel,
+                viewModel: viewModel
+            )
             .task {
                 await viewModel.fetchDeviceInfo(clientId)
             }
@@ -259,10 +247,12 @@ struct SettingsView: View {
                 titleVisibility: .visible
             ) {
                 Button("Delete account", role: .destructive) {
+                    
                     Task {
                         let result = await viewModel.deleteAccount()
                         self.handleResult(result)
                     }
+                    
                 }
             }
             .sheet(isPresented: $viewModel.presentUpdateReferralNetworkSheet) {
@@ -281,9 +271,6 @@ struct SettingsView: View {
                 )
                 .environmentObject(themeManager)
             }
-        
-        let macAuthMods = Color.clear
-            .frame(width: 0, height: 0)
             .sheet(isPresented: $viewModel.presentSeedphraseSheet) {
                 SeedphraseDisplayView(
                     seedphrase: viewModel.generatedSeedphrase,
@@ -330,11 +317,6 @@ struct SettingsView: View {
                     .environmentObject(connectWalletProviderViewModel)
             }
         
-        return ZStack {
-            macForm
-            macCoreMods
-            macAuthMods
-        }
         #endif
         
     }
