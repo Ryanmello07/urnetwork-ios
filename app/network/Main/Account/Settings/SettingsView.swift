@@ -81,77 +81,15 @@ struct SettingsView: View {
                 viewModel: viewModel,
             )
             .background(themeManager.currentTheme.backgroundColor)
-            .task {
-                await viewModel.fetchDeviceInfo(clientId)
-            }
-            .alert("Device name", isPresented: $viewModel.isPresentedRenameDevice) {
-                TextField("Device name", text: $viewModel.editingDeviceName)
-                Button("Save") {
-                    Task {
-                        await saveDeviceName()
-                    }
-                }
-                Button("Cancel", role: .cancel) {}
-            }
-            .onChange(of: accountPreferencesViewModel.saveErrorMessage) { newValue in
-                if let newValue {
-                    snackbarManager.showSnackbar(message: newValue)
-                    accountPreferencesViewModel.clearSaveErrorMessage()
-                }
-            }
-            .confirmationDialog(
-                "Are you sure you want to delete your account?",
-                isPresented: $viewModel.isPresentedDeleteAccountConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Delete account", role: .destructive) {
-                    
-                    Task {
-                        let result = await viewModel.deleteAccount()
-                        self.handleResult(result)
-                    }
-                    
-                }
-            }
-            .sheet(isPresented: $viewModel.presentSigninWithSolanaSheet) {
-                
-                SolanaSignMessageSheet(
-                    isSigningMessage: viewModel.isSigningMessage,
-                    setIsSigningMessage: viewModel.setIsSigningMessage,
-                    signButtonText: "Confirm Seeker Token",
-                    signButtonLabelText: "Claim multiplier",
-                    message: connectWalletProviderViewModel.claimSeekerTokenMessage,
-                    dismiss: {
-                        viewModel.presentSigninWithSolanaSheet = false
-                    }
-                )
-                .environmentObject(themeManager)
-                .environmentObject(connectWalletProviderViewModel)
-                .presentationDetents([.height(148)])
-            }
-            .sheet(isPresented: $viewModel.presentUpdateReferralNetworkSheet) {
-                UpdateReferralNetworkSheet(
-                    api: api,
-                    onSuccess: {
-                        Task {
-                            await viewModel.fetchReferralNetwork()
-                        }
-                        viewModel.presentUpdateReferralNetworkSheet = false
-                    },
-                    dismiss: {
-                        viewModel.presentUpdateReferralNetworkSheet = false
-                    },
-                    referralNetwork: viewModel.referralNetwork
-                )
-                .environmentObject(themeManager)
-                .presentationDetents([.height(268)])
-                .presentationDragIndicator(.visible)
-            }
             
             SettingsAuthModifiersView(
                 viewModel: viewModel,
                 api: api,
-                handleWalletDeepLink: handleWalletDeepLink
+                accountPreferencesViewModel: accountPreferencesViewModel,
+                clientId: clientId,
+                handleWalletDeepLink: handleWalletDeepLink,
+                onSaveDeviceName: { await self.saveDeviceName() },
+                onHandleDeleteResult: { self.handleResult($0) }
             )
             .environmentObject(themeManager)
             .environmentObject(snackbarManager)
@@ -187,65 +125,20 @@ struct SettingsView: View {
                 networkUserViewModel: networkUserViewModel,
                 viewModel: viewModel
             )
-            .task {
-                await viewModel.fetchDeviceInfo(clientId)
-            }
-            .alert("Device name", isPresented: $viewModel.isPresentedRenameDevice) {
-                TextField("Device name", text: $viewModel.editingDeviceName)
-                Button("Save") {
-                    Task {
-                        await saveDeviceName()
-                    }
-                }
-                Button("Cancel", role: .cancel) {}
-            }
-            .onChange(of: accountPreferencesViewModel.saveErrorMessage) { newValue in
-                if let newValue {
-                    snackbarManager.showSnackbar(message: newValue)
-                    accountPreferencesViewModel.clearSaveErrorMessage()
-                }
-            }
-            .confirmationDialog(
-                "Are you sure you want to delete your account?",
-                isPresented: $viewModel.isPresentedDeleteAccountConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Delete account", role: .destructive) {
-                    
-                    Task {
-                        let result = await viewModel.deleteAccount()
-                        self.handleResult(result)
-                    }
-                    
-                }
-            }
-            .sheet(isPresented: $viewModel.presentUpdateReferralNetworkSheet) {
-                UpdateReferralNetworkSheet(
-                    api: api,
-                    onSuccess: {
-                        Task {
-                            await viewModel.fetchReferralNetwork()
-                        }
-                        viewModel.presentUpdateReferralNetworkSheet = false
-                    },
-                    dismiss: {
-                        viewModel.presentUpdateReferralNetworkSheet = false
-                    },
-                    referralNetwork: viewModel.referralNetwork
-                )
-                .environmentObject(themeManager)
-            }
             
             SettingsAuthModifiersView(
                 viewModel: viewModel,
                 api: api,
-                handleWalletDeepLink: handleWalletDeepLink
+                accountPreferencesViewModel: accountPreferencesViewModel,
+                clientId: clientId,
+                handleWalletDeepLink: handleWalletDeepLink,
+                onSaveDeviceName: { await self.saveDeviceName() },
+                onHandleDeleteResult: { self.handleResult($0) }
             )
             .environmentObject(themeManager)
             .environmentObject(snackbarManager)
             .environmentObject(connectWalletProviderViewModel)
         }
-        
         #endif
         
     }
