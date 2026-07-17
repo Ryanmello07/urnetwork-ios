@@ -53,39 +53,41 @@ struct SettingsView: View {
     #if os(iOS)
     @ViewBuilder
     private var iosBody: some View {
-        settingsForm
-            .task {
-                await viewModel.fetchDeviceInfo(clientId)
-            }
-            .alert("Device name", isPresented: $viewModel.isPresentedRenameDevice) {
-                TextField("Device name", text: $viewModel.editingDeviceName)
-                Button("Save") {
-                    Task {
-                        await saveDeviceName()
+        AnyView(
+            settingsForm
+                .task {
+                    await viewModel.fetchDeviceInfo(clientId)
+                }
+                .alert("Device name", isPresented: $viewModel.isPresentedRenameDevice) {
+                    TextField("Device name", text: $viewModel.editingDeviceName)
+                    Button("Save") {
+                        Task {
+                            await saveDeviceName()
+                        }
+                    }
+                    Button("Cancel", role: .cancel) {}
+                }
+                .onChange(of: accountPreferencesViewModel.saveErrorMessage) { newValue in
+                    if let newValue {
+                        snackbarManager.showSnackbar(message: newValue)
+                        accountPreferencesViewModel.clearSaveErrorMessage()
                     }
                 }
-                Button("Cancel", role: .cancel) {}
-            }
-            .onChange(of: accountPreferencesViewModel.saveErrorMessage) { newValue in
-                if let newValue {
-                    snackbarManager.showSnackbar(message: newValue)
-                    accountPreferencesViewModel.clearSaveErrorMessage()
-                }
-            }
-            .confirmationDialog(
-                "Are you sure you want to delete your account?",
-                isPresented: $viewModel.isPresentedDeleteAccountConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Delete account", role: .destructive) {
-                    
-                    Task {
-                        let result = await viewModel.deleteAccount()
-                        self.handleResult(result)
+                .confirmationDialog(
+                    "Are you sure you want to delete your account?",
+                    isPresented: $viewModel.isPresentedDeleteAccountConfirmation,
+                    titleVisibility: .visible
+                ) {
+                    Button("Delete account", role: .destructive) {
+                        
+                        Task {
+                            let result = await viewModel.deleteAccount()
+                            self.handleResult(result)
+                        }
+                        
                     }
-                    
                 }
-            }
+        )
             .sheet(isPresented: $viewModel.presentSigninWithSolanaSheet) {
                 SolanaSignMessageSheet(
                     isSigningMessage: viewModel.isSigningMessage,
