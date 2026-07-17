@@ -52,42 +52,73 @@ struct SettingsView: View {
     
     #if os(iOS)
     @ViewBuilder
-    private var iosBody: some View {
-        AnyView(
-            settingsForm
-                .task {
-                    await viewModel.fetchDeviceInfo(clientId)
-                }
-                .alert("Device name", isPresented: $viewModel.isPresentedRenameDevice) {
-                    TextField("Device name", text: $viewModel.editingDeviceName)
-                    Button("Save") {
-                        Task {
-                            await saveDeviceName()
-                        }
-                    }
-                    Button("Cancel", role: .cancel) {}
-                }
-                .onChange(of: accountPreferencesViewModel.saveErrorMessage) { newValue in
-                    if let newValue {
-                        snackbarManager.showSnackbar(message: newValue)
-                        accountPreferencesViewModel.clearSaveErrorMessage()
-                    }
-                }
-                .confirmationDialog(
-                    "Are you sure you want to delete your account?",
-                    isPresented: $viewModel.isPresentedDeleteAccountConfirmation,
-                    titleVisibility: .visible
-                ) {
-                    Button("Delete account", role: .destructive) {
-                        
-                        Task {
-                            let result = await viewModel.deleteAccount()
-                            self.handleResult(result)
-                        }
-                        
-                    }
-                }
+    private var settingsForm: some View {
+        SettingsForm_iOS(
+            urApiService: api,
+            clientId: clientId,
+            referralCode: referralLinkViewModel.referralCode,
+            totalReferrals: referralLinkViewModel.totalReferrals,
+            referralNetworkName: viewModel.referralNetwork?.name,
+            version: viewModel.version,
+            isUpdatingAccountPreferences: accountPreferencesViewModel.isUpdatingAccountPreferences,
+            copyToPasteboard: copyToPasteboard,
+            presentUpdateReferralNetworkSheet: {
+                viewModel.presentUpdateReferralNetworkSheet = true
+            },
+            presentDeleteAccountConfirmation: {
+                viewModel.isPresentedDeleteAccountConfirmation = true
+            },
+            navigate: navigate,
+            provideEnabled: deviceManager.provideEnabled,
+            providePaused: deviceManager.providePaused,
+            deviceName: viewModel.deviceName,
+            deviceSpec: viewModel.deviceSpec,
+            presentRenameDevice: viewModel.presentRenameDevice,
+            canReceiveNotifications: $viewModel.canReceiveNotifications,
+            canReceiveProductUpdates: $accountPreferencesViewModel.canReceiveProductUpdates,
+            networkUserViewModel: networkUserViewModel,
+            viewModel: viewModel,
         )
+        .background(themeManager.currentTheme.backgroundColor)
+    }
+    #endif
+    
+    var body: some View {
+        
+        #if os(iOS)
+        let base = settingsForm
+            .task {
+                await viewModel.fetchDeviceInfo(clientId)
+            }
+            .alert("Device name", isPresented: $viewModel.isPresentedRenameDevice) {
+                TextField("Device name", text: $viewModel.editingDeviceName)
+                Button("Save") {
+                    Task {
+                        await saveDeviceName()
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            }
+            .onChange(of: accountPreferencesViewModel.saveErrorMessage) { newValue in
+                if let newValue {
+                    snackbarManager.showSnackbar(message: newValue)
+                    accountPreferencesViewModel.clearSaveErrorMessage()
+                }
+            }
+            .confirmationDialog(
+                "Are you sure you want to delete your account?",
+                isPresented: $viewModel.isPresentedDeleteAccountConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete account", role: .destructive) {
+                    
+                    Task {
+                        let result = await viewModel.deleteAccount()
+                        self.handleResult(result)
+                    }
+                    
+                }
+            }
             .sheet(isPresented: $viewModel.presentSigninWithSolanaSheet) {
                 SolanaSignMessageSheet(
                     isSigningMessage: viewModel.isSigningMessage,
@@ -124,6 +155,8 @@ struct SettingsView: View {
                 .presentationDetents([.height(268)])
                 .presentationDragIndicator(.visible)
             }
+        
+        let withAuth = base
             .sheet(isPresented: $viewModel.presentSeedphraseSheet) {
                 SeedphraseDisplayView(
                     seedphrase: viewModel.generatedSeedphrase,
@@ -169,44 +202,8 @@ struct SettingsView: View {
                     .environmentObject(snackbarManager)
                     .environmentObject(connectWalletProviderViewModel)
             }
-    }
-    
-    @ViewBuilder
-    private var settingsForm: some View {
-        SettingsForm_iOS(
-            urApiService: api,
-            clientId: clientId,
-            referralCode: referralLinkViewModel.referralCode,
-            totalReferrals: referralLinkViewModel.totalReferrals,
-            referralNetworkName: viewModel.referralNetwork?.name,
-            version: viewModel.version,
-            isUpdatingAccountPreferences: accountPreferencesViewModel.isUpdatingAccountPreferences,
-            copyToPasteboard: copyToPasteboard,
-            presentUpdateReferralNetworkSheet: {
-                viewModel.presentUpdateReferralNetworkSheet = true
-            },
-            presentDeleteAccountConfirmation: {
-                viewModel.isPresentedDeleteAccountConfirmation = true
-            },
-            navigate: navigate,
-            provideEnabled: deviceManager.provideEnabled,
-            providePaused: deviceManager.providePaused,
-            deviceName: viewModel.deviceName,
-            deviceSpec: viewModel.deviceSpec,
-            presentRenameDevice: viewModel.presentRenameDevice,
-            canReceiveNotifications: $viewModel.canReceiveNotifications,
-            canReceiveProductUpdates: $accountPreferencesViewModel.canReceiveProductUpdates,
-            networkUserViewModel: networkUserViewModel,
-            viewModel: viewModel,
-        )
-        .background(themeManager.currentTheme.backgroundColor)
-    }
-    #endif
-    
-    var body: some View {
         
-        #if os(iOS)
-            iosBody
+        return withAuth
         #elseif os(macOS)
             SettingsForm_macOS(
                 urApiService: api,
