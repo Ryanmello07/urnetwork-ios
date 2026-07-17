@@ -129,7 +129,24 @@ struct SettingsView: View {
                 .presentationDetents([.height(148)])
             }
             .onOpenURL { url in
-                handleDeepLink(url)
+                // Route wallet signatures through AddAuthSheet handler if set
+                if connectWalletProviderViewModel.pendingAddAuthSignatureHandler != nil,
+                   let pk = connectWalletProviderViewModel.connectedPublicKey {
+                    connectWalletProviderViewModel.handleDeepLink(
+                        url,
+                        onSignature: { signature in
+                            if let handler = connectWalletProviderViewModel.pendingAddAuthSignatureHandler {
+                                Task {
+                                    await handler(pk, signature)
+                                }
+                            }
+                        },
+                        onError: { _ in }
+                    )
+                } else {
+                    // Forward to the default handler for multiplier claim
+                    connectWalletProviderViewModel.handleDeepLink(url)
+                }
             }
             .sheet(isPresented: $viewModel.presentUpdateReferralNetworkSheet) {
                 UpdateReferralNetworkSheet(
@@ -318,69 +335,6 @@ struct SettingsView: View {
             }
         
         #endif
-        
-    }
-    
-    private func handleDeepLink(_ url: URL) {
-        connectWalletProviderViewModel.handleDeepLink(
-            url,
-            onPublicKeyRetrieved: { publicKey, wallet in
-                print("Wallet connected: \(publicKey.prefix(8))...")
-            },
-            onSignature: { signature in
-                
-                // Check if we have a pending AddAuth wallet handler
-                if let handler = connectWalletProviderViewModel.pendingAddAuthSignatureHandler,
-                   let pk = connectWalletProviderViewModel.connectedPublicKey {
-                    Task {
-                        await handler(pk, signature)
-                    }
-                    return
-                }
-                
-                // Otherwise handle as multiplier claim
-                guard let pk = connectWalletProviderViewModel.connectedPublicKey else {
-                    self.viewModel.setIsSigningMessage(false)
-                    self.snackbarManager.showSnackbar(message: String(localized: "Couldn't parse public key, please try again later."))
-                    return
-                }
-                
-                Task {
-                    await self.handleSolanaWalletSignature(
-                        message: self.connectWalletProviderViewModel.claimSeekerTokenMessage,
-                        signature: signature,
-                        publicKey: pk
-                    )
-                }
-                
-            },
-            onError: { _ in
-                self.viewModel.setIsSigningMessage(false)
-                self.snackbarManager.showSnackbar(message: String(localized: "Sorry, there was an error claiming multiplier."))
-            }
-        )
-    }
-    
-    private func handleSolanaWalletSignature(message: String, signature: String, publicKey: String) async {
-        defer {
-            viewModel.setIsSigningMessage(false)
-        }
-        
-        let result = await accountWalletsViewModel.verifySeekerOrSagaOwnership(
-            publicKey: publicKey,
-            message: message,
-            signature: signature
-        )
-        
-        switch result {
-        case .success(true):
-            snackbarManager.showSnackbar(message: String(localized: "Successfully claimed multiplier!"))
-            viewModel.presentSigninWithSolanaSheet = false
-        case .success(false):
-            snackbarManager.showSnackbar(message: String(localized: "Sorry, there was an error claiming multiplier."))
-        case .failure(let error):
-            snackbarManager.showSnackbar(message: String(localized: "Sorry, there was an error claiming multiplier: \(error.localizedDescription)"))
-        }
         
     }
     

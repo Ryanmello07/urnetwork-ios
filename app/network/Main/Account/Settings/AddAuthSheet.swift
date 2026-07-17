@@ -157,6 +157,11 @@ struct AddAuthSheet: View {
         case connecting
         case connected(String)  // publicKey
         case signing
+        
+        var isConnected: Bool {
+            if case .connected = self { return true }
+            return false
+        }
     }
     
     @State private var walletChallengeMessage: String = ""
@@ -237,7 +242,7 @@ struct AddAuthSheet: View {
                                 await signWalletChallenge()
                             }
                         },
-                        enabled: !isAdding && walletStep == .connected,
+                        enabled: !isAdding && walletStep.isConnected,
                         isProcessing: isAdding
                     )
                 }
