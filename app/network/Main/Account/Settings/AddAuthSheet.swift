@@ -150,28 +150,238 @@ struct AddAuthSheet: View {
     
     // MARK: - Wallet Sign-In
     
+    @State private var walletStep: WalletStep = .disconnected
+    
+    enum WalletStep {
+        case disconnected
+        case connecting
+        case connected(String)  // publicKey
+        case signing
+    }
+    
+    @State private var walletChallengeMessage: String = ""
+    
     private var walletSignInView: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Connect a Solana wallet (Phantom or Solflare) to add it as a sign-in method.")
                 .font(themeManager.currentTheme.secondaryBodyFont)
                 .foregroundColor(themeManager.currentTheme.textMutedColor)
             
-            Button(action: {
-                Task {
-                    await handleWalletAuth()
+            switch walletStep {
+            case .disconnected:
+                HStack(spacing: 12) {
+                    Button(action: {
+                        Task {
+                            await connectWallet(.phantom)
+                        }
+                    }) {
+                        VStack {
+                            Image("phantom.white.logo")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 36, height: 36)
+                                .padding()
+                                .background(Color(hex: "#ab9ff2"))
+                                .cornerRadius(12)
+                            Text("Phantom")
+                                .font(themeManager.currentTheme.secondaryBodyFont)
+                                .foregroundColor(themeManager.currentTheme.textColor)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isAdding || walletStep == .connecting)
+                    
+                    Button(action: {
+                        Task {
+                            await connectWallet(.solflare)
+                        }
+                    }) {
+                        VStack {
+                            Image("solflare.logo")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 36, height: 36)
+                                .padding()
+                                .background(.urWhite)
+                                .cornerRadius(12)
+                            Text("Solflare")
+                                .font(themeManager.currentTheme.secondaryBodyFont)
+                                .foregroundColor(themeManager.currentTheme.textColor)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isAdding || walletStep == .connecting)
                 }
-            }) {
+                
+            case .connecting:
                 HStack {
-                    Image(systemName: "wallet.pass")
-                    Text("Connect Solana Wallet")
+                    ProgressView()
+                    Text("Connecting to wallet...")
+                        .font(themeManager.currentTheme.secondaryBodyFont)
+                        .foregroundColor(themeManager.currentTheme.textMutedColor)
                 }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(themeManager.currentTheme.tintedBackgroundBase)
-                .cornerRadius(8)
+                
+            case .connected(let publicKey):
+                HStack {
+                    Image(systemName: "wallet.pass.fill")
+                        .foregroundColor(.green)
+                    Text("Connected: \(publicKey.prefix(8))...")
+                        .font(themeManager.currentTheme.secondaryBodyFont)
+                }
+                
+                if !walletChallengeMessage.isEmpty {
+                    UrButton(
+                        text: "Sign with Wallet",
+                        action: {
+                            Task {
+                                await signWalletChallenge()
+                            }
+                        },
+                        enabled: !isAdding && walletStep == .connected,
+                        isProcessing: isAdding
+                    )
+                }
+                
+            case .signing:
+                HStack {
+                    ProgressView()
+                    Text("Waiting for wallet signature...")
+                        .font(themeManager.currentTheme.secondaryBodyFont)
+                        .foregroundColor(themeManager.currentTheme.textMutedColor)
+                }
             }
-            .buttonStyle(.plain)
-            .disabled(isAdding)
+        }
+    }
+    
+    private func connectWallet(_ provider: ConnectedWalletProvider) async {
+        isAdding = true
+        addError = nil
+        walletStep = .connecting
+        
+        // Set up the pending handler for when wallet signs back
+        connectWalletProviderViewModel.pendingAddAuthSignatureHandler = { [self] publicKey, signature in
+            Task { @MainActor in
+                await completeWalletAuth(publicKey: publicKey, signature: signature)
+            }
+        }
+        
+        // Fetch the challenge first before connecting
+        do {
+            let challengeArgs = SdkAuthWalletChallengeArgs()
+            challengeArgs.blockchain = "solana"
+            let challengeResult = try await api.authWalletChallenge(challengeArgs)
+            self.walletChallengeMessage = challengeResult.messageTemplate
+            connectWalletProviderViewModel.pendingWalletAuthMessage = challengeResult.messageTemplate
+        } catch {
+            addError = "Failed to get wallet challenge: \(error.localizedDescription)"
+            isAdding = false
+            walletStep = .disconnected
+            return
+        }
+        
+        // Check if already connected
+        if connectWalletProviderViewModel.connectedPublicKey != nil {
+            walletStep = .connected(connectWalletProviderViewModel.connectedPublicKey!)
+            isAdding = false
+            return
+        }
+        
+        // Open wallet connection
+        let opened: Bool
+        switch provider {
+        case .phantom:
+            opened = connectWalletProviderViewModel.connectPhantomWallet()
+        case .solflare:
+            opened = connectWalletProviderViewModel.connectSolflareWallet()
+        case .bittensor:
+            opened = false
+        @unknown default:
+            opened = false
+        }
+        
+        if !opened {
+            addError = "Could not open wallet. Please install it and try again."
+            isAdding = false
+            walletStep = .disconnected
+            return
+        }
+        
+        // We'll wait for the connect deep link to fire
+        // The Sheet's onAppear sets up a polling timer
+        await pollForWalletConnection()
+    }
+    
+    private func pollForWalletConnection() async {
+        // Poll for up to 60 seconds for the wallet to connect back
+        for _ in 0..<60 {
+            if let pk = connectWalletProviderViewModel.connectedPublicKey {
+                walletStep = .connected(pk)
+                isAdding = false
+                return
+            }
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+        }
+        addError = "Wallet connection timed out. Please try again."
+        isAdding = false
+        walletStep = .disconnected
+    }
+    
+    private func signWalletChallenge() async {
+        isAdding = true
+        addError = nil
+        walletStep = .signing
+        
+        guard let provider = connectWalletProviderViewModel.connectedWalletProvider else {
+            addError = "Wallet not connected"
+            isAdding = false
+            walletStep = .disconnected
+            return
+        }
+        
+        let message = walletChallengeMessage
+        let didStartSigning: Bool
+        switch provider {
+        case .phantom:
+            didStartSigning = connectWalletProviderViewModel.signMessagePhantom(message: message)
+        case .solflare:
+            didStartSigning = connectWalletProviderViewModel.signMessageSolflare(message: message)
+        case .bittensor:
+            didStartSigning = false
+        @unknown default:
+            didStartSigning = false
+        }
+        
+        if !didStartSigning {
+            addError = "Failed to start wallet signing"
+            isAdding = false
+            walletStep = .connected(connectWalletProviderViewModel.connectedPublicKey ?? "")
+        }
+        // The pendingAddAuthSignatureHandler will complete the flow when the signature comes back
+    }
+    
+    private func completeWalletAuth(publicKey: String, signature: String) async {
+        do {
+            let args = SdkAddAuthArgs()
+            let walletAuth = SdkWalletAuthArgs()
+            walletAuth.blockchain = SdkSOL
+            walletAuth.publicKey = publicKey
+            walletAuth.message = walletChallengeMessage
+            walletAuth.signature = signature
+            args.walletAuth = walletAuth
+            
+            let _ = try await api.addAuth(args)
+            isAdding = false
+            walletStep = .disconnected
+            connectWalletProviderViewModel.pendingAddAuthSignatureHandler = nil
+            connectWalletProviderViewModel.pendingWalletAuthMessage = nil
+            snackbarManager.showSnackbar(message: String(localized: "Wallet sign-in method added"))
+            dismiss()
+        } catch(let error) {
+            isAdding = false
+            addError = error.localizedDescription
+            walletStep = .disconnected
+            connectWalletProviderViewModel.pendingAddAuthSignatureHandler = nil
+            connectWalletProviderViewModel.pendingWalletAuthMessage = nil
         }
     }
     

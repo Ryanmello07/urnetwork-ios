@@ -136,8 +136,22 @@ struct SettingsView: View {
                 connectWalletProviderViewModel
                     .handleDeepLink(
                         url,
+                        onPublicKeyRetrieved: { publicKey, wallet in
+                            // Wallet connected — the AddAuthSheet polls for this
+                            print("Wallet connected: \(publicKey.prefix(8))...")
+                        },
                         onSignature: { signature in
                             
+                            // Check if we have a pending AddAuth wallet handler
+                            if let handler = connectWalletProviderViewModel.pendingAddAuthSignatureHandler,
+                               let pk = connectWalletProviderViewModel.connectedPublicKey {
+                                Task {
+                                    await handler(pk, signature)
+                                }
+                                return
+                            }
+                            
+                            // Otherwise handle as multiplier claim
                             guard let pk = connectWalletProviderViewModel.connectedPublicKey else {
                                 viewModel.setIsSigningMessage(false)
                                 snackbarManager.showSnackbar(message: String(localized: "Couldn't parse public key, please try again later."))
