@@ -53,8 +53,7 @@ struct SettingsView: View {
     var body: some View {
         
         #if os(iOS)
-        ZStack {
-            authModifiers
+        Group {
             SettingsForm_iOS(
                 urApiService: api,
                 clientId: clientId,
@@ -149,6 +148,54 @@ struct SettingsView: View {
                 .presentationDragIndicator(.visible)
             }
         }
+        .sheet(isPresented: $viewModel.presentSeedphraseSheet) {
+            SeedphraseDisplayView(
+                seedphrase: viewModel.generatedSeedphrase,
+                onConfirmed: { _ in
+                    viewModel.dismissSeedphraseSheet()
+                }
+            )
+            .environmentObject(themeManager)
+        }
+        .confirmationDialog(
+            "Generate a recovery seedphrase?",
+            isPresented: $viewModel.presentSeedphraseConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Generate") {
+                Task {
+                    await viewModel.executePendingSeedphraseAction()
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("A seedphrase lets you recover your account if you lose access. Store it safely.")
+        }
+        .confirmationDialog(
+            "Remove this sign-in method?",
+            isPresented: $viewModel.presentRemoveAuthConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Remove", role: .destructive) {
+                Task {
+                    await viewModel.executeRemoveAuth()
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            if let authType = viewModel.authTypeToRemove {
+                Text("Are you sure you want to remove \(authType) as a sign-in method?")
+            }
+        }
+        .sheet(isPresented: $viewModel.presentAddAuthSheet) {
+            AddAuthSheet(api: api)
+                .environmentObject(themeManager)
+                .environmentObject(snackbarManager)
+                .environmentObject(connectWalletProviderViewModel)
+        }
+        .onOpenURL { url in
+            handleWalletDeepLink(url)
+        }
         #elseif os(macOS)
             SettingsForm_macOS(
                 urApiService: api,
@@ -225,14 +272,6 @@ struct SettingsView: View {
                 )
                 .environmentObject(themeManager)
             }
-        
-        #endif
-        
-    }
-    
-    @ViewBuilder
-    private var authModifiers: some View {
-        Color.clear
             .sheet(isPresented: $viewModel.presentSeedphraseSheet) {
                 SeedphraseDisplayView(
                     seedphrase: viewModel.generatedSeedphrase,
@@ -278,9 +317,9 @@ struct SettingsView: View {
                     .environmentObject(snackbarManager)
                     .environmentObject(connectWalletProviderViewModel)
             }
-            .onOpenURL { url in
-                handleWalletDeepLink(url)
-            }
+        
+        #endif
+        
     }
     
     private func handleWalletDeepLink(_ url: URL) {
