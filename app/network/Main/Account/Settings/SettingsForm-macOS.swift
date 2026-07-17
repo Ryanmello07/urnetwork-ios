@@ -617,71 +617,7 @@ struct SettingsForm_macOS: View {
                     }
 
                     Spacer().frame(height: 64)
-                    
-                    HStack {
-                        UrLabel(text: "Earning multipliers")
-                        
-                        Spacer()
-                    }
-                    
-                    VStack {
-                     
-                        HStack {
-                            Text("Claim multiplier")
-                                .font(themeManager.currentTheme.bodyFont)
-                            Spacer()
-                            
-                            if (isSeekerOrSagaHolder) {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(.urGreen)
-                                    .frame(width: 16)
-                            } else {
-                                Button(action: {
-                                    presentSigninWithSolanaSheet()
-                                }) {
-                                    Text("Verify")
-                                }
-                            }
-                            
-                        }
-                        
-                        HStack {
-                            Text("Connect a wallet with the Seeker Pre-Order Token")
-                                .font(themeManager.currentTheme.secondaryBodyFont)
-                                .foregroundColor(themeManager.currentTheme.textMutedColor)
-                            
-                            Spacer()
-                        }
-                        
-                    }
-                    .padding()
-                    .background(themeManager.currentTheme.tintedBackgroundBase)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    
-                    Spacer().frame(height: 32)
-                    
-                    HStack {
-                        Text("Learn more about the multiplier")
-                            .font(themeManager.currentTheme.bodyFont)
-                            .foregroundColor(themeManager.currentTheme.textColor)
-                        
-                        Spacer()
-                        
-                        Button(action: {
-                            if let url = URL(string: "https://ur.io/seeker") {
-                                NSWorkspace.shared.open(url)
-                            }
-                        }) {
-                            Image(systemName: "arrow.forward")
-                                .foregroundColor(themeManager.currentTheme.textColor)
-                        }
-                    }
-                    .padding()
-                    .background(themeManager.currentTheme.tintedBackgroundBase)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    
-                    Spacer().frame(height: 32)
-                    
+
                     Button(role: .destructive, action: {
                         presentDeleteAccountConfirmation()
                     }) {
