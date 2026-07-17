@@ -10,7 +10,10 @@ import SwiftUI
 import URnetworkSdk
 
 /**
- * Aggregated contract pairs for one peer client
+ * Aggregated contract pairs for one peer client. The aggregation, coalescing,
+ * renewal-atomicity, and closing lifecycle all live in the SDK
+ * ContractDetailsViewController now (shared by every platform); this row is just
+ * the rendered shape.
  */
 struct ContractClientRow: Identifiable, Equatable {
     let clientId: String
@@ -30,6 +33,10 @@ struct ContractClientRow: Identifiable, Equatable {
 
     var pairCount: Int = 0
 
+    // the client's last contract closed and the row is being ejected: it is kept
+    // briefly (by the SDK view controller) so its circles slide off, then removed
+    var closing: Bool = false
+
     var id: String { clientId }
 
     var isActive: Bool {
@@ -48,19 +55,22 @@ enum ContractDetailsMode {
     case provider
 }
 
-private class ContractDetailsListener: NSObject, SdkContractDetailsChangeListenerProtocol {
+private class ContractRowsListener: NSObject, SdkContractRowsListenerProtocol {
     private let callback: () -> Void
     init(callback: @escaping () -> Void) {
         self.callback = callback
     }
-    func contractDetailsChanged(_ contractDetails: SdkContractDetails?) {
+    func contractRowsChanged() {
         callback()
     }
 }
 
 /**
- * Publishes the live contract details grouped per peer client id.
- * Egress and ingress contract pairs are merged into one row per peer.
+ * Publishes the live, aggregated contract rows for the mode's traffic. All the
+ * work — coalescing egress+ingress, holding a renewing contract's slot so a
+ * replace is atomic, per-peer aggregation, and the closing/eject lifecycle —
+ * is done by the SDK ContractDetailsViewController; this store just maps its rows
+ * onto the UI type.
  */
 @MainActor
 class ContractDetailsStore: ObservableObject {
@@ -70,14 +80,8 @@ class ContractDetailsStore: ObservableObject {
     @Published private(set) var rows: [ContractClientRow] = []
 
     private var device: SdkDeviceRemote?
-    private var egressSub: SdkSubProtocol?
-    private var ingressSub: SdkSubProtocol?
-
-    /**
-     * keeps row order stable across updates: clients keep their
-     * first-seen position, new clients append
-     */
-    private var clientOrder: [String: Int] = [:]
+    private var viewController: SdkContractDetailsViewController?
+    private var rowsSub: SdkSubProtocol?
 
     init(mode: ContractDetailsMode) {
         self.mode = mode
@@ -87,135 +91,59 @@ class ContractDetailsStore: ObservableObject {
         reset()
 
         self.device = device
-
-        let listener = { [weak self] in
-            ContractDetailsListener {
-                DispatchQueue.main.async {
-                    self?.update()
-                }
+        let vc = device.openContractDetailsViewController()
+        self.viewController = vc
+        self.rowsSub = vc?.add(ContractRowsListener { [weak self] in
+            DispatchQueue.main.async {
+                self?.update()
             }
-        }
-
-        switch mode {
-        case .client:
-            egressSub = device.addEgressContractDetailsChangeListener(listener())
-            ingressSub = device.addIngressContractDetailsChangeListener(listener())
-        case .provider:
-            egressSub = device.addProviderEgressContractDetailsChangeListener(listener())
-            ingressSub = device.addProviderIngressContractDetailsChangeListener(listener())
-        }
-
+        })
+        vc?.start()
         update()
     }
 
     func reset() {
-        egressSub?.close()
-        egressSub = nil
-        ingressSub?.close()
-        ingressSub = nil
+        rowsSub?.close()
+        rowsSub = nil
+        viewController?.close()
+        viewController = nil
         device = nil
         rows = []
-        clientOrder = [:]
     }
 
     private func update() {
-        guard let device = self.device else {
+        guard let vc = self.viewController else {
             return
         }
+        let list: SdkContractClientRowList? =
+            mode == .client ? vc.getClientContractRows() : vc.getProviderContractRows()
 
-        let egress: SdkContractDetailsList?
-        let ingress: SdkContractDetailsList?
-        switch mode {
-        case .client:
-            egress = device.getEgressContractDetails()
-            ingress = device.getIngressContractDetails()
-        case .provider:
-            egress = device.getProviderEgressContractDetails()
-            ingress = device.getProviderIngressContractDetails()
-        }
-
-        let ownClientId = device.getClientId()?.idStr
-
-        var rowsByClient: [String: ContractClientRow] = [:]
-        var contractIdsByClient: [String: [String]] = [:]
-        var companionIdsByClient: [String: [String]] = [:]
-
-        let merge = { (list: SdkContractDetailsList?) in
-            guard let list = list else {
-                return
-            }
+        var newRows: [ContractClientRow] = []
+        if let list = list {
             for i in 0..<list.len() {
-                guard let details = list.get(i) else {
+                guard let r = list.get(i) else {
                     continue
                 }
-                let clientId = Self.peerClientId(details, ownClientId: ownClientId)
-                var row = rowsByClient[clientId] ?? ContractClientRow(clientId: clientId)
-                row.contractUsedByteCount += details.contractUsedByteCount
-                row.contractByteCount += details.contractByteCount
-                row.contractBitRate += details.contractBitRate
-                row.companionContractUsedByteCount += details.companionContractUsedByteCount
-                row.companionContractByteCount += details.companionContractByteCount
-                row.companionContractBitRate += details.companionContractBitRate
-                row.pairCount += 1
-                rowsByClient[clientId] = row
-                if let cid = details.contractId?.idStr {
-                    contractIdsByClient[clientId, default: []].append(cid)
-                }
-                if let ccid = details.companionContractId?.idStr {
-                    companionIdsByClient[clientId, default: []].append(ccid)
-                }
+                newRows.append(
+                    ContractClientRow(
+                        clientId: r.clientId,
+                        contractId: r.contractId,
+                        companionContractId: r.companionContractId,
+                        contractUsedByteCount: r.contractUsedByteCount,
+                        contractByteCount: r.contractByteCount,
+                        contractBitRate: Int(r.contractBitRate),
+                        companionContractUsedByteCount: r.companionContractUsedByteCount,
+                        companionContractByteCount: r.companionContractByteCount,
+                        companionContractBitRate: Int(r.companionContractBitRate),
+                        pairCount: Int(r.pairCount),
+                        closing: r.closing
+                    )
+                )
             }
         }
-        merge(egress)
-        merge(ingress)
 
-        // newest first: newly seen clients are prepended to the top, existing
-        // clients keep their relative order
-        for clientId in rowsByClient.keys {
-            if clientOrder[clientId] == nil {
-                clientOrder[clientId] = clientOrder.count
-            }
-        }
-        let newRows = rowsByClient.values.map { row -> ContractClientRow in
-            var r = row
-            r.contractId = (contractIdsByClient[row.clientId] ?? []).sorted().joined(separator: ",")
-            r.companionContractId = (companionIdsByClient[row.clientId] ?? []).sorted().joined(separator: ",")
-            return r
-        }.sorted {
-            (clientOrder[$0.clientId] ?? 0) > (clientOrder[$1.clientId] ?? 0)
-        }
-        // egress and ingress listeners both call update(); only publish when the
-        // aggregated rows actually changed to avoid redundant re-renders
         if newRows != rows {
             rows = newRows
         }
-    }
-
-    /**
-     * the peer end of the contract transfer path
-     */
-    private static func peerClientId(_ details: SdkContractDetails, ownClientId: String?) -> String {
-        if let path = details.contractTransferPath {
-            let sourceId = path.sourceId?.idStr
-            let destinationId = path.destinationId?.idStr
-            if let ownClientId = ownClientId {
-                if sourceId == ownClientId, let destinationId = destinationId {
-                    return destinationId
-                }
-                if destinationId == ownClientId, let sourceId = sourceId {
-                    return sourceId
-                }
-            }
-            if let destinationId = destinationId {
-                return destinationId
-            }
-            if let sourceId = sourceId {
-                return sourceId
-            }
-        }
-        if let contractId = details.contractId {
-            return contractId.idStr
-        }
-        return String(localized: "unknown")
     }
 }

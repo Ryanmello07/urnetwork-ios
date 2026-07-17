@@ -22,10 +22,8 @@ struct SettingsForm_macOS: View {
     let referralNetworkName: String?
     let version: String
     let isUpdatingAccountPreferences: Bool
-    let isSeekerOrSagaHolder: Bool
     let copyToPasteboard: (_ value: String) -> Void
     let presentUpdateReferralNetworkSheet: () -> Void
-    let presentSigninWithSolanaSheet: () -> Void
     let presentDeleteAccountConfirmation: () -> Void
     let navigate: (AccountNavigationPath) -> Void
     let provideEnabled: Bool

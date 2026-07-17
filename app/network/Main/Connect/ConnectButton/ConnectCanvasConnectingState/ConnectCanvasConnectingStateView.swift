@@ -12,7 +12,10 @@ struct ConnectCanvasConnectingStateView: View {
     
     var gridPoints: [SdkId: SdkProviderGridPoint]
     var gridWidth: Int32
-    
+    // while connecting the grid animates live; once connected it freezes at its
+    // last state (kept rendered as the background layer under the connector circles)
+    var isConnecting: Bool = true
+
     @StateObject private var viewModel: ViewModel = ViewModel()
     
     var body: some View {
@@ -43,17 +46,28 @@ struct ConnectCanvasConnectingStateView: View {
         }
         .frame(width: viewModel.canvasWidth, height: viewModel.canvasWidth)
         .onChange(of: gridPoints) { newPoints in
-            if gridWidth > 0 {
+            // freeze once connected: don't feed new points into the grid
+            if isConnecting && gridWidth > 0 {
                 viewModel.updateGridPoints(newPoints, gridWidth: gridWidth)
             }
         }
         .onChange(of: gridWidth) { newWidth in
-            if newWidth > 0 && !gridPoints.isEmpty {
+            if isConnecting && newWidth > 0 && !gridPoints.isEmpty {
                 viewModel.updateGridPoints(gridPoints, gridWidth: newWidth)
             }
         }
+        .onChange(of: isConnecting) { nowConnecting in
+            // re-seed + resume the live grid when connecting starts again
+            // (reconnect); when it stops, the in-flight animation settles and the
+            // 60fps timer invalidates itself, leaving the grid frozen in place
+            if nowConnecting {
+                viewModel.updateGridPoints(gridPoints, gridWidth: gridWidth)
+            }
+        }
         .onAppear {
-            viewModel.updateGridPoints(gridPoints, gridWidth: gridWidth)
+            if isConnecting {
+                viewModel.updateGridPoints(gridPoints, gridWidth: gridWidth)
+            }
         }
         .onDisappear {
             viewModel.stopAnimations()

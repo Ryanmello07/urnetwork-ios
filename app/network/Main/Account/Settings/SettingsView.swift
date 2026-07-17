@@ -61,13 +61,9 @@ struct SettingsView: View {
                 referralNetworkName: viewModel.referralNetwork?.name,
                 version: viewModel.version,
                 isUpdatingAccountPreferences: accountPreferencesViewModel.isUpdatingAccountPreferences,
-                isSeekerOrSagaHolder: accountWalletsViewModel.isSeekerOrSagaHolder,
                 copyToPasteboard: copyToPasteboard,
                 presentUpdateReferralNetworkSheet: {
                     viewModel.presentUpdateReferralNetworkSheet = true
-                },
-                presentSigninWithSolanaSheet: {
-                    viewModel.presentSigninWithSolanaSheet = true
                 },
                 presentDeleteAccountConfirmation: {
                     viewModel.isPresentedDeleteAccountConfirmation = true
@@ -133,45 +129,7 @@ struct SettingsView: View {
                 .presentationDetents([.height(148)])
             }
             .onOpenURL { url in
-                connectWalletProviderViewModel
-                    .handleDeepLink(
-                        url,
-                        onPublicKeyRetrieved: { publicKey, wallet in
-                            // Wallet connected — the AddAuthSheet polls for this
-                            print("Wallet connected: \(publicKey.prefix(8))...")
-                        },
-                        onSignature: { signature in
-                            
-                            // Check if we have a pending AddAuth wallet handler
-                            if let handler = connectWalletProviderViewModel.pendingAddAuthSignatureHandler,
-                               let pk = connectWalletProviderViewModel.connectedPublicKey {
-                                Task {
-                                    await handler(pk, signature)
-                                }
-                                return
-                            }
-                            
-                            // Otherwise handle as multiplier claim
-                            guard let pk = connectWalletProviderViewModel.connectedPublicKey else {
-                                viewModel.setIsSigningMessage(false)
-                                snackbarManager.showSnackbar(message: String(localized: "Couldn't parse public key, please try again later."))
-                                return
-                            }
-                            
-                            Task {
-                                await handleSolanaWalletSignature(
-                                    message: connectWalletProviderViewModel.claimSeekerTokenMessage,
-                                    signature: signature,
-                                    publicKey: pk
-                                )
-                            }
-                            
-                        },
-                        onError: { _ in
-                            viewModel.setIsSigningMessage(false)
-                            snackbarManager.showSnackbar(message: String(localized: "Sorry, there was an error claiming multiplier."))
-                        }
-                    )
+                handleDeepLink(url)
             }
             .sheet(isPresented: $viewModel.presentUpdateReferralNetworkSheet) {
                 UpdateReferralNetworkSheet(
@@ -246,13 +204,9 @@ struct SettingsView: View {
                 referralNetworkName: viewModel.referralNetwork?.name,
                 version: viewModel.version,
                 isUpdatingAccountPreferences: accountPreferencesViewModel.isUpdatingAccountPreferences,
-                isSeekerOrSagaHolder: accountWalletsViewModel.isSeekerOrSagaHolder,
                 copyToPasteboard: copyToPasteboard,
                 presentUpdateReferralNetworkSheet: {
                     viewModel.presentUpdateReferralNetworkSheet = true
-                },
-                presentSigninWithSolanaSheet: {
-                    viewModel.presentSigninWithSolanaSheet = true
                 },
                 presentDeleteAccountConfirmation: {
                     viewModel.isPresentedDeleteAccountConfirmation = true
@@ -365,6 +319,46 @@ struct SettingsView: View {
         
         #endif
         
+    }
+    
+    private func handleDeepLink(_ url: URL) {
+        connectWalletProviderViewModel.handleDeepLink(
+            url,
+            onPublicKeyRetrieved: { publicKey, wallet in
+                print("Wallet connected: \(publicKey.prefix(8))...")
+            },
+            onSignature: { signature in
+                
+                // Check if we have a pending AddAuth wallet handler
+                if let handler = connectWalletProviderViewModel.pendingAddAuthSignatureHandler,
+                   let pk = connectWalletProviderViewModel.connectedPublicKey {
+                    Task {
+                        await handler(pk, signature)
+                    }
+                    return
+                }
+                
+                // Otherwise handle as multiplier claim
+                guard let pk = connectWalletProviderViewModel.connectedPublicKey else {
+                    self.viewModel.setIsSigningMessage(false)
+                    self.snackbarManager.showSnackbar(message: String(localized: "Couldn't parse public key, please try again later."))
+                    return
+                }
+                
+                Task {
+                    await self.handleSolanaWalletSignature(
+                        message: self.connectWalletProviderViewModel.claimSeekerTokenMessage,
+                        signature: signature,
+                        publicKey: pk
+                    )
+                }
+                
+            },
+            onError: { _ in
+                self.viewModel.setIsSigningMessage(false)
+                self.snackbarManager.showSnackbar(message: String(localized: "Sorry, there was an error claiming multiplier."))
+            }
+        )
     }
     
     private func handleSolanaWalletSignature(message: String, signature: String, publicKey: String) async {

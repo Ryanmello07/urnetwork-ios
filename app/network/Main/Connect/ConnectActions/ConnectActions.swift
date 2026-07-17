@@ -36,7 +36,10 @@ struct ConnectActions: View {
     let openStatsSheet: (ConnectStatsSheet) -> Void
 
     @EnvironmentObject var themeManager: ThemeManager
-    
+    @EnvironmentObject var networkPeersStore: NetworkPeersStore
+
+    private var peerCount: Int { networkPeersStore.connectedProvidePeers.count }
+
     var body: some View {
             
             VStack {
@@ -97,7 +100,27 @@ struct ConnectActions: View {
                                     action: reconnectTunnel ?? {},
                                 )
                             }
-                            
+
+                            /**
+                             * Network peers status line: a dot (green when peers are
+                             * online, amber at zero) + "{n} peers", always shown. Tapping
+                             * opens the location chooser, which lists these peers at top.
+                             * The extra top spacing pushes it just below the collapsed
+                             * drawer's peek fold, so it appears only when the drawer opens.
+                             */
+                            Spacer().frame(height: 24)
+                            HStack(spacing: 8) {
+                                Circle()
+                                    .fill(peerCount > 0 ? Color.urGreen : Color(hex: "F5C242"))
+                                    .frame(width: 8, height: 8)
+                                Text(peerCount == 1 ? "You have 1 other device online" : "You have \(peerCount) other devices online")
+                                    .font(themeManager.currentTheme.secondaryBodyFont)
+                                    .foregroundColor(themeManager.currentTheme.textMutedColor)
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture { setIsPresented(true) }
+
                             Spacer().frame(height: 24)
                             
                             Text("Connect options")

@@ -152,7 +152,7 @@ struct AddAuthSheet: View {
     
     @State private var walletStep: WalletStep = .disconnected
     
-    enum WalletStep {
+    enum WalletStep: Equatable {
         case disconnected
         case connecting
         case connected(String)  // publicKey
