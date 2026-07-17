@@ -113,23 +113,24 @@ struct SettingsView: View {
                 }
             }
             .sheet(isPresented: $viewModel.presentSigninWithSolanaSheet) {
-                
-                SolanaSignMessageSheet(
-                    isSigningMessage: viewModel.isSigningMessage,
-                    setIsSigningMessage: viewModel.setIsSigningMessage,
-                    signButtonText: "Confirm Seeker Token",
-                    signButtonLabelText: "Claim multiplier",
-                    message: connectWalletProviderViewModel.claimSeekerTokenMessage,
-                    dismiss: {
-                        viewModel.presentSigninWithSolanaSheet = false
-                    }
-                )
-                .environmentObject(themeManager)
-                .environmentObject(connectWalletProviderViewModel)
+                Group {
+                    SolanaSignMessageSheet(
+                        isSigningMessage: viewModel.isSigningMessage,
+                        setIsSigningMessage: viewModel.setIsSigningMessage,
+                        signButtonText: "Confirm Seeker Token",
+                        signButtonLabelText: "Claim multiplier",
+                        message: connectWalletProviderViewModel.claimSeekerTokenMessage,
+                        dismiss: {
+                            viewModel.presentSigninWithSolanaSheet = false
+                        }
+                    )
+                    .environmentObject(themeManager)
+                    .environmentObject(connectWalletProviderViewModel)
+                }
                 .presentationDetents([.height(148)])
             }
             .onOpenURL { url in
-                self.handleWalletDeepLink(url)
+                handleWalletDeepLink(url)
             }
             .sheet(isPresented: $viewModel.presentUpdateReferralNetworkSheet) {
                 UpdateReferralNetworkSheet(
