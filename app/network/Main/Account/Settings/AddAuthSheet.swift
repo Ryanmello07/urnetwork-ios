@@ -160,23 +160,6 @@ struct AddAuthSheet: View {
             Text("Connect a Solana wallet (Phantom or Solflare) to add it as a sign-in method.")
                 .font(themeManager.currentTheme.secondaryBodyFont)
                 .foregroundColor(themeManager.currentTheme.textMutedColor)
-            
-            Button(action: {
-                Task {
-                    await connectWallet()
-                }
-            }) {
-                HStack {
-                    Image(systemName: "wallet.pass")
-                    Text("Connect Solana Wallet")
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(themeManager.currentTheme.tintedBackgroundBase)
-                .cornerRadius(8)
-            }
-            .buttonStyle(.plain)
-            .disabled(isAdding)
         }
     }
     
@@ -191,45 +174,6 @@ struct AddAuthSheet: View {
     }
     
     // MARK: - Actions
-    
-    private func handleAppleResult(_ result: Result<ASAuthorization, any Error>) async {
-        isAdding = true
-        addError = nil
-        
-        do {
-            let authResult = try result.get()
-            guard let credential = authResult.credential as? ASAuthorizationAppleIDCredential,
-                  let idToken = credential.identityToken,
-                  let idTokenString = String(data: idToken, encoding: .utf8) else {
-                addError = "Could not read Apple ID token"
-                isAdding = false
-                return
-            }
-            
-            let args = SdkAddAuthArgs()
-            args.authJwt = idTokenString
-            args.authJwtType = "apple"
-            
-            let _ = try await api.addAuth(args)
-            isAdding = false
-            snackbarManager.showSnackbar(message: String(localized: "Apple sign-in method added"))
-            dismiss()
-        } catch(let error) {
-            isAdding = false
-            addError = error.localizedDescription
-        }
-    }
-    
-    private func connectWallet() async {
-        isAdding = true
-        addError = nil
-        
-        // Trigger wallet connect via the existing wallet provider flow
-        // The wallet provider handles deep links and callbacks
-        // For now, guide the user to connect through the main wallet connection flow
-        addError = "Please use the wallet connection from the main settings to connect a wallet, then it will appear as an auth method."
-        isAdding = false
-    }
     
     private func addAuth() async {
         isAdding = true
