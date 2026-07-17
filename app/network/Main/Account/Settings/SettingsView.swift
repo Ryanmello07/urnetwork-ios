@@ -50,43 +50,36 @@ struct SettingsView: View {
         self.networkUserViewModel = networkUserViewModel
     }
     
-    #if os(iOS)
-    @ViewBuilder
-    private var settingsForm: some View {
-        SettingsForm_iOS(
-            urApiService: api,
-            clientId: clientId,
-            referralCode: referralLinkViewModel.referralCode,
-            totalReferrals: referralLinkViewModel.totalReferrals,
-            referralNetworkName: viewModel.referralNetwork?.name,
-            version: viewModel.version,
-            isUpdatingAccountPreferences: accountPreferencesViewModel.isUpdatingAccountPreferences,
-            copyToPasteboard: copyToPasteboard,
-            presentUpdateReferralNetworkSheet: {
-                viewModel.presentUpdateReferralNetworkSheet = true
-            },
-            presentDeleteAccountConfirmation: {
-                viewModel.isPresentedDeleteAccountConfirmation = true
-            },
-            navigate: navigate,
-            provideEnabled: deviceManager.provideEnabled,
-            providePaused: deviceManager.providePaused,
-            deviceName: viewModel.deviceName,
-            deviceSpec: viewModel.deviceSpec,
-            presentRenameDevice: viewModel.presentRenameDevice,
-            canReceiveNotifications: $viewModel.canReceiveNotifications,
-            canReceiveProductUpdates: $accountPreferencesViewModel.canReceiveProductUpdates,
-            networkUserViewModel: networkUserViewModel,
-            viewModel: viewModel,
-        )
-        .background(themeManager.currentTheme.backgroundColor)
-    }
-    #endif
-    
     var body: some View {
         
         #if os(iOS)
-        let base = settingsForm
+            SettingsForm_iOS(
+                urApiService: api,
+                clientId: clientId,
+                referralCode: referralLinkViewModel.referralCode,
+                totalReferrals: referralLinkViewModel.totalReferrals,
+                referralNetworkName: viewModel.referralNetwork?.name,
+                version: viewModel.version,
+                isUpdatingAccountPreferences: accountPreferencesViewModel.isUpdatingAccountPreferences,
+                copyToPasteboard: copyToPasteboard,
+                presentUpdateReferralNetworkSheet: {
+                    viewModel.presentUpdateReferralNetworkSheet = true
+                },
+                presentDeleteAccountConfirmation: {
+                    viewModel.isPresentedDeleteAccountConfirmation = true
+                },
+                navigate: navigate,
+                provideEnabled: deviceManager.provideEnabled,
+                providePaused: deviceManager.providePaused,
+                deviceName: viewModel.deviceName,
+                deviceSpec: viewModel.deviceSpec,
+                presentRenameDevice: viewModel.presentRenameDevice,
+                canReceiveNotifications: $viewModel.canReceiveNotifications,
+                canReceiveProductUpdates: $accountPreferencesViewModel.canReceiveProductUpdates,
+                networkUserViewModel: networkUserViewModel,
+                viewModel: viewModel,
+            )
+            .background(themeManager.currentTheme.backgroundColor)
             .task {
                 await viewModel.fetchDeviceInfo(clientId)
             }
@@ -120,6 +113,7 @@ struct SettingsView: View {
                 }
             }
             .sheet(isPresented: $viewModel.presentSigninWithSolanaSheet) {
+                
                 SolanaSignMessageSheet(
                     isSigningMessage: viewModel.isSigningMessage,
                     setIsSigningMessage: viewModel.setIsSigningMessage,
@@ -155,55 +149,7 @@ struct SettingsView: View {
                 .presentationDetents([.height(268)])
                 .presentationDragIndicator(.visible)
             }
-        
-        let withAuth = base
-            .sheet(isPresented: $viewModel.presentSeedphraseSheet) {
-                SeedphraseDisplayView(
-                    seedphrase: viewModel.generatedSeedphrase,
-                    onConfirmed: { _ in
-                        viewModel.dismissSeedphraseSheet()
-                    }
-                )
-                .environmentObject(themeManager)
-            }
-            .confirmationDialog(
-                "Generate a recovery seedphrase?",
-                isPresented: $viewModel.presentSeedphraseConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Generate") {
-                    Task {
-                        await viewModel.executePendingSeedphraseAction()
-                    }
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("A seedphrase lets you recover your account if you lose access. Store it safely.")
-            }
-            .confirmationDialog(
-                "Remove this sign-in method?",
-                isPresented: $viewModel.presentRemoveAuthConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Remove", role: .destructive) {
-                    Task {
-                        await viewModel.executeRemoveAuth()
-                    }
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                if let authType = viewModel.authTypeToRemove {
-                    Text("Are you sure you want to remove \(authType) as a sign-in method?")
-                }
-            }
-            .sheet(isPresented: $viewModel.presentAddAuthSheet) {
-                AddAuthSheet(api: api)
-                    .environmentObject(themeManager)
-                    .environmentObject(snackbarManager)
-                    .environmentObject(connectWalletProviderViewModel)
-            }
-        
-        return withAuth
+            .overlay(authModifiers)
         #elseif os(macOS)
             SettingsForm_macOS(
                 urApiService: api,
@@ -280,6 +226,15 @@ struct SettingsView: View {
                 )
                 .environmentObject(themeManager)
             }
+            .overlay(authModifiers)
+        
+        #endif
+        
+    }
+    
+    @ViewBuilder
+    private var authModifiers: some View {
+        Color.clear
             .sheet(isPresented: $viewModel.presentSeedphraseSheet) {
                 SeedphraseDisplayView(
                     seedphrase: viewModel.generatedSeedphrase,
@@ -325,9 +280,6 @@ struct SettingsView: View {
                     .environmentObject(snackbarManager)
                     .environmentObject(connectWalletProviderViewModel)
             }
-        
-        #endif
-        
     }
     
     private func handleWalletDeepLink(_ url: URL) {
