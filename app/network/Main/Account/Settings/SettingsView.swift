@@ -50,6 +50,24 @@ struct SettingsView: View {
         self.networkUserViewModel = networkUserViewModel
     }
     
+    #if os(iOS)
+    private var solanaSignMessageSheet: some View {
+        SolanaSignMessageSheet(
+            isSigningMessage: viewModel.isSigningMessage,
+            setIsSigningMessage: viewModel.setIsSigningMessage,
+            signButtonText: "Confirm Seeker Token",
+            signButtonLabelText: "Claim multiplier",
+            message: connectWalletProviderViewModel.claimSeekerTokenMessage,
+            dismiss: {
+                viewModel.presentSigninWithSolanaSheet = false
+            }
+        )
+        .environmentObject(themeManager)
+        .environmentObject(connectWalletProviderViewModel)
+        .presentationDetents([.height(148)])
+    }
+    #endif
+    
     var body: some View {
 
         #if os(iOS)
@@ -113,20 +131,7 @@ struct SettingsView: View {
                 }
             }
             .sheet(isPresented: $viewModel.presentSigninWithSolanaSheet) {
-                
-                SolanaSignMessageSheet(
-                    isSigningMessage: viewModel.isSigningMessage,
-                    setIsSigningMessage: viewModel.setIsSigningMessage,
-                    signButtonText: "Confirm Seeker Token",
-                    signButtonLabelText: "Claim multiplier",
-                    message: connectWalletProviderViewModel.claimSeekerTokenMessage,
-                    dismiss: {
-                        viewModel.presentSigninWithSolanaSheet = false
-                    }
-                )
-                .environmentObject(themeManager)
-                .environmentObject(connectWalletProviderViewModel)
-                .presentationDetents([.height(148)])
+                solanaSignMessageSheet
             }
             .onOpenURL { url in
                 // Route wallet signatures through AddAuthSheet handler if set
