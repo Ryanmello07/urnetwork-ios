@@ -82,14 +82,22 @@ struct SettingsView: View {
             )
             .background(themeManager.currentTheme.backgroundColor)
             
+            SettingsCoreModifiersView(
+                viewModel: viewModel,
+                accountPreferencesViewModel: accountPreferencesViewModel,
+                api: api,
+                clientId: clientId,
+                onSaveDeviceName: { await self.saveDeviceName() },
+                onHandleDeleteResult: { self.handleResult($0) }
+            )
+            .environmentObject(themeManager)
+            .environmentObject(snackbarManager)
+            .environmentObject(connectWalletProviderViewModel)
+            
             SettingsAuthModifiersView(
                 viewModel: viewModel,
                 api: api,
-                accountPreferencesViewModel: accountPreferencesViewModel,
-                clientId: clientId,
-                handleWalletDeepLink: handleWalletDeepLink,
-                onSaveDeviceName: { await self.saveDeviceName() },
-                onHandleDeleteResult: { self.handleResult($0) }
+                handleWalletDeepLink: handleWalletDeepLink
             )
             .environmentObject(themeManager)
             .environmentObject(snackbarManager)
@@ -126,14 +134,22 @@ struct SettingsView: View {
                 viewModel: viewModel
             )
             
+            SettingsCoreModifiersView(
+                viewModel: viewModel,
+                accountPreferencesViewModel: accountPreferencesViewModel,
+                api: api,
+                clientId: clientId,
+                onSaveDeviceName: { await self.saveDeviceName() },
+                onHandleDeleteResult: { self.handleResult($0) }
+            )
+            .environmentObject(themeManager)
+            .environmentObject(snackbarManager)
+            .environmentObject(connectWalletProviderViewModel)
+            
             SettingsAuthModifiersView(
                 viewModel: viewModel,
                 api: api,
-                accountPreferencesViewModel: accountPreferencesViewModel,
-                clientId: clientId,
-                handleWalletDeepLink: handleWalletDeepLink,
-                onSaveDeviceName: { await self.saveDeviceName() },
-                onHandleDeleteResult: { self.handleResult($0) }
+                handleWalletDeepLink: handleWalletDeepLink
             )
             .environmentObject(themeManager)
             .environmentObject(snackbarManager)
