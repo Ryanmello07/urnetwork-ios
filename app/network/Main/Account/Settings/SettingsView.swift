@@ -51,7 +51,8 @@ struct SettingsView: View {
     }
     
     #if os(iOS)
-    private var solanaSignMessageSheet: some View {
+    @ViewBuilder
+    private func solanaSignMessageSheet() -> some View {
         SolanaSignMessageSheet(
             isSigningMessage: viewModel.isSigningMessage,
             setIsSigningMessage: viewModel.setIsSigningMessage,
@@ -131,7 +132,7 @@ struct SettingsView: View {
                 }
             }
             .sheet(isPresented: $viewModel.presentSigninWithSolanaSheet) {
-                solanaSignMessageSheet
+                solanaSignMessageSheet()
             }
             .onOpenURL { url in
                 // Route wallet signatures through AddAuthSheet handler if set
