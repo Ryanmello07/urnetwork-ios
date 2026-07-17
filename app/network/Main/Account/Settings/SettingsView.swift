@@ -193,7 +193,7 @@ struct SettingsView: View {
                         snackbarManager.showSnackbar(message: newValue)
                         accountPreferencesViewModel.clearSaveErrorMessage()
                     }
-                )
+                }
             )
         #elseif os(macOS)
             SettingsForm_macOS(
