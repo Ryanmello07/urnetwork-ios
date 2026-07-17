@@ -8,8 +8,8 @@ import URnetworkSdk
 
 #if os(iOS)
 import AuthenticationServices
-import GoogleSignIn
 #endif
+import GoogleSignIn
 
 struct AddAuthSheet: View {
 
@@ -204,6 +204,7 @@ struct AddAuthSheet: View {
     
     // MARK: - Actions
     
+    #if os(iOS)
     private func handleAppleResult(_ result: Result<ASAuthorization, any Error>) async {
         isAdding = true
         addError = nil
