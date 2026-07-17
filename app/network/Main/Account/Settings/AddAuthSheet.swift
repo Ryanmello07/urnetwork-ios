@@ -6,12 +6,6 @@
 import SwiftUI
 import URnetworkSdk
 
-#if os(iOS)
-import GoogleSignInSwift
-import GoogleSignIn
-import AuthenticationServices
-#endif
-
 struct AddAuthSheet: View {
 
     @EnvironmentObject var themeManager: ThemeManager
@@ -139,22 +133,9 @@ struct AddAuthSheet: View {
                 .font(themeManager.currentTheme.secondaryBodyFont)
                 .foregroundColor(themeManager.currentTheme.textMutedColor)
             
-            #if os(iOS)
-            SignInWithAppleButton(.signIn) { request in
-                request.requestedScopes = [.email]
-            } onCompletion: { result in
-                Task {
-                    await handleAppleResult(result)
-                }
-            }
-            .signInWithAppleButtonStyle(.white)
-            .frame(height: 50)
-            .cornerRadius(8)
-            #else
-            Text("Apple Sign-In is available on iOS.")
+            Text("Apple Sign-In is available from the authentication flow.")
                 .font(themeManager.currentTheme.secondaryBodyFont)
                 .foregroundColor(themeManager.currentTheme.textMutedColor)
-            #endif
         }
     }
     
@@ -166,16 +147,9 @@ struct AddAuthSheet: View {
                 .font(themeManager.currentTheme.secondaryBodyFont)
                 .foregroundColor(themeManager.currentTheme.textMutedColor)
             
-            #if os(iOS)
-            UrGoogleSignInButton(
-                handleAppleLoginResult: { _ in },
-                handleGoogleSignInButton: {
-                    // The GoogleSignIn button uses GoogleSignIn SDK directly
-                    // via the view controller. We trigger from the parent.
-                }
-            )
-            .frame(height: 50)
-            #endif
+            Text("Google Sign-In is available from the authentication flow.")
+                .font(themeManager.currentTheme.secondaryBodyFont)
+                .foregroundColor(themeManager.currentTheme.textMutedColor)
         }
     }
     
