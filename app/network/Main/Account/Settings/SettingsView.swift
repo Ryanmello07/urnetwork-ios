@@ -53,6 +53,8 @@ struct SettingsView: View {
     var body: some View {
         
         #if os(iOS)
+        ZStack {
+            authModifiers
             SettingsForm_iOS(
                 urApiService: api,
                 clientId: clientId,
@@ -128,9 +130,6 @@ struct SettingsView: View {
                 .environmentObject(connectWalletProviderViewModel)
                 .presentationDetents([.height(148)])
             }
-            .onOpenURL { url in
-                handleWalletDeepLink(url)
-            }
             .sheet(isPresented: $viewModel.presentUpdateReferralNetworkSheet) {
                 UpdateReferralNetworkSheet(
                     api: api,
@@ -149,7 +148,7 @@ struct SettingsView: View {
                 .presentationDetents([.height(268)])
                 .presentationDragIndicator(.visible)
             }
-            .overlay(authModifiers)
+        }
         #elseif os(macOS)
             SettingsForm_macOS(
                 urApiService: api,
@@ -226,7 +225,6 @@ struct SettingsView: View {
                 )
                 .environmentObject(themeManager)
             }
-            .overlay(authModifiers)
         
         #endif
         
@@ -279,6 +277,9 @@ struct SettingsView: View {
                     .environmentObject(themeManager)
                     .environmentObject(snackbarManager)
                     .environmentObject(connectWalletProviderViewModel)
+            }
+            .onOpenURL { url in
+                handleWalletDeepLink(url)
             }
     }
     
