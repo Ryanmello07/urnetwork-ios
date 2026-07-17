@@ -50,39 +50,46 @@ struct SettingsView: View {
         self.networkUserViewModel = networkUserViewModel
     }
     
+    #if os(iOS)
+    @ViewBuilder
+    private var settingsForm: some View {
+        SettingsForm_iOS(
+            urApiService: api,
+            clientId: clientId,
+            referralCode: referralLinkViewModel.referralCode,
+            totalReferrals: referralLinkViewModel.totalReferrals,
+            referralNetworkName: viewModel.referralNetwork?.name,
+            version: viewModel.version,
+            isUpdatingAccountPreferences: accountPreferencesViewModel.isUpdatingAccountPreferences,
+            copyToPasteboard: copyToPasteboard,
+            presentUpdateReferralNetworkSheet: {
+                viewModel.presentUpdateReferralNetworkSheet = true
+            },
+            presentDeleteAccountConfirmation: {
+                viewModel.isPresentedDeleteAccountConfirmation = true
+            },
+            navigate: navigate,
+            provideEnabled: deviceManager.provideEnabled,
+            providePaused: deviceManager.providePaused,
+            deviceName: viewModel.deviceName,
+            deviceSpec: viewModel.deviceSpec,
+            presentRenameDevice: viewModel.presentRenameDevice,
+            canReceiveNotifications: $viewModel.canReceiveNotifications,
+            canReceiveProductUpdates: $accountPreferencesViewModel.canReceiveProductUpdates,
+            networkUserViewModel: networkUserViewModel,
+            viewModel: viewModel,
+        )
+        .background(themeManager.currentTheme.backgroundColor)
+    }
+    #endif
+    
     var body: some View {
-
+        
         #if os(iOS)
-            SettingsForm_iOS(
-                urApiService: api,
-                clientId: clientId,
-                referralCode: referralLinkViewModel.referralCode,
-                totalReferrals: referralLinkViewModel.totalReferrals,
-                referralNetworkName: viewModel.referralNetwork?.name,
-                version: viewModel.version,
-                isUpdatingAccountPreferences: accountPreferencesViewModel.isUpdatingAccountPreferences,
-                copyToPasteboard: copyToPasteboard,
-                presentUpdateReferralNetworkSheet: {
-                    viewModel.presentUpdateReferralNetworkSheet = true
-                },
-                presentDeleteAccountConfirmation: {
-                    viewModel.isPresentedDeleteAccountConfirmation = true
-                },
-                navigate: navigate,
-                provideEnabled: deviceManager.provideEnabled,
-                providePaused: deviceManager.providePaused,
-                deviceName: viewModel.deviceName,
-                deviceSpec: viewModel.deviceSpec,
-                presentRenameDevice: viewModel.presentRenameDevice,
-                canReceiveNotifications: $viewModel.canReceiveNotifications,
-                canReceiveProductUpdates: $accountPreferencesViewModel.canReceiveProductUpdates,
-                networkUserViewModel: networkUserViewModel,
-                viewModel: viewModel,
-            )
-            .background(themeManager.currentTheme.backgroundColor)
-            .task {
-                await viewModel.fetchDeviceInfo(clientId)
-            }
+            settingsForm
+                .task {
+                    await viewModel.fetchDeviceInfo(clientId)
+                }
             .alert("Device name", isPresented: $viewModel.isPresentedRenameDevice) {
                 TextField("Device name", text: $viewModel.editingDeviceName)
                 Button("Save") {
