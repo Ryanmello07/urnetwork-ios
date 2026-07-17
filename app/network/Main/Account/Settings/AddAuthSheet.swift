@@ -8,6 +8,7 @@ import URnetworkSdk
 
 #if os(iOS)
 import AuthenticationServices
+import GoogleSignIn
 #endif
 
 struct AddAuthSheet: View {
@@ -279,20 +280,14 @@ struct AddAuthSheet: View {
         isAdding = true
         addError = nil
         
-        // Use the existing wallet provider to get a challenge and prompt signing
-        guard let rootViewController = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .first?.keyWindow?
-            .rootViewController else {
-            addError = "Could not get root view controller"
-            isAdding = false
-            return
-        }
-        
+        #if os(iOS)
         // For wallet auth linking, the user needs to sign a challenge message
         // The existing flow in LoginInitialView uses deep links with phantom/solflare
-        // For now, guide users to use the Settings → Wallet connection flow
+        // For now, guide users to use the main wallet connection flow
         addError = "Please connect your wallet from the main authentication flow, then add it as a sign-in method here."
+        #else
+        addError = "Wallet sign-in is available on iOS."
+        #endif
         isAdding = false
     }
     
