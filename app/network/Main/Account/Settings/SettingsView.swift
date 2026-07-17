@@ -50,25 +50,6 @@ struct SettingsView: View {
         self.networkUserViewModel = networkUserViewModel
     }
     
-    #if os(iOS)
-    @ViewBuilder
-    private func solanaSignMessageSheet() -> some View {
-        SolanaSignMessageSheet(
-            isSigningMessage: viewModel.isSigningMessage,
-            setIsSigningMessage: viewModel.setIsSigningMessage,
-            signButtonText: "Confirm Seeker Token",
-            signButtonLabelText: "Claim multiplier",
-            message: connectWalletProviderViewModel.claimSeekerTokenMessage,
-            dismiss: {
-                viewModel.presentSigninWithSolanaSheet = false
-            }
-        )
-        .environmentObject(themeManager)
-        .environmentObject(connectWalletProviderViewModel)
-        .presentationDetents([.height(148)])
-    }
-    #endif
-    
     var body: some View {
 
         #if os(iOS)
@@ -132,27 +113,23 @@ struct SettingsView: View {
                 }
             }
             .sheet(isPresented: $viewModel.presentSigninWithSolanaSheet) {
-                solanaSignMessageSheet()
+                
+                SolanaSignMessageSheet(
+                    isSigningMessage: viewModel.isSigningMessage,
+                    setIsSigningMessage: viewModel.setIsSigningMessage,
+                    signButtonText: "Confirm Seeker Token",
+                    signButtonLabelText: "Claim multiplier",
+                    message: connectWalletProviderViewModel.claimSeekerTokenMessage,
+                    dismiss: {
+                        viewModel.presentSigninWithSolanaSheet = false
+                    }
+                )
+                .environmentObject(themeManager)
+                .environmentObject(connectWalletProviderViewModel)
+                .presentationDetents([.height(148)])
             }
             .onOpenURL { url in
-                // Route wallet signatures through AddAuthSheet handler if set
-                if connectWalletProviderViewModel.pendingAddAuthSignatureHandler != nil,
-                   let pk = connectWalletProviderViewModel.connectedPublicKey {
-                    connectWalletProviderViewModel.handleDeepLink(
-                        url,
-                        onSignature: { signature in
-                            if let handler = connectWalletProviderViewModel.pendingAddAuthSignatureHandler {
-                                Task {
-                                    await handler(pk, signature)
-                                }
-                            }
-                        },
-                        onError: { _ in }
-                    )
-                } else {
-                    // Forward to the default handler for multiplier claim
-                    connectWalletProviderViewModel.handleDeepLink(url)
-                }
+                self.handleWalletDeepLink(url)
             }
             .sheet(isPresented: $viewModel.presentUpdateReferralNetworkSheet) {
                 UpdateReferralNetworkSheet(
@@ -342,6 +319,26 @@ struct SettingsView: View {
         
         #endif
         
+    }
+    
+    private func handleWalletDeepLink(_ url: URL) {
+        let vm = connectWalletProviderViewModel
+        if vm.pendingAddAuthSignatureHandler != nil,
+           let pk = vm.connectedPublicKey {
+            vm.handleDeepLink(
+                url,
+                onSignature: { signature in
+                    if let handler = vm.pendingAddAuthSignatureHandler {
+                        Task {
+                            await handler(pk, signature)
+                        }
+                    }
+                },
+                onError: { _ in }
+            )
+        } else {
+            vm.handleDeepLink(url)
+        }
     }
     
     private func saveDeviceName() async {
