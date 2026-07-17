@@ -51,38 +51,26 @@ struct SettingsView: View {
     }
     
     var body: some View {
-        if useZStack {
-            ZStack {
-                authModifiers
-                settingsForm
-                    .background(themeManager.currentTheme.backgroundColor)
-                    .task {
-                        await viewModel.fetchDeviceInfo(clientId)
-                    }
-                    .alert("Device name", isPresented: $viewModel.isPresentedRenameDevice) {
-                        TextField("Device name", text: $viewModel.editingDeviceName)
-                        Button("Save") {
-                            Task {
-                                await saveDeviceName()
-                            }
-                        }
-                        Button("Cancel", role: .cancel) {}
-                    }
-                    .onChange(of: accountPreferencesViewModel.saveErrorMessage) { newValue in
-                        if let newValue {
-                            snackbarManager.showSnackbar(message: newValue)
-                            accountPreferencesViewModel.clearSaveErrorMessage()
-                        }
-                    }
-            }
+        #if os(iOS)
+        ZStack {
+            baseFormView
+            coreSheetsView
+            authSheetsView
         }
+        .onOpenURL { url in
+            handleWalletDeepLink(url)
+        }
+        #elseif os(macOS)
+        ZStack {
+            macFormView
+            macAuthSheetsView
+        }
+        #endif
     }
-    
-    private let useZStack = true
     
     #if os(iOS)
     @ViewBuilder
-    private var settingsForm: some View {
+    private var baseFormView: some View {
         SettingsForm_iOS(
             urApiService: api,
             clientId: clientId,
@@ -109,28 +97,44 @@ struct SettingsView: View {
             networkUserViewModel: networkUserViewModel,
             viewModel: viewModel,
         )
+        .background(themeManager.currentTheme.backgroundColor)
+        .task {
+            await viewModel.fetchDeviceInfo(clientId)
+        }
+        .alert("Device name", isPresented: $viewModel.isPresentedRenameDevice) {
+            TextField("Device name", text: $viewModel.editingDeviceName)
+            Button("Save") {
+                Task {
+                    await saveDeviceName()
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .onChange(of: accountPreferencesViewModel.saveErrorMessage) { newValue in
+            if let newValue {
+                snackbarManager.showSnackbar(message: newValue)
+                accountPreferencesViewModel.clearSaveErrorMessage()
+            }
+        }
+        .confirmationDialog(
+            "Are you sure you want to delete your account?",
+            isPresented: $viewModel.isPresentedDeleteAccountConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete account", role: .destructive) {
+                Task {
+                    let result = await viewModel.deleteAccount()
+                    self.handleResult(result)
+                }
+            }
+        }
     }
     
     @ViewBuilder
-    private var authModifiers: some View {
+    private var coreSheetsView: some View {
         Color.clear
             .frame(width: 0, height: 0)
-            .confirmationDialog(
-                "Are you sure you want to delete your account?",
-                isPresented: $viewModel.isPresentedDeleteAccountConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Delete account", role: .destructive) {
-                    
-                    Task {
-                        let result = await viewModel.deleteAccount()
-                        self.handleResult(result)
-                    }
-                    
-                }
-            }
             .sheet(isPresented: $viewModel.presentSigninWithSolanaSheet) {
-                
                 SolanaSignMessageSheet(
                     isSigningMessage: viewModel.isSigningMessage,
                     setIsSigningMessage: viewModel.setIsSigningMessage,
@@ -143,7 +147,6 @@ struct SettingsView: View {
                 )
                 .environmentObject(themeManager)
                 .environmentObject(connectWalletProviderViewModel)
-                .presentationDetents([.height(148)])
             }
             .sheet(isPresented: $viewModel.presentUpdateReferralNetworkSheet) {
                 UpdateReferralNetworkSheet(
@@ -160,9 +163,13 @@ struct SettingsView: View {
                     referralNetwork: viewModel.referralNetwork
                 )
                 .environmentObject(themeManager)
-                .presentationDetents([.height(268)])
-                .presentationDragIndicator(.visible)
             }
+    }
+    
+    @ViewBuilder
+    private var authSheetsView: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
             .sheet(isPresented: $viewModel.presentSeedphraseSheet) {
                 SeedphraseDisplayView(
                     seedphrase: viewModel.generatedSeedphrase,
@@ -208,15 +215,12 @@ struct SettingsView: View {
                     .environmentObject(snackbarManager)
                     .environmentObject(connectWalletProviderViewModel)
             }
-            .onOpenURL { url in
-                handleWalletDeepLink(url)
-            }
     }
     #endif
     
     #if os(macOS)
     @ViewBuilder
-    private var settingsForm: some View {
+    private var macFormView: some View {
         SettingsForm_macOS(
             urApiService: api,
             clientId: clientId,
@@ -295,7 +299,7 @@ struct SettingsView: View {
     }
     
     @ViewBuilder
-    private var macAuthModifiers: some View {
+    private var macAuthSheetsView: some View {
         Color.clear
             .frame(width: 0, height: 0)
             .sheet(isPresented: $viewModel.presentSeedphraseSheet) {
