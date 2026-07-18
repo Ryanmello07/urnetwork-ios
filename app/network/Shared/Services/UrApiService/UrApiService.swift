@@ -465,6 +465,11 @@ extension UrApiService {
                     return
                 }
 
+                if result.verificationRequired != nil {
+                    continuation.resume(throwing: NSError(domain: "UrApiService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Verification required for instant account creation"]))
+                    return
+                }
+
                 guard !result.seedphrase.isEmpty else {
                     continuation.resume(throwing: NSError(domain: "UrApiService", code: -1, userInfo: [NSLocalizedDescriptionKey: "No seedphrase in result"]))
                     return
