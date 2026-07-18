@@ -36,7 +36,7 @@ extension LoginSeedphraseView {
         }
 
         var isSeedphraseValid: Bool {
-            !seedphrase.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            wordCount == 12 || wordCount == 24
         }
 
         var normalizedSeedphrase: String {
@@ -73,10 +73,9 @@ extension LoginSeedphraseView {
             }
 
             guard isSeedphraseValid else {
-                return .failure(NSError(domain: domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "Seedphrase is empty"]))
+                return .failure(NSError(domain: domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "Seedphrase should be 12 or 24 words"]))
             }
 
-            // Warn but don't block on word count — server handles validation
             validateWordCount()
 
             isLoggingIn = true
