@@ -319,14 +319,14 @@ extension SettingsView {
                 self.isGeneratingSeedphrase = false
                 self.presentSeedphraseConfirmation = false
                 self.presentSeedphraseSheet = true
+                // Refresh user data to get updated auth_types
+                Task { [weak self] in
+                    _ = await self?.networkUserViewModel?.refreshNetworkUser()
+                }
             } catch(let error) {
                 self.isGeneratingSeedphrase = false
                 self.presentSeedphraseConfirmation = false
                 self.seedphraseError = error.localizedDescription
-            }
-            // Refresh user data to get updated auth_types
-            Task { [weak self] in
-                _ = await self?.networkUserViewModel?.refreshNetworkUser()
             }
         }
         
@@ -340,14 +340,14 @@ extension SettingsView {
                 self.isRegeneratingSeedphrase = false
                 self.presentSeedphraseConfirmation = false
                 self.presentSeedphraseSheet = true
+                // Refresh user data to get updated auth_types
+                Task { [weak self] in
+                    _ = await self?.networkUserViewModel?.refreshNetworkUser()
+                }
             } catch(let error) {
                 self.isRegeneratingSeedphrase = false
                 self.presentSeedphraseConfirmation = false
                 self.seedphraseError = error.localizedDescription
-            }
-            // Refresh user data to get updated auth_types
-            Task { [weak self] in
-                _ = await self?.networkUserViewModel?.refreshNetworkUser()
             }
         }
         
@@ -381,13 +381,13 @@ extension SettingsView {
                 self.isRemovingAuth = false
                 self.presentRemoveAuthConfirmation = false
                 self.authTypeToRemove = nil
+                // Refresh user data to get updated auth_types
+                Task { [weak self] in
+                    _ = await self?.networkUserViewModel?.refreshNetworkUser()
+                }
             } catch(let error) {
                 self.isRemovingAuth = false
                 self.removeAuthError = error.localizedDescription
-            }
-            // Refresh user data to get updated auth_types
-            Task { [weak self] in
-                _ = await self?.networkUserViewModel?.refreshNetworkUser()
             }
         }
         
