@@ -184,7 +184,7 @@ struct SettingsForm_macOS: View {
                     VStack(alignment: .leading) {
                         if let networkUser = networkUserViewModel?.networkUser {
                             let hasSeedphrase: Bool = {
-                                let authTypes = networkUser.authTypes
+                                guard let authTypes = networkUser.authTypes else { return false }
                                 for i in 0..<authTypes.len() {
                                     if authTypes.get(i) == "seedphrase" { return true }
                                 }

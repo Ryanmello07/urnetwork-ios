@@ -447,7 +447,8 @@ struct SettingsForm_iOS: View {
     
     // MARK: - Helpers
     
-    private func authTypesContains(_ authTypes: SdkStringList, _ method: String) -> Bool {
+    private func authTypesContains(_ authTypes: SdkStringList?, _ method: String) -> Bool {
+        guard let authTypes else { return false }
         for i in 0..<authTypes.len() {
             if authTypes.get(i) == method {
                 return true
@@ -455,13 +456,12 @@ struct SettingsForm_iOS: View {
         }
         return false
     }
-    
+
     private func parseAuthMethods(_ networkUser: SdkNetworkUser) -> [String] {
         var methods: [String] = []
-        
+
         // Read from the new auth_types array returned by GET /network/user
-        let authTypes = networkUser.authTypes
-        if authTypes.len() > 0 {
+        if let authTypes = networkUser.authTypes, authTypes.len() > 0 {
             for i in 0..<authTypes.len() {
                 let method = authTypes.get(i)
                 if !method.isEmpty {
