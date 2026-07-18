@@ -109,6 +109,7 @@ struct AccountNavStackView: View {
                         needsNameClaim: {
                             guard let networkUser = networkUserViewModel.networkUser else { return false }
                             let hasIdentityMethod = authTypesContains(networkUser.authTypes, "email")
+                                || authTypesContains(networkUser.authTypes, "phone")
                                 || authTypesContains(networkUser.authTypes, "google")
                                 || authTypesContains(networkUser.authTypes, "apple")
                             return !hasIdentityMethod
