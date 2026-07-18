@@ -39,7 +39,7 @@ struct SettingsView: View {
         providerCountries: [SdkConnectLocation],
         networkUserViewModel: NetworkUserViewModel? = nil
     ) {
-        _viewModel = StateObject(wrappedValue: ViewModel(api: api))
+        _viewModel = StateObject(wrappedValue: ViewModel(api: api, networkUserViewModel: networkUserViewModel))
         self.clientId = clientId
         self.accountPreferencesViewModel = accountPreferencesViewModel
         self.referralLinkViewModel = referralLinkViewModel

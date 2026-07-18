@@ -31,8 +31,11 @@ extension SettingsView {
         
         @Published var version: String = ""
         
-        init(api: UrApiServiceProtocol) {
+        var networkUserViewModel: NetworkUserViewModel?
+        
+        init(api: UrApiServiceProtocol, networkUserViewModel: NetworkUserViewModel? = nil) {
             self.api = api
+            self.networkUserViewModel = networkUserViewModel
             
             #if os(macOS)
             self.launchAtStartupEnabled = SMAppService.mainApp.status == .enabled
@@ -321,6 +324,10 @@ extension SettingsView {
                 self.presentSeedphraseConfirmation = false
                 self.seedphraseError = error.localizedDescription
             }
+            // Refresh user data to get updated auth_types
+            Task { [weak self] in
+                _ = await self?.networkUserViewModel?.refreshNetworkUser()
+            }
         }
         
         func executeRegenerateSeedphrase() async {
@@ -333,11 +340,14 @@ extension SettingsView {
                 self.isRegeneratingSeedphrase = false
                 self.presentSeedphraseConfirmation = false
                 self.presentSeedphraseSheet = true
-                self.hasSeedphraseLocally = true
             } catch(let error) {
                 self.isRegeneratingSeedphrase = false
                 self.presentSeedphraseConfirmation = false
                 self.seedphraseError = error.localizedDescription
+            }
+            // Refresh user data to get updated auth_types
+            Task { [weak self] in
+                _ = await self?.networkUserViewModel?.refreshNetworkUser()
             }
         }
         
@@ -374,6 +384,10 @@ extension SettingsView {
             } catch(let error) {
                 self.isRemovingAuth = false
                 self.removeAuthError = error.localizedDescription
+            }
+            // Refresh user data to get updated auth_types
+            Task { [weak self] in
+                _ = await self?.networkUserViewModel?.refreshNetworkUser()
             }
         }
         
