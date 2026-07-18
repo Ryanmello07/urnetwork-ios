@@ -189,7 +189,7 @@ struct SettingsView: View {
                 }
             }
             .sheet(isPresented: $viewModel.presentAddAuthSheet) {
-                AddAuthSheet(api: api)
+                AddAuthSheet(api: api, networkUserViewModel: networkUserViewModel)
                     .environmentObject(themeManager)
                     .environmentObject(snackbarManager)
                     .environmentObject(connectWalletProviderViewModel)
@@ -311,7 +311,7 @@ struct SettingsView: View {
                 }
             }
             .sheet(isPresented: $viewModel.presentAddAuthSheet) {
-                AddAuthSheet(api: api)
+                AddAuthSheet(api: api, networkUserViewModel: networkUserViewModel)
                     .environmentObject(themeManager)
                     .environmentObject(snackbarManager)
                     .environmentObject(connectWalletProviderViewModel)

@@ -15,12 +15,14 @@ struct AddAuthSheet: View {
     @EnvironmentObject var connectWalletProviderViewModel: ConnectWalletProviderViewModel
     
     let api: UrApiServiceProtocol
-    
+    let networkUserViewModel: NetworkUserViewModel?
+
     @State private var email: String = ""
     @State private var password: String = ""
     @State private var isAdding: Bool = false
     @State private var selectedMethod: String = "email"
     @State private var addError: String?
+    @State private var walletConnectionTask: Task<Void, Never>?
     
     var body: some View {
         NavigationStack {
@@ -90,6 +92,12 @@ struct AddAuthSheet: View {
                         dismiss()
                     }
                 }
+            }
+            .onDisappear {
+                walletConnectionTask?.cancel()
+                walletConnectionTask = nil
+                connectWalletProviderViewModel.pendingAddAuthSignatureHandler = nil
+                connectWalletProviderViewModel.pendingWalletAuthMessage = nil
             }
         }
     }
@@ -176,7 +184,7 @@ struct AddAuthSheet: View {
             case .disconnected:
                 HStack(spacing: 12) {
                     Button(action: {
-                        Task {
+                        walletConnectionTask = Task {
                             await connectWallet(.phantom)
                         }
                     }) {
@@ -197,7 +205,7 @@ struct AddAuthSheet: View {
                     .disabled(isAdding || walletStep == .connecting)
                     
                     Button(action: {
-                        Task {
+                        walletConnectionTask = Task {
                             await connectWallet(.solflare)
                         }
                     }) {
@@ -319,12 +327,14 @@ struct AddAuthSheet: View {
     private func pollForWalletConnection() async {
         // Poll for up to 60 seconds for the wallet to connect back
         for _ in 0..<60 {
+            if Task.isCancelled { return }
             if let pk = connectWalletProviderViewModel.connectedPublicKey {
                 walletStep = .connected(pk)
                 isAdding = false
                 return
             }
             try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+            if Task.isCancelled { return }
         }
         addError = "Wallet connection timed out. Please try again."
         isAdding = false
@@ -379,6 +389,7 @@ struct AddAuthSheet: View {
             walletStep = .disconnected
             connectWalletProviderViewModel.pendingAddAuthSignatureHandler = nil
             connectWalletProviderViewModel.pendingWalletAuthMessage = nil
+            _ = await networkUserViewModel?.refreshNetworkUser()
             snackbarManager.showSnackbar(message: String(localized: "Wallet sign-in method added"))
             dismiss()
         } catch(let error) {
@@ -436,6 +447,7 @@ struct AddAuthSheet: View {
             
             let _ = try await api.addAuth(args)
             isAdding = false
+            _ = await networkUserViewModel?.refreshNetworkUser()
             snackbarManager.showSnackbar(message: String(localized: "Apple sign-in method added"))
             dismiss()
         } catch(let error) {
@@ -480,27 +492,13 @@ struct AddAuthSheet: View {
             
             let _ = try await api.addAuth(args)
             isAdding = false
+            _ = await networkUserViewModel?.refreshNetworkUser()
             snackbarManager.showSnackbar(message: String(localized: "Google sign-in method added"))
             dismiss()
         } catch(let error) {
             isAdding = false
             addError = error.localizedDescription
         }
-    }
-    
-    private func handleWalletAuth() async {
-        isAdding = true
-        addError = nil
-        
-        #if os(iOS)
-        // For wallet auth linking, the user needs to sign a challenge message
-        // The existing flow in LoginInitialView uses deep links with phantom/solflare
-        // For now, guide users to use the main wallet connection flow
-        addError = "Please connect your wallet from the main authentication flow, then add it as a sign-in method here."
-        #else
-        addError = "Wallet sign-in is available on iOS."
-        #endif
-        isAdding = false
     }
     
     private func addAuth() async {
@@ -524,6 +522,7 @@ struct AddAuthSheet: View {
             
             let _ = try await api.addAuth(args)
             isAdding = false
+            _ = await networkUserViewModel?.refreshNetworkUser()
             snackbarManager.showSnackbar(message: String(localized: "Sign-in method added successfully"))
             dismiss()
         } catch(let error) {
