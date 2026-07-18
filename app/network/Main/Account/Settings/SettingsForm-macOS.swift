@@ -183,13 +183,7 @@ struct SettingsForm_macOS: View {
                     
                     VStack(alignment: .leading) {
                         if let networkUser = networkUserViewModel?.networkUser {
-                            let hasSeedphrase: Bool = {
-                                guard let authTypes = networkUser.authTypes else { return false }
-                                for i in 0..<authTypes.len() {
-                                    if authTypes.get(i) == "seedphrase" { return true }
-                                }
-                                return false
-                            }()
+                            let hasSeedphrase = authTypesContains(networkUser.authTypes, "seedphrase")
                             if hasSeedphrase {
                             HStack {
                                 Button(action: {
@@ -243,28 +237,24 @@ struct SettingsForm_macOS: View {
                     
                     VStack(alignment: .leading) {
                         if let networkUser = networkUserViewModel?.networkUser {
-                            let hasEmail = !(networkUser.userAuth ?? "").isEmpty
-                            
-                            if hasEmail {
+                            let authMethods = parseAuthMethods(networkUser)
+
+                            ForEach(authMethods, id: \.self) { method in
                                 HStack {
-                                    Text("Email")
+                                    Text(methodDisplayName(method))
                                         .font(themeManager.currentTheme.bodyFont)
                                     Spacer()
-                                    Text(networkUser.userAuth ?? "")
-                                        .font(themeManager.currentTheme.secondaryBodyFont)
-                                        .foregroundColor(themeManager.currentTheme.textMutedColor)
+                                    Button(role: .destructive) {
+                                        viewModel.presentRemoveAuth(method)
+                                    } label: {
+                                        Text("Remove")
+                                    }
                                 }
                                 Spacer().frame(height: 8)
                             }
-                            
-                            HStack {
-                                Text(methodDisplayName(networkUser.authType))
-                                    .font(themeManager.currentTheme.bodyFont)
-                                Spacer()
-                            }
-                            
-                            Spacer().frame(height: 12)
-                            
+
+                            Spacer().frame(height: 4)
+
                             Button(action: {
                                 viewModel.presentAddAuthSheet = true
                             }) {
@@ -632,18 +622,6 @@ struct SettingsForm_macOS: View {
         }
     }
     
-    // MARK: - Helpers
-    
-    private func methodDisplayName(_ method: String) -> String {
-        switch method {
-        case "email": return "Email"
-        case "google": return "Google"
-        case "apple": return "Apple"
-        case "solana": return "Solana Wallet"
-        case "seedphrase": return "Seedphrase"
-        default: return method.capitalized
-        }
-    }
 }
 #endif
 
