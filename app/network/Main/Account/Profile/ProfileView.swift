@@ -18,16 +18,20 @@ struct ProfileView: View {
     var back: () -> Void
     var networkName: String?
     var userAuth: String?
-    var authType: String?
-    
-    init(api: SdkApi, back: @escaping () -> Void, networkName: String?, userAuth: String?, authType: String? = nil) {
+    /// True when the account has no verified identity method (email/Google/Apple)
+    /// bound yet, so it's still on its auto-generated name and needs the
+    /// claim-name flow (no reclaim cooldown on the old name) rather than
+    /// change-name (which applies a 24h cooldown to protect the old name).
+    var needsNameClaim: Bool
+
+    init(api: SdkApi, back: @escaping () -> Void, networkName: String?, userAuth: String?, needsNameClaim: Bool = false) {
         _viewModel = StateObject.init(wrappedValue: ViewModel(
             api: api
         ))
         self.back = back
         self.userAuth = userAuth
         self.networkName = networkName
-        self.authType = authType
+        self.needsNameClaim = needsNameClaim
     }
     
     var body: some View {
@@ -67,7 +71,7 @@ struct ProfileView: View {
                         text: "Save",
                         action: {
                             Task {
-                                if authType == "seedphrase" {
+                                if needsNameClaim {
                                     let result = await viewModel.claimNetworkName()
                                     handleNetworkNameResult(result)
                                 } else {
@@ -104,7 +108,7 @@ struct ProfileView: View {
                 }
                 
                 HStack {
-                    if authType == "seedphrase" {
+                    if needsNameClaim {
                         Text("Claim a custom network name to replace your auto-generated one")
                             .font(themeManager.currentTheme.secondaryBodyFont)
                             .foregroundColor(themeManager.currentTheme.textMutedColor)

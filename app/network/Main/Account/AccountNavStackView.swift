@@ -106,7 +106,13 @@ struct AccountNavStackView: View {
                         back: viewModel.back,
                         networkName: networkName,
                         userAuth: networkUserViewModel.networkUser?.userAuth,
-                        authType: networkUserViewModel.networkUser?.authType
+                        needsNameClaim: {
+                            guard let networkUser = networkUserViewModel.networkUser else { return false }
+                            let hasIdentityMethod = authTypesContains(networkUser.authTypes, "email")
+                                || authTypesContains(networkUser.authTypes, "google")
+                                || authTypesContains(networkUser.authTypes, "apple")
+                            return !hasIdentityMethod
+                        }()
                     )
                     .background(themeManager.currentTheme.backgroundColor)
                     .navigationTitle("Profile")
