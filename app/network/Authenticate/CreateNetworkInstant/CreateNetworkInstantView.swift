@@ -113,6 +113,20 @@ struct CreateNetworkInstantView: View {
             )
             .environmentObject(themeManager)
         }
+        #elseif os(macOS)
+        .sheet(item: $accountResult) { result in
+            SeedphraseDisplayView(
+                seedphrase: result.seedphrase,
+                onConfirmed: { _ in
+                    accountResult = nil
+                    Task {
+                        await handleSuccess(result.jwt)
+                    }
+                }
+            )
+            .environmentObject(themeManager)
+            .interactiveDismissDisabled(true)
+        }
         #endif
     }
 
