@@ -1063,9 +1063,10 @@ private struct SSOButtons: View {
             .cornerRadius(6)
             .buttonStyle(.plain)
             .disabled(isLoginActionInFlight)
+            .opacity(isLoginActionInFlight ? 0.3 : 1)
 
             Spacer().frame(width: 8)
-            
+
             // Instant create account button (macOS)
             Button(action: presentCreateInstant) {
                 HStack {
@@ -1086,6 +1087,7 @@ private struct SSOButtons: View {
             .cornerRadius(6)
             .buttonStyle(.plain)
             .disabled(isLoginActionInFlight)
+            .opacity(isLoginActionInFlight ? 0.3 : 1)
         }
         
     }
