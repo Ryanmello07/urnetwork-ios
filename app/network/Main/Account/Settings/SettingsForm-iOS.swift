@@ -142,20 +142,37 @@ struct SettingsForm_iOS: View {
 
             Section("Seedphrase") {
                 VStack(alignment: .leading, spacing: 8) {
-                    if viewModel.hasSeedphraseLocally || hasSeedphrase(networkUserViewModel?.networkUser) {
-                        Button(action: {
-                            viewModel.confirmRegenerateSeedphrase()
-                        }) {
-                            HStack {
-                                Text("Regenerate Seedphrase")
-                                    .font(themeManager.currentTheme.bodyFont)
-                                Spacer()
-                                if viewModel.isRegeneratingSeedphrase {
-                                    ProgressView()
+                    if let networkUser = networkUserViewModel?.networkUser {
+                        let hasSeedphrase = authTypesContains(networkUser.authTypes, "seedphrase")
+                        if hasSeedphrase {
+                            Button(action: {
+                                viewModel.confirmRegenerateSeedphrase()
+                            }) {
+                                HStack {
+                                    Text("Regenerate Seedphrase")
+                                        .font(themeManager.currentTheme.bodyFont)
+                                    Spacer()
+                                    if viewModel.isRegeneratingSeedphrase {
+                                        ProgressView()
+                                    }
                                 }
                             }
+                            .disabled(viewModel.isRegeneratingSeedphrase)
+                        } else {
+                            Button(action: {
+                                viewModel.confirmGenerateSeedphrase()
+                            }) {
+                                HStack {
+                                    Text("Generate Seedphrase")
+                                        .font(themeManager.currentTheme.bodyFont)
+                                    Spacer()
+                                    if viewModel.isGeneratingSeedphrase {
+                                        ProgressView()
+                                    }
+                                }
+                            }
+                            .disabled(viewModel.isGeneratingSeedphrase)
                         }
-                        .disabled(viewModel.isRegeneratingSeedphrase)
                     } else {
                         Button(action: {
                             viewModel.confirmGenerateSeedphrase()
@@ -182,19 +199,17 @@ struct SettingsForm_iOS: View {
 
             Section("Sign-In Methods") {
                 if let networkUser = networkUserViewModel?.networkUser {
-                    let authMethods = parseAuthMethods(networkUser, hasSeedphraseLocally: viewModel.hasSeedphraseLocally)
+                    let authMethods = parseAuthMethods(networkUser)
 
                     ForEach(authMethods, id: \.self) { method in
                         HStack {
                             Text(methodDisplayName(method))
                                 .font(themeManager.currentTheme.bodyFont)
                             Spacer()
-                            if method != "seedphrase" || viewModel.hasSeedphraseLocally {
-                                Button(role: .destructive) {
-                                    viewModel.presentRemoveAuth(method)
-                                } label: {
-                                    Text("Remove")
-                                }
+                            Button(role: .destructive) {
+                                viewModel.presentRemoveAuth(method)
+                            } label: {
+                                Text("Remove")
                             }
                         }
                     }
@@ -432,29 +447,37 @@ struct SettingsForm_iOS: View {
     
     // MARK: - Helpers
     
-    private func hasSeedphrase(_ networkUser: SdkNetworkUser?) -> Bool {
-        guard let networkUser = networkUser else { return false }
-        return networkUser.authType == "seedphrase"
+    private func authTypesContains(_ authTypes: SdkStringList, _ method: String) -> Bool {
+        for i in 0..<authTypes.len() {
+            if authTypes.get(i) == method {
+                return true
+            }
+        }
+        return false
     }
     
-    private func parseAuthMethods(_ networkUser: SdkNetworkUser, hasSeedphraseLocally: Bool = false) -> [String] {
+    private func parseAuthMethods(_ networkUser: SdkNetworkUser) -> [String] {
         var methods: [String] = []
-        let authType = networkUser.authType
-        if !authType.isEmpty { methods.append(authType) }
-        // The SDK SdkNetworkUser currently only exposes a single authType.
-        // Future expansion could read from an array returned by the endpoint.
         
-        // If the user has a seedphrase (detected locally via generate/regenerate), include it
-        if hasSeedphraseLocally && !methods.contains("seedphrase") {
-            methods.append("seedphrase")
-        }
-        
-        // If there's a userAuth, include it as a method label
-        let userAuth = networkUser.userAuth
-        if !userAuth.isEmpty {
-            let methodLabel = userAuth.contains("@") ? "email" : userAuth
-            if !methods.contains(methodLabel) {
-                methods.append(methodLabel)
+        // Read from the new auth_types array returned by GET /network/user
+        let authTypes = networkUser.authTypes
+        if authTypes.len() > 0 {
+            for i in 0..<authTypes.len() {
+                let method = authTypes.get(i)
+                if !method.isEmpty {
+                    methods.append(method)
+                }
+            }
+        } else {
+            // Fallback for old server: read single authType + userAuth
+            let authType = networkUser.authType
+            if !authType.isEmpty { methods.append(authType) }
+            let userAuth = networkUser.userAuth
+            if !userAuth.isEmpty {
+                let methodLabel = userAuth.contains("@") ? "email" : userAuth
+                if !methods.contains(methodLabel) {
+                    methods.append(methodLabel)
+                }
             }
         }
         

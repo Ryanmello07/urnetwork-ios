@@ -182,7 +182,15 @@ struct SettingsForm_macOS: View {
                     }
                     
                     VStack(alignment: .leading) {
-                        if viewModel.hasSeedphraseLocally || (networkUserViewModel?.networkUser?.authType == "seedphrase") {
+                        if let networkUser = networkUserViewModel?.networkUser {
+                            let hasSeedphrase: Bool = {
+                                let authTypes = networkUser.authTypes
+                                for i in 0..<authTypes.len() {
+                                    if authTypes.get(i) == "seedphrase" { return true }
+                                }
+                                return false
+                            }()
+                            if hasSeedphrase {
                             HStack {
                                 Button(action: {
                                     viewModel.confirmRegenerateSeedphrase()
@@ -209,8 +217,13 @@ struct SettingsForm_macOS: View {
                             }
                             .disabled(viewModel.isGeneratingSeedphrase)
                         }
-                        
-                        Text("A seedphrase lets you recover your account if you lose access.")
+                    } else {
+                        Text("Loading...")
+                            .font(themeManager.currentTheme.secondaryBodyFont)
+                            .foregroundColor(themeManager.currentTheme.textMutedColor)
+                    }
+                    
+                    Text("A seedphrase lets you recover your account if you lose access.")
                             .font(themeManager.currentTheme.secondaryBodyFont)
                             .foregroundColor(themeManager.currentTheme.textMutedColor)
                     }

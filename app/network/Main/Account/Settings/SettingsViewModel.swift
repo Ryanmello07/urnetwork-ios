@@ -279,7 +279,6 @@ extension SettingsView {
         @Published var isRegeneratingSeedphrase: Bool = false
         @Published var presentSeedphraseConfirmation: Bool = false
         @Published var seedphraseError: String?
-        @Published var hasSeedphraseLocally: Bool = false
         
         private var pendingSeedphraseAction: SeedphraseAction = .generate
         
@@ -317,20 +316,10 @@ extension SettingsView {
                 self.isGeneratingSeedphrase = false
                 self.presentSeedphraseConfirmation = false
                 self.presentSeedphraseSheet = true
-                self.hasSeedphraseLocally = true
             } catch(let error) {
                 self.isGeneratingSeedphrase = false
                 self.presentSeedphraseConfirmation = false
-                
-                // If the server says seedphrase already exists, switch to regenerate mode
-                let errMsg = error.localizedDescription.lowercased()
-                if errMsg.contains("already") || errMsg.contains("exists") || errMsg.contains("seedphrase") {
-                    self.hasSeedphraseLocally = true
-                    // Re-confirm as regenerate
-                    self.confirmRegenerateSeedphrase()
-                } else {
-                    self.seedphraseError = error.localizedDescription
-                }
+                self.seedphraseError = error.localizedDescription
             }
         }
         
@@ -348,9 +337,6 @@ extension SettingsView {
             } catch(let error) {
                 self.isRegeneratingSeedphrase = false
                 self.presentSeedphraseConfirmation = false
-                
-                // If regenerate fails, still keep hasSeedphraseLocally true since one exists
-                self.hasSeedphraseLocally = true
                 self.seedphraseError = error.localizedDescription
             }
         }
