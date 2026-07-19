@@ -112,6 +112,7 @@ struct AccountNavStackView: View {
                                 || authTypesContains(networkUser.authTypes, "phone")
                                 || authTypesContains(networkUser.authTypes, "google")
                                 || authTypesContains(networkUser.authTypes, "apple")
+                                || authTypesContains(networkUser.authTypes, "solana")
                             return !hasIdentityMethod
                         }()
                     )

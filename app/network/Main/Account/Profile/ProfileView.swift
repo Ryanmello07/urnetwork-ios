@@ -167,6 +167,15 @@ struct ProfileView: View {
         switch result {
         case .success(let newName):
             snackbarManager.showSnackbar(message: String(localized: "Network name changed to \(newName)"))
+            // The displayed network name comes from the cached JWT
+            // (deviceManager.parsedJwt?.networkName), which isn't reissued by
+            // this call — force a refresh so the new name propagates to this
+            // screen and anywhere else the JWT-derived name is shown.
+            do {
+                try deviceManager.device?.refreshToken(0)
+            } catch {
+                print("Error refreshing JWT after network name change: \(error)")
+            }
         case .failure(let error):
             print("Error changing network name: \(error)")
             snackbarManager.showSnackbar(message: String(localized: "Error changing network name"))
