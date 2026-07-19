@@ -21,10 +21,21 @@ extension SettingsView {
         
         @Published var presentUpdateReferralNetworkSheet: Bool = false
         
+        // MARK: - Solana/Wallet Sign-In (restored from upstream merge)
+        @Published var presentSigninWithSolanaSheet: Bool = false
+        @Published private(set) var isSigningMessage: Bool = false
+        
+        func setIsSigningMessage(_ isSigning: Bool) -> Void {
+            isSigningMessage = isSigning
+        }
+        
         @Published var version: String = ""
         
-        init(api: UrApiServiceProtocol) {
+        var networkUserViewModel: NetworkUserViewModel?
+        
+        init(api: UrApiServiceProtocol, networkUserViewModel: NetworkUserViewModel? = nil) {
             self.api = api
+            self.networkUserViewModel = networkUserViewModel
             
             #if os(macOS)
             self.launchAtStartupEnabled = SMAppService.mainApp.status == .enabled
@@ -233,7 +244,6 @@ extension SettingsView {
 
             } catch(let error) {
                 print("\(domain) Error fetching transfer stats: \(error)")
-                // isLoadingTransferStats = false
             }
             
         }
@@ -263,6 +273,123 @@ extension SettingsView {
             }
         }
         #endif
+        
+        // MARK: - Seedphrase Management
+        
+        @Published var presentSeedphraseSheet: Bool = false
+        @Published var generatedSeedphrase: String = ""
+        @Published var isGeneratingSeedphrase: Bool = false
+        @Published var isRegeneratingSeedphrase: Bool = false
+        @Published var presentSeedphraseConfirmation: Bool = false
+        @Published var seedphraseError: String?
+        
+        private var pendingSeedphraseAction: SeedphraseAction = .generate
+        
+        enum SeedphraseAction {
+            case generate
+            case regenerate
+        }
+        
+        func confirmGenerateSeedphrase() {
+            pendingSeedphraseAction = .generate
+            presentSeedphraseConfirmation = true
+        }
+        
+        func confirmRegenerateSeedphrase() {
+            pendingSeedphraseAction = .regenerate
+            presentSeedphraseConfirmation = true
+        }
+        
+        func executePendingSeedphraseAction() async {
+            switch pendingSeedphraseAction {
+            case .generate:
+                await executeGenerateSeedphrase()
+            case .regenerate:
+                await executeRegenerateSeedphrase()
+            }
+        }
+        
+        func executeGenerateSeedphrase() async {
+            isGeneratingSeedphrase = true
+            seedphraseError = nil
+            
+            do {
+                let result = try await api.generateSeedphrase()
+                self.generatedSeedphrase = result.seedphrase
+                self.isGeneratingSeedphrase = false
+                self.presentSeedphraseConfirmation = false
+                self.presentSeedphraseSheet = true
+                // Refresh user data to get updated auth_types
+                Task { [weak self] in
+                    _ = await self?.networkUserViewModel?.refreshNetworkUser()
+                }
+            } catch(let error) {
+                self.isGeneratingSeedphrase = false
+                self.presentSeedphraseConfirmation = false
+                self.seedphraseError = error.localizedDescription
+            }
+        }
+        
+        func executeRegenerateSeedphrase() async {
+            isRegeneratingSeedphrase = true
+            seedphraseError = nil
+            
+            do {
+                let result = try await api.regenerateSeedphrase()
+                self.generatedSeedphrase = result.seedphrase
+                self.isRegeneratingSeedphrase = false
+                self.presentSeedphraseConfirmation = false
+                self.presentSeedphraseSheet = true
+                // Refresh user data to get updated auth_types
+                Task { [weak self] in
+                    _ = await self?.networkUserViewModel?.refreshNetworkUser()
+                }
+            } catch(let error) {
+                self.isRegeneratingSeedphrase = false
+                self.presentSeedphraseConfirmation = false
+                self.seedphraseError = error.localizedDescription
+            }
+        }
+        
+        func dismissSeedphraseSheet() {
+            self.presentSeedphraseSheet = false
+            self.generatedSeedphrase = ""
+        }
+        
+        // MARK: - Auth Method Management
+        
+        @Published var presentAddAuthSheet: Bool = false
+        @Published var presentRemoveAuthConfirmation: Bool = false
+        @Published var authTypeToRemove: String?
+        @Published var isAddingAuth: Bool = false
+        @Published var isRemovingAuth: Bool = false
+        @Published var addAuthError: String?
+        @Published var removeAuthError: String?
+        
+        func presentRemoveAuth(_ authType: String) {
+            self.authTypeToRemove = authType
+            self.presentRemoveAuthConfirmation = true
+        }
+        
+        func executeRemoveAuth() async {
+            guard let authType = authTypeToRemove else { return }
+            isRemovingAuth = true
+            removeAuthError = nil
+            
+            do {
+                let _ = try await api.removeAuth(authType: authType)
+                self.isRemovingAuth = false
+                self.presentRemoveAuthConfirmation = false
+                self.authTypeToRemove = nil
+                // Refresh user data to get updated auth_types
+                Task { [weak self] in
+                    _ = await self?.networkUserViewModel?.refreshNetworkUser()
+                }
+            } catch(let error) {
+                self.isRemovingAuth = false
+                self.removeAuthError = error.localizedDescription
+            }
+        }
         
     }
     
