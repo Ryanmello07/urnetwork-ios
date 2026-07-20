@@ -46,8 +46,10 @@ struct ConnectCanvasConnectingStateView: View {
         }
         .frame(width: viewModel.canvasWidth, height: viewModel.canvasWidth)
         .onChange(of: gridPoints) { newPoints in
-            // freeze once connected: don't feed new points into the grid
-            if isConnecting && gridWidth > 0 {
+            // freeze once connected: don't feed new points into the grid.
+            // an empty update passes through even when the (new) grid has no
+            // width yet, so a grid swap or drain clears the previous dots
+            if isConnecting {
                 viewModel.updateGridPoints(newPoints, gridWidth: gridWidth)
             }
         }

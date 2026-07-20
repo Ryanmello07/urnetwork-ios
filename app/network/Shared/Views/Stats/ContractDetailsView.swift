@@ -10,10 +10,12 @@ import URnetworkSdk
 
 /**
  * Live contract details: a scrollable list with one row per peer client.
- * Each row visualizes the client contract (egress, green) and the
- * companion contract (ingress, pink) as two circles with transfer lines
- * between them. The inner disc of each circle grows as the contract
- * is used.
+ * Each row shows every contract separately -- no pairing or aggregation --
+ * as two independent stacks: send contracts (green) and receive contracts
+ * (pink), newest on top. Each circle is one contract, sized relative to the
+ * largest contract in its stack, with its inner disc growing as the
+ * contract is used. Removed contracts slide off to the side and the stack
+ * falls down into the space; new contracts drop in at the top.
  */
 struct ContractDetailsView: View {
 
@@ -26,43 +28,16 @@ struct ContractDetailsView: View {
         _store = StateObject(wrappedValue: ContractDetailsStore(mode: mode))
     }
 
-    /**
-     * The rows currently shown. While the list is scrolled away from the top
-     * this membership stays frozen so newly prepended contracts don't shift
-     * the rows under the reader (their data still updates live). New rows are
-     * merged when the list returns to the top, or through the new-items chip.
-     */
-    @State private var displayedIds: [String] = []
+    // Whether the list is scrolled to the very top. Reported to the store (and
+    // thus the shared ContractDetailsViewController), which owns the activity
+    // ordering and the scrolled-away freeze -- the view just renders store.rows in
+    // the order it is given and shows the pending "N new" chip.
     @State private var isAtTop: Bool = true
     @State private var topBaseline: CGFloat? = nil
 
     private static let topMarkerId = "contract-details-top"
 
-    // the frozen membership resolved to the current live rows
-    private var displayedRows: [ContractClientRow] {
-        if displayedIds.isEmpty {
-            return store.rows
-        }
-        let byId = Dictionary(store.rows.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let resolved = displayedIds.compactMap { byId[$0] }
-        // if every frozen row has closed, fall back to the live rows so the
-        // list can't get stuck empty behind the chip
-        return resolved.isEmpty ? store.rows : resolved
-    }
-
-    // rows are newest first, so new rows are the leading run not yet shown
-    private var pendingCount: Int {
-        let displayedSet = Set(displayedIds)
-        return store.rows.prefix { !displayedSet.contains($0.id) }.count
-    }
-
     var body: some View {
-
-        // resolve the derived values once per render rather than recomputing the
-        // dictionary/set in the view builder and twice inside the chip overlay
-        let currentIds = store.rows.map { $0.id }
-        let rows = displayedRows
-        let pending = pendingCount
 
         Group {
             if store.rows.isEmpty {
@@ -100,13 +75,14 @@ struct ContractDetailsView: View {
                                     }
                                 )
 
-                            ForEach(rows) { row in
+                            ForEach(store.rows) { row in
                                 VStack(spacing: 0) {
-                                    ContractClientRowView(row: row)
+                                    ContractPeerRowView(row: row)
                                     Divider()
                                 }
-                                // new/closed client rows fade; the per-circle swap
-                                // handles a contract being replaced within a row
+                                // new/closed client rows fade; the per-stack
+                                // choreography handles contracts coming and going
+                                // within a row
                                 .transition(.opacity)
                             }
                         }
@@ -118,12 +94,22 @@ struct ContractDetailsView: View {
                     .onPreferenceChange(ContractTopOffsetKey.self) { minY in
                         updateIsAtTop(minY)
                     }
+                    .onChange(of: store.rows.first?.id) { _ in
+                        // keep the list pinned to the very top as rows merge in / re-sort
+                        // at the front while at the top, so a newly prepended row stays
+                        // visible. The marker-based isAtTop is stable across a prepend, so
+                        // the guard holds; a no-op when scrolled away (frozen front) or
+                        // when the offset-anchored ScrollView already sits at the top.
+                        if isAtTop {
+                            scrollProxy.scrollTo(Self.topMarkerId, anchor: .top)
+                        }
+                    }
                     .overlay(alignment: .top) {
-                        if !isAtTop && 0 < pending {
+                        if !isAtTop && 0 < store.pendingCount {
                             Button(action: {
-                                withAnimation(.easeInOut(duration: 0.5)) {
-                                    displayedIds = currentIds
-                                }
+                                // the view controller merges + re-sorts when it
+                                // learns we're back at the top
+                                store.setAtTop(true)
                                 withAnimation(.spring(duration: 0.3)) {
                                     scrollProxy.scrollTo(Self.topMarkerId, anchor: .top)
                                 }
@@ -132,7 +118,7 @@ struct ContractDetailsView: View {
                                     Image(systemName: "arrow.up")
                                         .font(.system(size: 10, weight: .semibold))
                                     // real plural rules live in Localizable.xcstrings ("%lld new")
-                                    Text("\(pending) new")
+                                    Text("\(store.pendingCount) new")
                                         .font(.system(size: 12, weight: .medium).monospacedDigit())
                                 }
                                 .foregroundColor(themeManager.currentTheme.inverseTextColor)
@@ -153,31 +139,23 @@ struct ContractDetailsView: View {
             if let device = deviceManager.device {
                 store.setup(device)
             }
-            displayedIds = store.rows.map { $0.id }
+            store.setAtTop(isAtTop)
         }
         .onDisappear {
             store.reset()
         }
-        .onChange(of: currentIds) { ids in
-            // only merge live while the list is at the top; otherwise the new
-            // ids collect behind the chip
-            if isAtTop {
-                // animate the new contract in as it prepends to the top
-                withAnimation(.easeInOut(duration: 0.5)) {
-                    displayedIds = ids
-                }
-            }
-        }
     }
 
     /**
-     * At the very top the marker rests at its baseline offset. Scrolling
-     * away moves it up (or unloads it, reporting nil).
+     * At the very top the marker rests at its baseline offset. Scrolling away
+     * moves it up (or unloads it, reporting nil). The at-top state is forwarded
+     * to the store; the shared view controller owns the ordering and freeze.
      */
     private func updateIsAtTop(_ minY: CGFloat?) {
         guard let minY = minY else {
             if isAtTop {
                 isAtTop = false
+                store.setAtTop(false)
             }
             return
         }
@@ -187,9 +165,7 @@ struct ContractDetailsView: View {
         let atTop = (topBaseline ?? 0) - 4 <= minY
         if atTop != isAtTop {
             isAtTop = atTop
-            if atTop {
-                displayedIds = store.rows.map { $0.id }
-            }
+            store.setAtTop(atTop)
         }
     }
 }
@@ -201,38 +177,54 @@ private struct ContractTopOffsetKey: PreferenceKey {
     }
 }
 
-struct ContractClientRowView: View {
+struct ContractPeerRowView: View {
 
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var snackbarManager: UrSnackbarManager
 
-    let row: ContractClientRow
+    let row: ContractPeerRow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
 
-            HStack(alignment: .top) {
-                // the full client id, tappable to copy
-                Text(row.clientId)
-                    .font(.system(size: 13, weight: .medium).monospaced())
-                    .foregroundColor(themeManager.currentTheme.textColor)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        copyClientId()
-                    }
-
-                if 1 < row.pairCount {
-                    // real plural rules live in Localizable.xcstrings ("%lld contracts")
-                    Text("\(row.pairCount) contracts")
-                        .font(themeManager.currentTheme.secondaryBodyFont)
-                        .foregroundColor(themeManager.currentTheme.textMutedColor)
-                        .layoutPriority(1)
+            // the full client id, tappable to copy
+            Text(row.clientId)
+                .font(.system(size: 13, weight: .medium).monospaced())
+                .foregroundColor(themeManager.currentTheme.textColor)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    copyClientId()
                 }
-            }
 
-            ContractPairViz(row: row)
+            // the two stacks are top-anchored: their headers align at the top of
+            // the row and the piles grow downward, so the tops always touch the
+            // top of the row. four columns, mirrored around the center: send
+            // stats | send circles | receive circles | receive stats
+            HStack(alignment: .top, spacing: 20) {
+                ContractStackView(
+                    entries: row.send,
+                    byteCount: row.sendByteCount,
+                    title: "Send",
+                    color: .urGreen,
+                    pointsRight: true,
+                    removalEdge: .leading,
+                    mirrored: true
+                )
+                .frame(maxWidth: .infinity, alignment: .trailing)
+
+                ContractStackView(
+                    entries: row.receive,
+                    byteCount: row.receiveByteCount,
+                    title: "Receive",
+                    color: .urPink,
+                    pointsRight: false,
+                    removalEdge: .trailing,
+                    mirrored: false
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
         }
         .padding(.vertical, 16)
@@ -257,321 +249,353 @@ struct ContractClientRowView: View {
     }
 }
 
+// one contract as presented in a stack: the live entry plus whether it is in
+// its slide-off phase (still holding its slot, animating out to the side)
+private struct DisplayedContract: Identifiable, Equatable {
+    var entry: ContractEntry
+    var leaving: Bool = false
+    var id: String { entry.id }
+}
+
 /**
- * Two circles representing the client contract and the companion
- * contract, with directional transfer lines between them
+ * One direction's stack of contracts, newest on top, with the direction
+ * header (title, arrow, summed bit rate) above and the scale anchor ("max
+ * N") below.
+ *
+ * Membership changes are choreographed in two phases, tetris style:
+ *   1. a removed contract slides off to `removalEdge`, still holding its
+ *      slot open;
+ *   2. once clear, one settle transaction drops the leavers, admits new
+ *      contracts at the top, and the stack falls down into the open space.
+ * Value updates (used bytes, bit rate) apply live in any phase. The truth is
+ * mirrored into state so the phase completions read the live intent rather
+ * than a stale capture (same pattern the old ContractRing used).
  */
-struct ContractPairViz: View {
+private struct ContractStackView: View {
 
     @EnvironmentObject var themeManager: ThemeManager
 
-    let row: ContractClientRow
+    let entries: [ContractEntry]
+    let byteCount: Int64
+    let title: LocalizedStringKey
+    let color: Color
+    let pointsRight: Bool
+    let removalEdge: Edge
+    // a mirrored stack (the send side) puts its stats column on the outside and
+    // its circle column against the row center
+    let mirrored: Bool
 
-    private let circleSize: CGFloat = 56
-    private let contractColor = Color.urGreen
-    private let companionColor = Color.urPink
+    private static let slideDuration: Double = 0.4
+    private static let settleDuration: Double = 0.5
 
-    var body: some View {
-        HStack(alignment: .top, spacing: 16) {
+    // the live truth, mirrored into state for the async phase completions
+    @State private var truth: [ContractEntry]
+    // what is on screen: truth plus leavers still sliding off
+    @State private var displayed: [DisplayedContract]
+    // a slide-off phase is in flight; membership changes queue behind it
+    @State private var settling: Bool = false
 
-            // a replaced contract (new id) slides its outer ring out to the side
-            // and fades while the new ring fades into the same fixed slot; the
-            // inner disc persists across the swap and just resizes. the fixed
-            // slot keeps the row from jumping (parity with Android's
-            // AnimatedContent).
-            contractCircle(
-                contractId: row.contractId,
-                used: row.contractUsedByteCount,
-                total: row.contractByteCount,
-                color: contractColor,
-                label: "Contract",
-                removalEdge: .leading
-            )
-
-            VStack(spacing: 12) {
-                Spacer().frame(height: 2)
-                transferLine(
-                    bitRate: row.contractBitRate,
-                    color: contractColor,
-                    pointsRight: true
-                )
-                transferLine(
-                    bitRate: row.companionContractBitRate,
-                    color: companionColor,
-                    pointsRight: false
-                )
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: circleSize)
-
-            contractCircle(
-                contractId: row.companionContractId,
-                used: row.companionContractUsedByteCount,
-                total: row.companionContractByteCount,
-                color: companionColor,
-                label: "Companion",
-                removalEdge: .trailing
-            )
-
-        }
-    }
-
-    private func contractCircle(
-        contractId: String,
-        used: Int64,
-        total: Int64,
+    init(
+        entries: [ContractEntry],
+        byteCount: Int64,
+        title: LocalizedStringKey,
         color: Color,
-        label: LocalizedStringKey,
-        removalEdge: Edge
-    ) -> some View {
-
-        // area-proportional inner disc, with a minimum visible size
-        let fraction = 0 < total ? min(1, Double(used) / Double(total)) : 0
-        let innerSize = 0 < fraction ? max(6, circleSize * sqrt(fraction)) : 0
-
-        return VStack(spacing: 8) {
-
-            ZStack {
-
-                // the outer ring carries the contract identity. On a replacement
-                // the old ring is ejected -- it slides out toward removalEdge and
-                // fades on its own fixed schedule, never reversing, and the new
-                // ring fades into the slot only once every ejecting ring has left.
-                // ContractRing supports multiple concurrent ejections (see it).
-                ContractRing(
-                    contractId: contractId,
-                    color: color,
-                    removalEdge: removalEdge,
-                    circleSize: circleSize,
-                    // a closing row (its last contract closed) ejects its ring and
-                    // shows nothing after — the "eject" for a client leaving
-                    visible: !row.closing
-                )
-
-                // the inner disc is a sibling with no id, so it persists across
-                // a contract swap and simply resizes -- morphing to the new
-                // level rather than popping. framing to zero when empty animates
-                // the grow-in / drain instead of an insert/remove pop.
-                Circle()
-                    .fill(color.opacity(0.3))
-                    .overlay(
-                        Circle().stroke(color.opacity(0.6), lineWidth: 0.5)
-                    )
-                    .frame(width: innerSize, height: innerSize)
-                    .animation(.easeOut(duration: 0.5), value: innerSize)
-            }
-            .frame(width: circleSize, height: circleSize)
-
-            VStack(spacing: 2) {
-                Text("\(formatByteCountCompact(used))")
-                    .font(.system(size: 11, weight: .medium).monospacedDigit())
-                    .foregroundColor(themeManager.currentTheme.textColor)
-                Text("of \(formatByteCountCompact(total))")
-                    .font(.system(size: 10).monospacedDigit())
-                    .foregroundColor(themeManager.currentTheme.textMutedColor)
-                Text(label)
-                    .font(.system(size: 10))
-                    .foregroundColor(themeManager.currentTheme.textFaintColor)
-            }
-
-        }
-        .frame(width: 92)
+        pointsRight: Bool,
+        removalEdge: Edge,
+        mirrored: Bool
+    ) {
+        self.entries = entries
+        self.byteCount = byteCount
+        self.title = title
+        self.color = color
+        self.pointsRight = pointsRight
+        self.removalEdge = removalEdge
+        self.mirrored = mirrored
+        // a fresh view (first show, or re-created by the lazy list) starts at
+        // the current truth with no choreography
+        _truth = State(initialValue: entries)
+        _displayed = State(initialValue: entries.map { DisplayedContract(entry: $0) })
     }
 
-    private func transferLine(bitRate: Int, color: Color, pointsRight: Bool) -> some View {
-        let active = 0 < bitRate
-        return VStack(spacing: 3) {
+    // scale reference: the largest contract on screen, leavers included so the
+    // survivors rescale in the settle transaction rather than mid-slide
+    private var stackMax: Int64 {
+        displayed.map { $0.entry.totalByteCount }.max() ?? 0
+    }
+    
+    var body: some View {
+        // header and max label align to the circle column (the row-center edge
+        // of a mirrored stack); blocks span the full width
+        VStack(alignment: mirrored ? .trailing : .leading, spacing: 12) {
 
-            Text(active ? formatBitRate(bitRate) : " ")
-                .font(.system(size: 9, weight: .medium).monospacedDigit())
-                .foregroundColor(color)
-                .opacity(active ? 1 : 0)
-
-            HStack(spacing: 0) {
-                if !pointsRight {
-                    Image(systemName: "arrowtriangle.left.fill")
-                        .font(.system(size: 6))
-                        .foregroundColor(color)
-                        // pull the head onto the line so there is no gap
-                        .padding(.trailing, -1)
-                }
-                Rectangle()
-                    .fill(color)
-                    .frame(height: 1)
-                if pointsRight {
-                    Image(systemName: "arrowtriangle.right.fill")
-                        .font(.system(size: 6))
-                        .foregroundColor(color)
-                        .padding(.leading, -1)
+            // direction header: the cumulative run total (bytes moved since the
+            // peer last went idle) sits against the row center, above the circle
+            // column it measures. The mirrored (send) side reads
+            // title-arrow-total; the receive side reads total-arrow-title, so each
+            // side's number lands over its own circles.
+            HStack(spacing: 5) {
+                if mirrored {
+                    headerTitle
+                    headerArrow
+                    headerTotal
+                } else {
+                    headerTotal
+                    headerArrow
+                    headerTitle
                 }
             }
-            .opacity(active ? 0.9 : 0.25)
 
+            // the pile, newest first
+            VStack(spacing: 4) {
+                ForEach(displayed) { d in
+                    ContractBlock(
+                        entry: d.entry,
+                        stackMax: stackMax,
+                        color: color,
+                        leaving: d.leaving,
+                        removalEdge: removalEdge,
+                        mirrored: mirrored
+                    )
+                    .transition(.asymmetric(
+                        // a new contract drops in at the top as the stack shifts
+                        insertion: .move(edge: .top).combined(with: .opacity),
+                        // a leaver already slid offscreen in phase 1; at the
+                        // settle it just vanishes and the stack falls
+                        removal: .identity
+                    ))
+                }
+            }
+
+            // the scale anchor: all circles are sized relative to this
+            Text("max \(formatByteCountCompact(stackMax))")
+                .font(.system(size: 10).monospacedDigit())
+                .foregroundColor(themeManager.currentTheme.textFaintColor)
+                .opacity(displayed.isEmpty ? 0 : 1)
+
+        }
+        .onChange(of: entries) { newEntries in
+            truth = newEntries
+            sync()
+        }
+    }
+
+    // header pieces, ordered by side so the rate always lands against the row
+    // center (over the circle column): see the header HStack above
+    private var headerTitle: some View {
+        Text(title)
+            .font(.system(size: 11, weight: .medium))
+            .foregroundColor(themeManager.currentTheme.textMutedColor)
+    }
+
+    private var headerArrow: some View {
+        Image(systemName: pointsRight ? "arrow.right" : "arrow.left")
+            .font(.system(size: 8, weight: .semibold))
+            .foregroundColor(color)
+    }
+
+    private var headerTotal: some View {
+        Text(0 < byteCount ? formatByteCountCompact(byteCount) : " ")
+            .font(.system(size: 9, weight: .medium).monospacedDigit())
+            .foregroundColor(color)
+            .opacity(0 < byteCount ? 1 : 0)
+    }
+
+    /**
+     * Reconcile the screen with the truth. Values always track live; membership
+     * changes run the two-phase tetris choreography, one phase at a time.
+     */
+    private func sync() {
+        let truthById = Dictionary(truth.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+
+        // 1. blocks still in the truth track its values (the inner disc grows
+        //    smoothly); a leaver keeps its final snapshot
+        withAnimation(.easeOut(duration: 0.5)) {
+            for i in displayed.indices {
+                if let live = truthById[displayed[i].entry.id], displayed[i].entry != live {
+                    displayed[i].entry = live
+                }
+            }
+        }
+
+        // 2. membership, one choreographed phase at a time
+        guard !settling else {
+            return
+        }
+
+        let displayedIds = Set(displayed.map { $0.id })
+        let hasDepartures = displayed.contains { truthById[$0.entry.id] == nil }
+        let hasArrivals = truth.contains { !displayedIds.contains($0.id) }
+
+        if hasDepartures {
+            settling = true
+            // phase 1: leavers slide off sideways, holding their slot open
+            withAnimation(.easeInOut(duration: Self.slideDuration)) {
+                for i in displayed.indices {
+                    if truthById[displayed[i].entry.id] == nil {
+                        displayed[i].leaving = true
+                    }
+                }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.slideDuration) {
+                // phase 2: one settle transaction -- drop the leavers, admit
+                // arrivals at the top, fall down, rescale to the new max
+                withAnimation(.spring(response: Self.settleDuration, dampingFraction: 0.85)) {
+                    displayed = truth.map { DisplayedContract(entry: $0) }
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + Self.settleDuration) {
+                    settling = false
+                    // fold in whatever landed mid-phase
+                    sync()
+                }
+            }
+        } else if hasArrivals {
+            // arrivals only: drop in at the top as the stack shifts down
+            withAnimation(.spring(response: Self.settleDuration, dampingFraction: 0.85)) {
+                displayed = truth.map { DisplayedContract(entry: $0) }
+            }
         }
     }
 }
 
 /**
- * The outer identity ring of a contract circle.
+ * One contract in a stack: a fixed-size block with the contract circle
+ * centered in it, and the used/total counts beside. The outer ring is sized
+ * by the contract total relative to the stack max (area-proportional); the
+ * inner disc is the used fraction of this contract. A contract actively
+ * moving bytes brightens its ring.
  *
- * When the contract id changes, the ring on screen is *ejected*: it slides out
- * toward `removalEdge` and fades on its own fixed schedule and is never reversed,
- * even if further contracts change while it is still leaving. Each ejection is an
- * independent instance, so multiple rings can be leaving at once and are all
- * rendered; the incoming ring fades into the slot only once the LAST ejecting
- * ring has finished leaving. This is the "eject one contract per change" analogy,
- * replacing the single interruptible `.id()` cross-fade that slid a ring back in
- * then out again when another change landed mid-slide.
- *
- * iOS 16 has no `withAnimation` completion handler, so each ejection's removal is
- * timed to the slide duration.
+ * A mirrored block (the send side) lays out stats-then-circle so the circle
+ * column sits against the row center; an unmirrored block is circle-then-
+ * stats. Together the two stacks read as four columns.
  */
-private struct ContractRing: View {
+private struct ContractBlock: View {
 
-    let contractId: String
+    @EnvironmentObject var themeManager: ThemeManager
+
+    let entry: ContractEntry
+    let stackMax: Int64
     let color: Color
+    let leaving: Bool
     let removalEdge: Edge
-    let circleSize: CGFloat
-    // whether a ring should occupy the slot. When it goes false (the client's
-    // last contract closed) the on-screen ring ejects and nothing takes its place.
-    var visible: Bool = true
+    let mirrored: Bool
 
-    private static let slideDuration: Double = 0.5
-    private static let fadeInDuration: Double = 0.35
+    // the fixed block each contract occupies; circles center in it, so the
+    // stack falls in uniform increments
+    static let circleSlot: CGFloat = 56
+    private static let minDiameter: CGFloat = 16
 
-    // one in-flight ejection: an independent slide-out + fade that runs once
-    private struct Ejection: Identifiable {
-        let id = UUID()
-        var offset: CGFloat = 0
-        var faded: Bool = false
+    private var diameter: CGFloat {
+        guard 0 < stackMax, 0 < entry.totalByteCount else {
+            return Self.minDiameter
+        }
+        // area-proportional to the stack max
+        let d = Self.circleSlot * sqrt(Double(entry.totalByteCount) / Double(stackMax))
+        return max(Self.minDiameter, min(Self.circleSlot, d))
     }
 
-    // the ring currently occupying the slot (the latest contract id)
-    @State private var currentId: String
-    // whether the current ring has faded in — false while ejections are leaving,
-    // so a not-yet-shown ring is never itself ejected (nothing to slide off)
-    @State private var currentVisible: Bool
-    // mirrors `visible` in state so the async ejection completion reads the live
-    // intent (a plain input would be captured stale)
-    @State private var present: Bool
-    @State private var ejections: [Ejection] = []
-
-    init(contractId: String, color: Color, removalEdge: Edge, circleSize: CGFloat, visible: Bool = true) {
-        self.contractId = contractId
-        self.color = color
-        self.removalEdge = removalEdge
-        self.circleSize = circleSize
-        self.visible = visible
-        // the first ring occupies the slot immediately if wanted — no ejection
-        _currentId = State(initialValue: contractId)
-        _currentVisible = State(initialValue: visible)
-        _present = State(initialValue: visible)
-    }
-
-    // slide fully clear of the circle's slot
+    // slide fully clear of the row
     private var offscreenOffset: CGFloat {
-        let distance = circleSize * 3
+        let distance = Self.circleSlot * 4
         return removalEdge == .leading ? -distance : distance
     }
 
-    private var ring: some View {
-        Circle()
-            .stroke(color.opacity(0.8), lineWidth: 1)
-            .frame(width: circleSize, height: circleSize)
-    }
-
     var body: some View {
-        ZStack {
-            // ejecting rings, each leaving on its own schedule
-            ForEach(ejections) { ejection in
-                ring
-                    .offset(x: ejection.offset)
-                    .opacity(ejection.faded ? 0 : 1)
+
+        // area-proportional inner disc, with a minimum visible size
+        let fraction = 0 < entry.totalByteCount
+            ? min(1, Double(entry.usedByteCount) / Double(entry.totalByteCount))
+            : 0
+        let innerSize = 0 < fraction ? max(4, diameter * sqrt(fraction)) : 0
+        let active = entry.isActive
+
+        HStack(spacing: 10) {
+
+            if mirrored {
+                Spacer(minLength: 0)
+                stats
+                circle(innerSize: innerSize, active: active, hasStream: entry.hasStream)
+            } else {
+                circle(innerSize: innerSize, active: active, hasStream: entry.hasStream)
+                stats
+                Spacer(minLength: 0)
             }
 
-            // the incoming/settled ring; hidden until every ejection has left
-            ring
-                .opacity(currentVisible ? 1 : 0)
         }
-        .frame(width: circleSize, height: circleSize)
-        .onChange(of: contractId) { newId in
-            guard newId != currentId else { return }
-            // eject the on-screen ring (if any), then admit the new id
-            if currentVisible {
-                ejectCurrentRing()
-            }
-            currentId = newId
-            currentVisible = false
-            // nothing leaving -> the new ring can fade in right away
-            if present && ejections.isEmpty {
-                fadeInCurrent()
-            }
-        }
-        .onChange(of: visible) { nowVisible in
-            present = nowVisible
-            if nowVisible {
-                if !currentVisible && ejections.isEmpty {
-                    fadeInCurrent()
-                }
-            } else if currentVisible {
-                // the client is leaving: eject the ring and show nothing after
-                ejectCurrentRing()
-                currentVisible = false
-            }
-        }
+        .frame(height: Self.circleSlot)
+        .offset(x: leaving ? offscreenOffset : 0)
+        .opacity(leaving ? 0 : 1)
     }
 
-    private func fadeInCurrent() {
-        withAnimation(.easeInOut(duration: Self.fadeInDuration)) {
-            currentVisible = true
+    // a stream contract gets a second concentric ring this far (radially) outside the
+    // outer ring, so streams read as a double ring vs a single for direct. Applied to
+    // the diameter doubled: a 4px radial gap is an 8px diameter delta.
+    private static let streamRingGap: CGFloat = 4
+
+    private func circle(innerSize: CGFloat, active: Bool, hasStream: Bool) -> some View {
+        let ringColor = color.opacity(active ? 1 : 0.55)
+        let ringWidth: CGFloat = active ? 1.5 : 1
+        return ZStack {
+            // stream contracts: a second, outer concentric ring (kept outside the
+            // used disc so it stays visible even when the contract is full)
+            if hasStream {
+                Circle()
+                    .stroke(ringColor, lineWidth: ringWidth)
+                    .frame(width: diameter + 2 * Self.streamRingGap, height: diameter + 2 * Self.streamRingGap)
+            }
+
+            // the outer ring is the contract total; active contracts brighten
+            Circle()
+                .stroke(ringColor, lineWidth: ringWidth)
+                .frame(width: diameter, height: diameter)
+
+            // the inner disc is the used fraction
+            Circle()
+                .fill(color.opacity(0.3))
+                .overlay(
+                    Circle().stroke(color.opacity(0.6), lineWidth: 0.5)
+                )
+                .frame(width: innerSize, height: innerSize)
         }
+        .frame(width: Self.circleSlot, height: Self.circleSlot)
     }
 
-    // spawn an independent slide-out of the on-screen ring; once started it always
-    // runs to completion (never reverses), even if more changes land meanwhile
-    private func ejectCurrentRing() {
-        let ejection = Ejection()
-        let key = ejection.id
-        ejections.append(ejection)
-
-        withAnimation(.easeInOut(duration: Self.slideDuration)) {
-            if let i = ejections.firstIndex(where: { $0.id == key }) {
-                ejections[i].offset = offscreenOffset
-                ejections[i].faded = true
-            }
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.slideDuration) {
-            ejections.removeAll { $0.id == key }
-            // admit the waiting ring only once the last one has left and if a ring
-            // is still wanted in the slot
-            if ejections.isEmpty && present && !currentVisible {
-                fadeInCurrent()
-            }
+    private var stats: some View {
+        VStack(alignment: mirrored ? .trailing : .leading, spacing: 2) {
+            Text(formatByteCountCompact(entry.usedByteCount))
+                .font(.system(size: 11, weight: .medium).monospacedDigit())
+                .foregroundColor(themeManager.currentTheme.textColor)
+            Text("of \(formatByteCountCompact(entry.totalByteCount))")
+                .font(.system(size: 10).monospacedDigit())
+                .foregroundColor(themeManager.currentTheme.textMutedColor)
         }
     }
 }
 
 #Preview {
 
-    var rowA = ContractClientRow(clientId: "0199a2b4c6d8e0f2a4b6c8d0e2f4a6b8")
-    rowA.contractUsedByteCount = 12 * 1024 * 1024
-    rowA.contractByteCount = 32 * 1024 * 1024
-    rowA.contractBitRate = 1_200_000
-    rowA.companionContractUsedByteCount = 3 * 1024 * 1024
-    rowA.companionContractByteCount = 32 * 1024 * 1024
-    rowA.companionContractBitRate = 240_000
-    rowA.pairCount = 2
+    var rowA = ContractPeerRow(clientId: "0199a2b4c6d8e0f2a4b6c8d0e2f4a6b8")
+    rowA.send = [
+        ContractEntry(id: "c1", usedByteCount: 12 * 1024 * 1024, totalByteCount: 32 * 1024 * 1024, bitRate: 1_200_000, hasStream: true),
+        ContractEntry(id: "c2", usedByteCount: 512 * 1024, totalByteCount: 8 * 1024 * 1024, bitRate: 0),
+        ContractEntry(id: "c3", usedByteCount: 30 * 1024 * 1024, totalByteCount: 32 * 1024 * 1024, bitRate: 0),
+    ]
+    rowA.receive = [
+        ContractEntry(id: "c4", usedByteCount: 3 * 1024 * 1024, totalByteCount: 32 * 1024 * 1024, bitRate: 240_000, hasStream: true),
+        ContractEntry(id: "c5", usedByteCount: 0, totalByteCount: 1024 * 1024, bitRate: 0),
+    ]
+    rowA.sendByteCount = 12 * 1024 * 1024
+    rowA.receiveByteCount = 3 * 1024 * 1024
 
-    var rowB = ContractClientRow(clientId: "44f1a2b4c6d8e0f2a4b6c8d0e2f4a6b8")
-    rowB.contractUsedByteCount = 30 * 1024 * 1024
-    rowB.contractByteCount = 32 * 1024 * 1024
-    rowB.pairCount = 1
+    var rowB = ContractPeerRow(clientId: "44f1a2b4c6d8e0f2a4b6c8d0e2f4a6b8")
+    rowB.send = [
+        ContractEntry(id: "c6", usedByteCount: 30 * 1024 * 1024, totalByteCount: 32 * 1024 * 1024, bitRate: 0),
+    ]
 
     return ScrollView {
         VStack(spacing: 0) {
-            ContractClientRowView(row: rowA)
+            ContractPeerRowView(row: rowA)
             Divider()
-            ContractClientRowView(row: rowB)
+            ContractPeerRowView(row: rowB)
         }
         .padding(.horizontal)
     }

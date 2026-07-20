@@ -553,6 +553,16 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         let tunnelLocalAddress = self.device?.tunnelLocalAddress() ?? "169.254.2.1"
         let ipv4Settings = NEIPv4Settings(addresses: [tunnelLocalAddress], subnetMasks: ["255.255.255.0"])
         ipv4Settings.includedRoutes = [NEIPv4Route.default()]
+        // exclude the local network from the tunnel, matching Android (MainService's
+        // excludeRoute set): the RFC1918 private ranges bypass the tunnel so LAN
+        // traffic reaches local devices directly. DNS is unaffected — it still routes
+        // to the tunnel resolver via matchDomains below (the ipv6 tunnel carries no
+        // routes, so ipv6 ULA fd00::/8 already bypasses without an explicit exclude).
+        ipv4Settings.excludedRoutes = [
+            NEIPv4Route(destinationAddress: "10.0.0.0", subnetMask: "255.0.0.0"),
+            NEIPv4Route(destinationAddress: "172.16.0.0", subnetMask: "255.240.0.0"),
+            NEIPv4Route(destinationAddress: "192.168.0.0", subnetMask: "255.255.0.0"),
+        ]
         networkSettings.ipv4Settings = ipv4Settings
 
         let ipv6Settings = NEIPv6Settings()

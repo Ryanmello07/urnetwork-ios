@@ -53,6 +53,9 @@ struct NetworkPeerItem: Identifiable, Equatable {
         locationId.clientId = clientId
         location.connectLocationId = locationId
         location.name = displayName
+        // one of the user's own devices from the peer list — a trusted same-network
+        // peer, so the connection egresses under Network provide mode
+        location.networkPeer = true
         return location
     }
 }
@@ -78,9 +81,20 @@ class NetworkPeersStore: ObservableObject {
 
     @Published private(set) var connectedProvidePeers: [NetworkPeerItem] = []
 
+    // ALL connected peers, whether or not they provide — the "You have {n}
+    // other devices online" count. Connecting to a peer still requires
+    // provide, which is what the filtered list above captures.
+    @Published private(set) var connectedCount: Int = 0
+
     private var device: SdkDeviceRemote?
     private var peerViewController: SdkPeerViewController?
     private var peersSub: SdkSubProtocol?
+    #if DEBUG
+    // debug-only observation timer: logs the raw peer state so a silent
+    // no-push session is visible in the console. Log-only — the published
+    // list stays purely listener-driven.
+    private var debugLogTimer: Timer?
+    #endif
 
     func setup(_ device: SdkDeviceRemote) {
         reset()
@@ -95,6 +109,13 @@ class NetworkPeersStore: ObservableObject {
             }
         })
         vc?.start()
+        #if DEBUG
+        debugLogTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.logRawPeers(filteredCount: self?.connectedProvidePeers.count ?? 0)
+            }
+        }
+        #endif
     }
 
     func reset() {
@@ -104,6 +125,11 @@ class NetworkPeersStore: ObservableObject {
         peerViewController = nil
         device = nil
         connectedProvidePeers = []
+        connectedCount = 0
+        #if DEBUG
+        debugLogTimer?.invalidate()
+        debugLogTimer = nil
+        #endif
     }
 
     private func update() {
@@ -126,9 +152,38 @@ class NetworkPeersStore: ObservableObject {
                 )
             }
         }
-        // only publish when the peer set actually changed
+        logRawPeers(filteredCount: peers.count)
+        // only publish when the values actually changed
         if peers != connectedProvidePeers {
             connectedProvidePeers = peers
         }
+        let count = vc.getConnectedCount()
+        if count != connectedCount {
+            connectedCount = count
+        }
+    }
+
+    // debug: dump the RAW device peer state next to the filtered set, to
+    // discriminate "no peer frames reach this device" (raw nil/empty) from
+    // "peers arrive but are filtered" (raw connected without provide) from
+    // "peer marked disconnected" (disconnectedCount > 0)
+    private func logRawPeers(filteredCount: Int) {
+        guard let device = self.device else {
+            print("[peers] update: no device")
+            return
+        }
+        guard let raw = device.getNetworkPeers() else {
+            print("[peers] raw=nil (no provider or rpc unavailable) filtered=\(filteredCount)")
+            return
+        }
+        var entries: [String] = []
+        if let connected = raw.connected {
+            for i in 0..<connected.len() {
+                guard let peer = connected.get(i) else { continue }
+                let id = peer.clientId?.idStr.prefix(8) ?? "?"
+                entries.append("\(id):\(peer.deviceName.isEmpty ? peer.deviceSpec : peer.deviceName):provide=\(peer.provideEnabled)")
+            }
+        }
+        print("[peers] raw connected=\(entries.count) [\(entries.joined(separator: ", "))] disconnected=\(raw.disconnectedCount) filtered=\(filteredCount)")
     }
 }
