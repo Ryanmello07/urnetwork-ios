@@ -1058,7 +1058,7 @@ private struct SSOButtons: View {
 
             Spacer()
                 .frame(height: 8)
-            
+
             // Seedphrase login button (macOS)
             Button(action: presentSeedphraseLogin) {
                 HStack {
