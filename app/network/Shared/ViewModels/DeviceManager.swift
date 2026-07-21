@@ -1291,27 +1291,54 @@ extension DeviceManager {
         }
     }
     
+    // concise, human-readable spec shown in the peers list:
+    // "<os> <retail model>", e.g. "18.5 iPhone 16 Pro Max",
+    // "15.5 MacBook Pro (16-inch, Nov 2023)". `UIDevice.model` is just
+    // "iPhone", and `UIDevice.name` has been the generic "iPhone" since
+    // iOS 16 — the old spec read "iPhone iPhone". The retail name comes
+    // from the hardware identifier via the bundled `DeviceModelNames`
+    // table; unknown (newer) identifiers fall back to the identifier
+    // itself ("iPhone19,1"), which still names the device
     private func getDeviceSpecs() -> String {
-        
-        var systemName = ""
         var systemVersion = ""
-        var deviceModel = ""
-        var deviceName = ""
-        
+
         #if os(iOS)
-        systemName = UIDevice.current.systemName
         systemVersion = UIDevice.current.systemVersion
-        deviceModel = UIDevice.current.model
-        deviceName = UIDevice.current.name
         #elseif os(macOS)
-        let processInfo = ProcessInfo.processInfo
-        systemName = "macOS"
-        systemVersion = processInfo.operatingSystemVersionString
-        deviceModel = "Mac"
-        deviceName = processInfo.hostName
+        let osVersion = ProcessInfo.processInfo.operatingSystemVersion
+        systemVersion = "\(osVersion.majorVersion).\(osVersion.minorVersion).\(osVersion.patchVersion)"
         #endif
-        
-        return "\(systemVersion) \(deviceModel) \(deviceName)"
+
+        let identifier = Self.hardwareModelIdentifier()
+        let model = DeviceModelNames.name(forIdentifier: identifier) ?? identifier
+        return "\(systemVersion) \(model)"
+    }
+
+    // the hardware model identifier: "iPhone17,2" on ios (utsname.machine),
+    // "Mac15,7" on macos (sysctl hw.model, since utsname.machine is the
+    // cpu arch there). On the simulator the machine reports the host arch;
+    // use the simulator's model environment instead
+    private static func hardwareModelIdentifier() -> String {
+        #if os(macOS)
+        var size = 0
+        sysctlbyname("hw.model", nil, &size, nil, 0)
+        if 0 < size {
+            var machine = [CChar](repeating: 0, count: size)
+            sysctlbyname("hw.model", &machine, &size, nil, 0)
+            return String(cString: machine)
+        }
+        return "Mac"
+        #else
+        if let simulatorModel = ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"] {
+            return simulatorModel
+        }
+        var systemInfo = utsname()
+        uname(&systemInfo)
+        return withUnsafeBytes(of: &systemInfo.machine) { buffer in
+            let bytes = buffer.prefix(while: { $0 != 0 })
+            return String(decoding: bytes, as: UTF8.self)
+        }
+        #endif
     }
     
 }
