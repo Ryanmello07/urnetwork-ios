@@ -57972,6 +57972,17 @@
         }
       }
     },
+    "The default safe settings are not applied" : {
+      "comment" : "dns settings",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The default safe settings are not applied"
+          }
+        }
+      }
+    },
     "The leaderboard is the sum of the last 4 payments. It is updated each payment cycle." : {
       "comment" : "Call to action",
       "localizations" : {
@@ -58302,6 +58313,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已知最嚴格的安全規則在%@無法正常運作。可改用建議的 DNS 設定，安全性稍低但更好用。"
+          }
+        }
+      }
+    },
+    "There are unapplied recommended settings for %@" : {
+      "comment" : "dns settings",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There are unapplied recommended settings for %@"
           }
         }
       }

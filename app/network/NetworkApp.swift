@@ -121,8 +121,11 @@ struct NetworkApp: App {
         guard let device = deviceManager.device else {
             return false
         }
-        
-        return device.getProvideEnabled()
+
+        // reflect PUBLIC providing only: Network provide (same-network peers) is
+        // always active, so the provider existing is not a meaningful signal.
+        // ProvideMode is a bit set: compare per-case, never with ranges.
+        return device.getProvideMode() == SdkProvideModePublic
     }
 
     private var menuBarImage: String {
