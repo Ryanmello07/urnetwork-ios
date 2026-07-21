@@ -10,38 +10,56 @@ import SwiftUI
 import URnetworkSdk
 
 /**
- * Aggregated contract pairs for one peer client. The aggregation, coalescing,
- * renewal-atomicity, and closing lifecycle all live in the SDK
- * ContractDetailsViewController now (shared by every platform); this row is just
- * the rendered shape.
+ * One contract, un-aggregated: its own used/total byte counts and bit rate.
+ * Contracts are never paired -- the send and receive contracts of a peer are
+ * fundamentally many-to-many, so each is presented on its own.
  */
-struct ContractClientRow: Identifiable, Equatable {
+struct ContractEntry: Identifiable, Equatable {
+    /**
+     * the contract id: the stable identity a circle keeps for its whole
+     * insert/slide-off lifecycle
+     */
+    let id: String
+    var usedByteCount: Int64 = 0
+    var totalByteCount: Int64 = 0
+    var bitRate: Int = 0
+    // a stream contract (its transfer path carries a stream id) — drawn as a
+    // double concentric outer ring so streams are visually distinct
+    var hasStream: Bool = false
+
+    var isActive: Bool {
+        0 < bitRate
+    }
+}
+
+/**
+ * One peer client's open contracts, as two independent stacks: contracts
+ * sending to the peer and contracts receiving from it, each newest first.
+ */
+struct ContractPeerRow: Identifiable, Equatable {
     let clientId: String
 
-    // signatures of the client's active contracts; a change means a contract
-    // was replaced, which swaps the circle rather than just resizing it
-    var contractId: String = ""
-    var companionContractId: String = ""
+    // newest first
+    var send: [ContractEntry] = []
+    var receive: [ContractEntry] = []
 
-    var contractUsedByteCount: Int64 = 0
-    var contractByteCount: Int64 = 0
-    var contractBitRate: Int = 0
+    // cumulative bytes moved to / from this peer in the current run (accumulated
+    // across the peer's contracts, reset when it goes idle), for the stack headers
+    var sendByteCount: Int64 = 0
+    var receiveByteCount: Int64 = 0
 
-    var companionContractUsedByteCount: Int64 = 0
-    var companionContractByteCount: Int64 = 0
-    var companionContractBitRate: Int = 0
+    // unix-millis of this peer's last byte movement (any contract with a
+    // positive bit rate), or 0 if it has not moved bytes since appearing. The
+    // list floats rows with recent activity above idle ones; freshness is judged
+    // against the device clock (the SDK view controller runs in-app).
+    var lastActivityMillis: Int64 = 0
 
-    var pairCount: Int = 0
-
-    // the client's last contract closed and the row is being ejected: it is kept
-    // briefly (by the SDK view controller) so its circles slide off, then removed
+    // the peer's last contract closed and the row is being ejected: it is kept
+    // briefly (by the SDK view controller, with empty stacks) so the circles
+    // can slide off, then removed
     var closing: Bool = false
 
     var id: String { clientId }
-
-    var isActive: Bool {
-        0 < contractBitRate || 0 < companionContractBitRate
-    }
 }
 
 enum ContractDetailsMode {
@@ -66,18 +84,21 @@ private class ContractRowsListener: NSObject, SdkContractRowsListenerProtocol {
 }
 
 /**
- * Publishes the live, aggregated contract rows for the mode's traffic. All the
- * work — coalescing egress+ingress, holding a renewing contract's slot so a
- * replace is atomic, per-peer aggregation, and the closing/eject lifecycle —
- * is done by the SDK ContractDetailsViewController; this store just maps its rows
- * onto the UI type.
+ * Publishes the live, per-contract rows for the mode's traffic. The grouping
+ * (per-peer send/receive stacks, newest first, stable order) and the closing
+ * lifecycle are done by the SDK ContractDetailsViewController, shared by every
+ * platform; this store just maps its rows onto the UI types.
  */
 @MainActor
 class ContractDetailsStore: ObservableObject {
 
     let mode: ContractDetailsMode
 
-    @Published private(set) var rows: [ContractClientRow] = []
+    @Published private(set) var rows: [ContractPeerRow] = []
+
+    // the shared view controller's "N new" pending count for this feed: rows that
+    // arrived while scrolled away from the top and are not yet merged
+    @Published private(set) var pendingCount: Int = 0
 
     private var device: SdkDeviceRemote?
     private var viewController: SdkContractDetailsViewController?
@@ -91,7 +112,11 @@ class ContractDetailsStore: ObservableObject {
         reset()
 
         self.device = device
-        let vc = device.openContractDetailsViewController()
+        // client and provider lists are two instances of the same single-feed
+        // controller; open the one for this store's feed
+        let vc = mode == .client
+            ? device.openClientContractDetailsViewController()
+            : device.openProviderContractDetailsViewController()
         self.viewController = vc
         self.rowsSub = vc?.add(ContractRowsListener { [weak self] in
             DispatchQueue.main.async {
@@ -109,41 +134,75 @@ class ContractDetailsStore: ObservableObject {
         viewController = nil
         device = nil
         rows = []
+        pendingCount = 0
+    }
+
+    /// Report whether this feed's list is scrolled to the very top. The shared
+    /// view controller owns the ordering: at the top it re-sorts active rows
+    /// above idle ones; scrolled away it freezes membership+order and collects
+    /// new rows into `pendingCount`.
+    func setAtTop(_ atTop: Bool) {
+        viewController?.setAtTop(atTop)
+    }
+
+    private static func entries(_ list: SdkContractEntryList?) -> [ContractEntry] {
+        guard let list = list else {
+            return []
+        }
+        var entries: [ContractEntry] = []
+        for i in 0..<list.len() {
+            guard let e = list.get(i) else {
+                continue
+            }
+            entries.append(
+                ContractEntry(
+                    id: e.contractId,
+                    usedByteCount: e.usedByteCount,
+                    totalByteCount: e.totalByteCount,
+                    bitRate: Int(e.bitRate),
+                    hasStream: e.hasStream
+                )
+            )
+        }
+        return entries
     }
 
     private func update() {
         guard let vc = self.viewController else {
             return
         }
-        let list: SdkContractClientRowList? =
-            mode == .client ? vc.getClientContractRows() : vc.getProviderContractRows()
+        let list: SdkContractPeerRowList? = vc.getContractRows()
+        let pending = vc.pendingCount()
 
-        var newRows: [ContractClientRow] = []
+        var newRows: [ContractPeerRow] = []
         if let list = list {
             for i in 0..<list.len() {
                 guard let r = list.get(i) else {
                     continue
                 }
                 newRows.append(
-                    ContractClientRow(
+                    ContractPeerRow(
                         clientId: r.clientId,
-                        contractId: r.contractId,
-                        companionContractId: r.companionContractId,
-                        contractUsedByteCount: r.contractUsedByteCount,
-                        contractByteCount: r.contractByteCount,
-                        contractBitRate: Int(r.contractBitRate),
-                        companionContractUsedByteCount: r.companionContractUsedByteCount,
-                        companionContractByteCount: r.companionContractByteCount,
-                        companionContractBitRate: Int(r.companionContractBitRate),
-                        pairCount: Int(r.pairCount),
+                        send: Self.entries(r.sendContracts),
+                        receive: Self.entries(r.receiveContracts),
+                        sendByteCount: r.sendByteCount,
+                        receiveByteCount: r.receiveByteCount,
+                        lastActivityMillis: r.lastActivityMillis,
                         closing: r.closing
                     )
                 )
             }
         }
 
+        // the view controller owns the ordering; animate the reorder/merge it
+        // hands us (each contract circle's own animation stays internal to the row)
         if newRows != rows {
-            rows = newRows
+            withAnimation(.easeInOut(duration: 0.35)) {
+                rows = newRows
+            }
+        }
+        if Int(pending) != pendingCount {
+            pendingCount = Int(pending)
         }
     }
 }

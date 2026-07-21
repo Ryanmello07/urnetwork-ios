@@ -103,7 +103,37 @@ class DeviceManager: ObservableObject {
     
     @Published private(set) var provideEnabled: Bool = false
     @Published private(set) var providePaused: Bool = false
-    
+
+    // the LIVE effective provide mode from the device (Public / FriendsAndFamily /
+    // Network / None). Network provide is always kept active, so `provideEnabled`
+    // (= the provider exists) no longer distinguishes public providing — this does.
+    // ProvideMode is a bit set: compare per-case, never with ranges.
+    @Published private(set) var currentProvideMode: Int = SdkProvideModeNone
+
+    // true when the device is currently providing to the PUBLIC network — the
+    // signal for the provide-settings indicator light
+    var providingPublicly: Bool {
+        currentProvideMode == SdkProvideModePublic
+    }
+
+    // whether the provider currently holds a Network-mode provide key — i.e. this
+    // device is providing to same-network peers.
+    @Published private(set) var providerHasNetworkKey: Bool = false
+    // this device's editable network name (what peers see), from the network client
+    // record. Empty until loaded.
+    @Published private(set) var deviceName: String = ""
+
+    // true when the device is providing to same-network peers and can accept a peer
+    // connection — drives the connect screen's "discoverable as {name}" line.
+    // Provide paused deliberately does NOT gate this: pause stops public provide
+    // but keeps the Network mode announced and verifiable, so a paused device is
+    // still connectable by its network peers.
+    var providerDiscoverable: Bool {
+        provideEnabled && providerHasNetworkKey
+    }
+
+    private var providerNetworkKeySub: SdkSubProtocol?
+
     private var isLoadingFromDevice = false
     
     @Published var selectedWindowType: WindowType = .auto {
@@ -330,9 +360,6 @@ class DeviceManager: ObservableObject {
     @Published private(set) var parsedJwt: SdkByJwt?
     
     private func updateParsedJwt() {
-        
-        print("update parsed jwt")
-        
         guard let localState = networkSpace?.getAsyncLocalState()?.getLocalState() else {
             parsedJwt = nil
             return
@@ -340,7 +367,6 @@ class DeviceManager: ObservableObject {
         
         do {
             parsedJwt = try localState.parseByJwt()
-            print("new parsedJwt?.pro is: \(String(describing: parsedJwt?.pro))")
             setIsPro(parsedJwt?.pro ?? false)
         } catch {
             parsedJwt = nil
@@ -502,6 +528,7 @@ extension DeviceManager {
         self.allowProvidingCell = false
         self.provideEnabled = false
         self.providePaused = false
+        self.currentProvideMode = SdkProvideModeNone
         self.deviceInitialized = true
         self.updateParsedJwt()
     }
@@ -739,6 +766,17 @@ extension DeviceManager {
             }
         }
 
+        // watch the provider's Network-mode key so the connect screen can show
+        // whether this device is discoverable as a peer. Registered before the
+        // load/init below so it receives the initial keys.
+        providerNetworkKeySub?.close()
+        providerNetworkKeySub = device.add(ProvideSecretKeysListener { provideSecretKeysList in
+            let hasNetworkKey = DeviceManager.provideSecretKeysContainNetwork(provideSecretKeysList)
+            DispatchQueue.main.async { [weak self] in
+                self?.providerHasNetworkKey = hasNetworkKey
+            }
+        })
+
         if let providerSecretKeys = localState.getProvideSecretKeys() {
             device.loadProvideSecretKeys(providerSecretKeys)
         } else {
@@ -749,6 +787,10 @@ extension DeviceManager {
             })
             device.initProvideSecretKeys()
         }
+
+        // load this device's editable network name (what peers see) for the
+        // discoverable line on the connect screen
+        Task { [weak self] in await self?.fetchDeviceName(device) }
 
         // note the network extension controls listening for connectivity and provide paused
         // ignore `providePaused`
@@ -830,9 +872,6 @@ extension DeviceManager {
         })
         
         self.deviceJwtRefreshSub = device.add(JwtRefreshListener { [weak self] _ in
-
-            print("JwtRefreshListener hit")
-
             guard let self = self else {
                 return
             }
@@ -893,6 +932,9 @@ extension DeviceManager {
 
         self.deviceProvideModeSub = device.add(ProvideModeChangeListener { [weak self] provideMode in
             try? self?.asyncLocalState?.getLocalState()?.setProvideMode(provideMode)
+            DispatchQueue.main.async { [weak self] in
+                self?.currentProvideMode = provideMode
+            }
         })
 
         self.deviceProvideNetworkModeSub = device.add(ProvideNetworkModeChangeListener { [weak self] provideNetworkMode in
@@ -912,8 +954,9 @@ extension DeviceManager {
         
         self.provideEnabled = device.getProvideEnabled()
         self.providePaused = device.getProvidePaused()
+        self.currentProvideMode = device.getProvideMode()
     }
-    
+
     private func cleanupDeviceListeners() {
         deviceProvideSub?.close()
         deviceProvideSub = nil
@@ -953,8 +996,68 @@ extension DeviceManager {
 
         deviceBlockerEnabledSub?.close()
         deviceBlockerEnabledSub = nil
+
+        providerNetworkKeySub?.close()
+        providerNetworkKeySub = nil
+        providerHasNetworkKey = false
+        deviceName = ""
+        currentProvideMode = SdkProvideModeNone
     }
-    
+
+    private static func provideSecretKeysContainNetwork(_ list: SdkProvideSecretKeyList?) -> Bool {
+        guard let list = list else { return false }
+        for i in 0..<list.len() {
+            if let key = list.get(i), key.provideMode == SdkProvideModeNetwork {
+                return true
+            }
+        }
+        return false
+    }
+
+    private func fetchDeviceName(_ device: SdkDeviceRemote) async {
+        guard let clientId = device.getClientId(), let api = self.api else { return }
+        do {
+            // self.api is the raw SdkApi, whose generated call is callback-based
+            let result: SdkNetworkClientsResult = try await withCheckedThrowingContinuation { continuation in
+                let callback = FetchNetworkClientsCallback { result, err in
+                    if let err = err {
+                        continuation.resume(throwing: err)
+                        return
+                    }
+                    guard let result = result else {
+                        continuation.resume(throwing: NSError(
+                            domain: "DeviceManager",
+                            code: 0,
+                            userInfo: [NSLocalizedDescriptionKey: "empty network clients result"]
+                        ))
+                        return
+                    }
+                    continuation.resume(returning: result)
+                }
+                api.getNetworkClients(callback)
+            }
+            guard let clients = result.clients else { return }
+            for i in 0..<clients.len() {
+                guard let info = clients.get(i) else { continue }
+                if info.clientId?.idStr == clientId.idStr {
+                    self.deviceName = !info.deviceName.isEmpty ? info.deviceName : info.deviceDescription
+                    break
+                }
+            }
+        } catch {
+            print("[\(domain)] Error fetching device name: \(error)")
+        }
+    }
+
+}
+
+private class FetchNetworkClientsCallback: SdkCallback<
+    SdkNetworkClientsResult, SdkGetNetworkClientsCallbackProtocol
+>, SdkGetNetworkClientsCallbackProtocol
+{
+    func result(_ result: SdkNetworkClientsResult?, err: Error?) {
+        handleResult(result, err: err)
+    }
 }
 
 private class AuthNetworkClientCallback: SdkCallback<SdkAuthNetworkClientResult, SdkAuthNetworkClientCallbackProtocol>, SdkAuthNetworkClientCallbackProtocol {
@@ -1188,27 +1291,54 @@ extension DeviceManager {
         }
     }
     
+    // concise, human-readable spec shown in the peers list:
+    // "<os> <retail model>", e.g. "18.5 iPhone 16 Pro Max",
+    // "15.5 MacBook Pro (16-inch, Nov 2023)". `UIDevice.model` is just
+    // "iPhone", and `UIDevice.name` has been the generic "iPhone" since
+    // iOS 16 — the old spec read "iPhone iPhone". The retail name comes
+    // from the hardware identifier via the bundled `DeviceModelNames`
+    // table; unknown (newer) identifiers fall back to the identifier
+    // itself ("iPhone19,1"), which still names the device
     private func getDeviceSpecs() -> String {
-        
-        var systemName = ""
         var systemVersion = ""
-        var deviceModel = ""
-        var deviceName = ""
-        
+
         #if os(iOS)
-        systemName = UIDevice.current.systemName
         systemVersion = UIDevice.current.systemVersion
-        deviceModel = UIDevice.current.model
-        deviceName = UIDevice.current.name
         #elseif os(macOS)
-        let processInfo = ProcessInfo.processInfo
-        systemName = "macOS"
-        systemVersion = processInfo.operatingSystemVersionString
-        deviceModel = "Mac"
-        deviceName = processInfo.hostName
+        let osVersion = ProcessInfo.processInfo.operatingSystemVersion
+        systemVersion = "\(osVersion.majorVersion).\(osVersion.minorVersion).\(osVersion.patchVersion)"
         #endif
-        
-        return "\(systemVersion) \(deviceModel) \(deviceName)"
+
+        let identifier = Self.hardwareModelIdentifier()
+        let model = DeviceModelNames.name(forIdentifier: identifier) ?? identifier
+        return "\(systemVersion) \(model)"
+    }
+
+    // the hardware model identifier: "iPhone17,2" on ios (utsname.machine),
+    // "Mac15,7" on macos (sysctl hw.model, since utsname.machine is the
+    // cpu arch there). On the simulator the machine reports the host arch;
+    // use the simulator's model environment instead
+    private static func hardwareModelIdentifier() -> String {
+        #if os(macOS)
+        var size = 0
+        sysctlbyname("hw.model", nil, &size, nil, 0)
+        if 0 < size {
+            var machine = [CChar](repeating: 0, count: size)
+            sysctlbyname("hw.model", &machine, &size, nil, 0)
+            return String(cString: machine)
+        }
+        return "Mac"
+        #else
+        if let simulatorModel = ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"] {
+            return simulatorModel
+        }
+        var systemInfo = utsname()
+        uname(&systemInfo)
+        return withUnsafeBytes(of: &systemInfo.machine) { buffer in
+            let bytes = buffer.prefix(while: { $0 != 0 })
+            return String(decoding: bytes, as: UTF8.self)
+        }
+        #endif
     }
     
 }

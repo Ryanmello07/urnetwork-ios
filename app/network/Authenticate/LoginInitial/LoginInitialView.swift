@@ -1078,12 +1078,8 @@ private struct SSOButtons: View {
                 .frame(height: 8)
 
             HStack {
-                /**
-                 * Bittensor sign in. Runs through the ur.io/wallet-connect
-                 * bridge (browser extension wallets), which works on desktop
-                 * unlike Solana's Phantom/Solflare deep-link detection - see
-                 * the note on the removed macOS Solana button below.
-                 */
+                // Both wallet sign-ins run through the ur.io/wallet-connect browser
+                // bridge, which drives browser-extension wallets on desktop.
                 Button(action: signInWithBittensor) {
                     HStack {
                         Text("τ")
@@ -1108,10 +1104,30 @@ private struct SSOButtons: View {
 
                 Spacer().frame(width: 8)
 
-                // no Solana button here: unlike Bittensor, Solana sign-in relies on
-                // Phantom/Solflare app-installed detection with no macOS equivalent
-                // yet (see ios: remove Solana sign-in button from macOS login screen)
-                Spacer().frame(maxWidth: .infinity)
+                // Solana sign in. presentSignInWithSolanaSheet -> SolanaSignMessageSheet,
+                // whose connect/sign route through ConnectWalletProviderViewModel.openURL;
+                // on macOS that rewrites the Phantom/Solflare universal link to the
+                // ur.io/wallet-connect bridge (isWalletAppInstalled is true on macOS).
+                Button(action: presentSignInWithSolanaSheet) {
+                    HStack {
+                        Image("solana.gradient.logo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 14)
+                        Spacer().frame(width: 8)
+                        Text("Sign in with Solana")
+                            .foregroundColor(themeManager.currentTheme.inverseTextColor)
+                            .font(
+                                Font.system(size: 12, weight: .medium)
+                            )
+                    }
+                }
+                .frame(height: 30)
+                .frame(maxWidth: .infinity)
+                .background(.white)
+                .cornerRadius(6)
+                .buttonStyle(.plain)
+                .disabled(isLoginActionInFlight)
             }
             .frame(maxWidth: .infinity)
         }

@@ -47,63 +47,68 @@ extension ConnectCanvasConnectingStateView {
         @Published var maxPointSize: CGFloat = 0
         
         func updateGridPoints(_ points: [SdkId: SdkProviderGridPoint], gridWidth: Int32) {
-            
+
             if gridWidth > 0 {
-                
                 self.maxPointSize = canvasWidth / CGFloat(gridWidth)
-                    
-                var processedPoints = Set<String>()
-                
-                for (id, point) in points {
-                    let idStr = id.idStr
-                    processedPoints.insert(idStr)
-                    
-                    if let state = GridPointState(rawValue: point.state) {
-                        if let existingPoint = animatedPoints[idStr] {
-                            // update an existing point
-                            if existingPoint.currentState != state {
-                                var updatedPoint = existingPoint
-                                updatedPoint.previousState = existingPoint.currentState
-                                updatedPoint.currentState = state
-                                updatedPoint.stateAnimationProgress = 0.0
-                                animatedPoints[idStr] = updatedPoint
-                            }
-                        } else {
-                            
-                            // add a new point
-                            animatedPoints[idStr] = AnimatedGridPoint(
-                                currentState: state,
-                                previousState: nil,
-                                stateAnimationProgress: 0.0,
-                                sizeAnimationProgress: 0.0,
-                                currentSize: 0,
-                                targetSize: maxPointSize,
-                                x: point.x,
-                                y: point.y
-                            )
-                        }
-                    }
-                }
-                
-                // Check for removed points
-                let removedPoints = Set(animatedPoints.keys).subtracting(processedPoints)
-                
-                for id in removedPoints {
-                    if var point = animatedPoints[id] {
-                        point.previousState = point.currentState
-                        point.currentState = .removed
-                        point.stateAnimationProgress = 0.0
-                        animatedPoints[id] = point
-                    }
-                }
-                
-                startAnimationTimer()
-                
-            } else {
+            } else if !points.isEmpty {
+                // new points cannot be placed without the grid scale. a
+                // non-empty grid always reports a width, so this only skips a
+                // transient state.
                 print("updateGridPoints: grid width is zero")
+                return
             }
-            
-                
+            // note an empty points set continues even with zero width: a grid
+            // swap (a fresh grid has no width until its first point) or a grid
+            // drain must still run the removal diff below, or the previous
+            // dots would linger on the canvas indefinitely
+
+            var processedPoints = Set<String>()
+
+            for (id, point) in points {
+                let idStr = id.idStr
+                processedPoints.insert(idStr)
+
+                if let state = GridPointState(rawValue: point.state) {
+                    if let existingPoint = animatedPoints[idStr] {
+                        // update an existing point
+                        if existingPoint.currentState != state {
+                            var updatedPoint = existingPoint
+                            updatedPoint.previousState = existingPoint.currentState
+                            updatedPoint.currentState = state
+                            updatedPoint.stateAnimationProgress = 0.0
+                            animatedPoints[idStr] = updatedPoint
+                        }
+                    } else {
+
+                        // add a new point
+                        animatedPoints[idStr] = AnimatedGridPoint(
+                            currentState: state,
+                            previousState: nil,
+                            stateAnimationProgress: 0.0,
+                            sizeAnimationProgress: 0.0,
+                            currentSize: 0,
+                            targetSize: maxPointSize,
+                            x: point.x,
+                            y: point.y
+                        )
+                    }
+                }
+            }
+
+            // Check for removed points
+            let removedPoints = Set(animatedPoints.keys).subtracting(processedPoints)
+
+            for id in removedPoints {
+                if var point = animatedPoints[id] {
+                    point.previousState = point.currentState
+                    point.currentState = .removed
+                    point.stateAnimationProgress = 0.0
+                    animatedPoints[id] = point
+                }
+            }
+
+            startAnimationTimer()
+
         }
         
         private func startAnimationTimer() {

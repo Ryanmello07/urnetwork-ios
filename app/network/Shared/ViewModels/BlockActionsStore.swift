@@ -15,8 +15,16 @@ import URnetworkSdk
 struct BlockActionItem: Identifiable, Equatable {
     let id: String
     let time: Date
+    // cluster hosts/ips that did NOT match an override (disjoint from the matched sets)
     let hosts: [String]
     let ips: [String]
+    // the exact hosts/ips that matched an override rule, shown as green chips at the
+    // front (disjoint from hosts/ips)
+    let matchedHosts: [String]
+    let matchedIps: [String]
+    // the unmatched hosts collapsed to base names (SDK CollapseHostNames), shown as
+    // white chips — the same collapse logic on every platform
+    let hostBaseNames: [String]
     let block: Bool
     let local: Bool
     /**
@@ -29,19 +37,28 @@ struct BlockActionItem: Identifiable, Equatable {
     let byteCount: Int64
 
     /**
-     * all host values that can be added to a split rule,
-     * host names first
+     * every host name (matched + unmatched) and every ip (matched + unmatched)
      */
-    var hostValues: [String] {
-        hosts + ips
+    var allHostNames: [String] {
+        matchedHosts + hosts
+    }
+    var allIps: [String] {
+        matchedIps + ips
     }
 
     /**
-     * the host names in the cluster if there are host names
-     * ("A, B, C + X IPs"), else the ips, compacted when long
+     * all host values that can be added to a split rule,
+     * host names first (matched + unmatched, so the editor sees everything)
      */
-    var displayText: String {
-        formatHostClusterText(hosts: hosts, ips: ips)
+    var hostValues: [String] {
+        allHostNames + allIps
+    }
+
+    /**
+     * count of unmatched ips, rendered as a single "X IPs" pill
+     */
+    var ipCount: Int {
+        ips.count
     }
 }
 
@@ -50,7 +67,12 @@ struct BlockActionItem: Identifiable, Equatable {
  */
 struct SplitRuleItem: Identifiable, Equatable {
     let id: String
+    // the raw host values (host names and ips mixed), for the editor
     let hosts: [String]
+    // the rule's host names collapsed to base names (SDK CollapseHostNames), and its
+    // exact ip values — both rendered as green chips in the row
+    let hostBaseNames: [String]
+    let ipValues: [String]
     let routeLocal: Bool
 }
 
@@ -172,12 +194,16 @@ class BlockActionsStore: ObservableObject {
                 guard let action = list.get(i) else {
                     continue
                 }
+                let unmatchedHosts = stringListToArray(action.hosts)
                 items.append(
                     BlockActionItem(
                         id: action.blockActionId?.idStr ?? UUID().uuidString,
                         time: Date(timeIntervalSince1970: TimeInterval(action.time) / 1000.0),
-                        hosts: stringListToArray(action.hosts),
+                        hosts: unmatchedHosts,
                         ips: stringListToArray(action.ips),
+                        matchedHosts: stringListToArray(action.matchedHosts),
+                        matchedIps: stringListToArray(action.matchedIps),
+                        hostBaseNames: collapseHosts(unmatchedHosts),
                         block: action.block,
                         local: action.local,
                         overrideId: action.overrideId?.idStr,
@@ -224,10 +250,15 @@ class BlockActionsStore: ObservableObject {
                     continue
                 }
                 overrides.append(override)
+                let ruleHosts = stringListToArray(override.hosts)
+                let ruleHostNames = ruleHosts.filter { !isIpAddressValue($0) }
+                let ruleIps = ruleHosts.filter { isIpAddressValue($0) }
                 items.append(
                     SplitRuleItem(
                         id: overrideId.idStr,
-                        hosts: stringListToArray(override.hosts),
+                        hosts: ruleHosts,
+                        hostBaseNames: collapseHosts(ruleHostNames),
+                        ipValues: ruleIps,
                         routeLocal: override.routeOverride?.local ?? false
                     )
                 )
@@ -318,5 +349,16 @@ class BlockActionsStore: ObservableObject {
             list?.add(value)
         }
         return list
+    }
+
+    /**
+     * collapse host names to base names through the shared SDK logic
+     * (SdkCollapseHostNames), so every platform collapses identically
+     */
+    private func collapseHosts(_ hosts: [String]) -> [String] {
+        if hosts.isEmpty {
+            return []
+        }
+        return stringListToArray(SdkCollapseHostNamesList(arrayToStringList(hosts)))
     }
 }
