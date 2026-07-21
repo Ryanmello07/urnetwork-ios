@@ -245,6 +245,9 @@ class VPNManager: ObservableObject {
     }
 
     func updateVpnServiceAndWait(timeout: TimeInterval = 30) async -> Result<Void, Error> {
+        // the tunnel is the packet router: it must run whenever the device is
+        // connected, providing (any mode — including Network, which relays for
+        // same-network peers), or routing remotely
         let expectedTunnelStarted = device.getProvideEnabled() || device.getConnectEnabled() || !device.getRouteLocal()
 
         let updateResult: Result<Void, Error> = await withCheckedContinuation { continuation in
@@ -313,7 +316,7 @@ class VPNManager: ObservableObject {
         print("provideMode is: \(device.getProvideMode())")
         print("provideControlMode is: \(device.getProvideControlMode())")
         #endif
-        
+
         if (provideEnabled || connectEnabled || !routeLocal) {
             #if DEBUG
             print("[VPNManager]start")

@@ -37,8 +37,22 @@ struct ConnectActions: View {
 
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var networkPeersStore: NetworkPeersStore
+    @EnvironmentObject var deviceManager: DeviceManager
 
-    private var peerCount: Int { networkPeersStore.connectedProvidePeers.count }
+    // ALL connected devices (a device is online whether or not it provides);
+    // the chooser's peers section stays provide-filtered (connectable only)
+    private var peerCount: Int { networkPeersStore.connectedCount }
+
+    // second line under the peers count: whether this device is itself
+    // discoverable/connectable as a peer (providing to same-network peers).
+    private var discoverableText: String {
+        if deviceManager.providerDiscoverable {
+            return deviceManager.deviceName.isEmpty
+                ? "This device is discoverable"
+                : "This device is discoverable as \(deviceManager.deviceName)"
+        }
+        return "Enable provide mode to make this device discoverable"
+    }
 
     var body: some View {
             
@@ -121,8 +135,15 @@ struct ConnectActions: View {
                             .contentShape(Rectangle())
                             .onTapGesture { setIsPresented(true) }
 
+                            Spacer().frame(height: 6)
+                            Text(discoverableText)
+                                .font(themeManager.currentTheme.secondaryBodyFont)
+                                .foregroundColor(themeManager.currentTheme.textMutedColor)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.leading, 16)
+
                             Spacer().frame(height: 24)
-                            
+
                             Text("Connect options")
                                 .font(themeManager.currentTheme.secondaryBodyFont)
                                 .foregroundColor(themeManager.currentTheme.textMutedColor)

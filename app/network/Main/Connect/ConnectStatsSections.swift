@@ -94,6 +94,10 @@ struct ConnectStatsSections: View {
 
                 cardHeader("Custom DNS")
 
+                // a nudge when the applied dns settings differ from the recommended
+                // ones (regional recommendation, or the safe defaults)
+                DnsRecommendationPill()
+
                 if let settings = dnsSettingsStore.settings {
                     VStack(spacing: 8) {
                         dnsStatusRow("DNS over HTTPS", enabled: settings.dohEnabled)
@@ -174,6 +178,65 @@ struct ConnectStatsSections: View {
         .contentShape(Rectangle())
         .onTapGesture {
             action()
+        }
+    }
+}
+
+/**
+ * A pill shown atop the Custom DNS card when the applied dns settings differ from
+ * the recommended ones: the connected country's regional recommendation (with the
+ * country color) when it has one, otherwise the safe defaults. Nothing is shown
+ * when the applied settings already match. Extracted like SplitRuleCountLabel so
+ * its connectViewModel / dnsSettingsStore subscriptions don't re-render the charts.
+ */
+private struct DnsRecommendationPill: View {
+    @EnvironmentObject var themeManager: ThemeManager
+    @EnvironmentObject var dnsSettingsStore: DnsSettingsStore
+    @EnvironmentObject var connectViewModel: ConnectViewModel
+
+    /// the pill message and, for a regional recommendation, the country code whose
+    /// color dots the pill; nil when the applied settings already match
+    private var recommendation: (message: LocalizedStringKey, countryCode: String?)? {
+        guard let current = dnsSettingsStore.settings else {
+            return nil
+        }
+        // a connected country with a known-better regional recommendation takes precedence
+        if let code = connectViewModel.selectedProvider?.countryCode,
+           let sdkRecommended = SdkGetRecommendedDnsResolverSettings(code) {
+            if current != DnsSettings(sdkRecommended) {
+                let name = connectViewModel.selectedProvider?.country ?? code.uppercased()
+                let message: LocalizedStringKey = "There are unapplied recommended settings for \(name)"
+                return (message, code)
+            }
+            // already on the regional recommendation
+            return nil
+        }
+        // otherwise nudge toward the safe defaults when they aren't applied
+        if let sdkDefault = SdkGetDefaultDnsResolverSettings(), current != DnsSettings(sdkDefault) {
+            let message: LocalizedStringKey = "The default safe settings are not applied"
+            return (message, nil)
+        }
+        return nil
+    }
+
+    var body: some View {
+        if let recommendation {
+            HStack(spacing: 6) {
+                if let code = recommendation.countryCode {
+                    Circle()
+                        .fill(Color(hex: SdkGetColorHex(code)))
+                        .frame(width: 8, height: 8)
+                }
+                Text(recommendation.message)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(themeManager.currentTheme.textColor)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(Color.urCoral.opacity(0.15)))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.bottom, 8)
         }
     }
 }
