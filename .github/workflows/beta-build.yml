@@ -1,0 +1,152 @@
+name: Beta Build — iOS & macOS
+
+on:
+  push:
+    branches:
+      - beta/custom-server
+  pull_request:
+    branches:
+      - beta/custom-server
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  WARP_VERSION: beta-${{ github.run_number }}
+
+jobs:
+  build-ios:
+    name: Build unsigned iOS and macOS apps
+    runs-on: macos-latest
+    steps:
+      - name: Check out iOS repo
+        uses: actions/checkout@v4
+        with:
+          path: urnetwork-ios
+
+      - name: Check out forked SDK
+        uses: actions/checkout@v4
+        with:
+          repository: Ryanmello07/urnetwork-sdk
+          ref: beta/custom-server
+          path: urnetwork-sdk
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Check out connect dependency
+        run: git clone --depth 1 --branch beta/custom-server https://github.com/Ryanmello07/connect.git connect
+
+      - name: Check out glog dependency
+        run: git clone --depth 1 https://github.com/urnetwork/glog.git glog
+
+      - name: Build SDK for iOS
+        working-directory: urnetwork-sdk/build
+        env:
+          BRINGYOUR_HOME: ${{ github.workspace }}/urnetwork-sdk
+          WARP_HOME: ${{ github.workspace }}/urnetwork-sdk
+          WARP_VERSION_HOME: ${{ github.workspace }}/urnetwork-sdk/version
+        run: |
+          export PATH="$PATH:/usr/local/go/bin:$HOME/go/bin"
+          make init build_apple
+
+      - name: Resolve Swift packages
+        working-directory: urnetwork-ios/app
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project app.xcodeproj \
+            -scheme URnetwork \
+            -derivedDataPath DerivedData
+
+      - name: Archive unsigned iOS app
+        working-directory: urnetwork-ios/app
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project app.xcodeproj \
+            -scheme URnetwork \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/URnetwork.xcarchive \
+            -derivedDataPath DerivedData \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            MARKETING_VERSION=beta \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            2>&1 | tee xcodebuild-archive.log
+
+      - name: Package unsigned IPA
+        working-directory: urnetwork-ios/app
+        run: |
+          APP=$(find build/URnetwork.xcarchive -name 'URnetwork.app' -type d | head -n 1)
+          if [ -z "$APP" ]; then
+            echo "Could not find URnetwork.app in archive"
+            exit 1
+          fi
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -r URnetwork-beta.ipa Payload
+
+      - name: Archive unsigned macOS app
+        working-directory: urnetwork-ios/app
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project app.xcodeproj \
+            -scheme URnetwork \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -archivePath build/URnetwork-macOS.xcarchive \
+            -derivedDataPath DerivedData \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            MARKETING_VERSION=beta \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            2>&1 | tee xcodebuild-archive-macos.log
+
+      - name: Package unsigned macOS app
+        working-directory: urnetwork-ios/app
+        run: |
+          APP=$(find build/URnetwork-macOS.xcarchive -name 'URnetwork.app' -type d | head -n 1)
+          if [ -z "$APP" ]; then
+            echo "Could not find URnetwork.app in macOS archive"
+            exit 1
+          fi
+          ditto -c -k --sequesterRsrc --keepParent "$APP" URnetwork-beta-macOS.zip
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: URnetwork-beta-ios
+          path: urnetwork-ios/app/URnetwork-beta.ipa
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: URnetwork-beta-macOS
+          path: urnetwork-ios/app/URnetwork-beta-macOS.zip
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Create prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: beta-custom-server-${{ github.run_number }}-${{ github.run_attempt }}
+        run: |
+          gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes || true
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --prerelease \
+            --title "URnetwork iOS beta custom server ${{ github.run_number }}" \
+            --generate-notes \
+            urnetwork-ios/app/URnetwork-beta.ipa \
+            urnetwork-ios/app/URnetwork-beta-macOS.zip
