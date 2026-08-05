@@ -87,14 +87,14 @@ convention used by offline getters).
 
 | DeviceRemote method | semantics |
 | --- | --- |
-| `GetReliabilitySettings() *ReliabilitySettings` | effective config from the extension device |
+| `GetReliabilitySettings() *ReliabilitySettings` | effective config from the extension device. **AMENDED: returns nil when nothing is in force** (no multi client / no rpc service). The original zeros-degradation manufactured the plan's own zero-value-off trap on iOS, where `DeviceRemote` exists from login and outlives every tunnel session — unlike android, where `device` IS the `DeviceLocal` and is nil unless connected, which is the only reason android never hit it. Settings only; metrics and the two lists still degrade to zeros/empty, which are honest answers and avoid a nil crossing gomobile. |
 | `SetReliabilitySettings(*ReliabilitySettings)` | runtime override, no reconnect |
 | `ResetReliabilitySettings()` | clear override |
 | `GetReliabilityMetrics() *ReliabilityMetrics` | counters snapshot |
 | `ResetReliabilityMetrics()` | zero counters |
 | `GetExits() *ExitList` | per-exit readout rows (id, tier, effective tier, flows, proven, quarantined, warning, warning cause, age) |
 | `MigrateExit(exitClientId string)` | drain-style hand-off of one exit |
-| `ProbeExit(exitClientId string)` | one qualification pass |
+| ~~`ProbeExit(exitClientId string)`~~ | **DROPPED (contract error).** No per-exit probe seam exists in connect — only `ProbeAllExits`; the per-client pass, the window client enumeration, and the qualification table are all unexported. The android screen has no per-row probe either, so parity never needed it, and widening the connect API inside a PR already under upstream review is not worth one dev-screen button. The iOS per-row Probe button was removed (ios `0cc4d25`); `MigrateExit` is the only per-row action. |
 | `ProbeAllExits()` | full sweep |
 | `SimulateNetworkChange()` | the dev action |
 | `GetDestinationExits() *DestinationExitList` | destination→exit attribution rows |
@@ -175,8 +175,27 @@ with the tunnel down (all-nil path) and up; every control round-trips
   read side rendering pre-existing Pin rules.
 
 **Acceptance:** compiles both destinations; rows show chips within ~5s of a
-flow moving; a site pinned on iOS produces `[rel] event=pin_lookup`-class
-placement behavior in the extension log (verified in live test, not CI).
+flow moving.
+
+**AMENDED — what a site pin actually does, and its live-test signal.** The
+original acceptance criterion ("`[rel] event=pin_lookup`-class placement
+behavior") was wrong twice over. `pin_lookup` is emitted only by
+`SetFlowOwnerLookup`, the per-app wiring iOS deliberately does not bridge —
+so that line can never appear on iOS. And more importantly, `RouteOverride.Pin`
+means two different things by rule type: for an APP rule every flow the app
+owns joins one app-scoped affinity group (one egress ip for the whole app —
+the DoorDash fix); for a HOST rule the flows keep their ordinary domain
+grouping and gain only a longer tolerance for a quarantined exit. In connect,
+only `pin.appId != ""` replaces the affinity paths
+(`ip_remote_multi_client.go:2970-2971, 3124-3125`); `site: true` merely makes
+`pinned()` true, which widens the follow window via `pinnedFollowWindow`. So
+**iOS site pinning buys fewer mid-session exit changes for that site, NOT a
+shared egress ip across its subdomains** — multi-subdomain consolidation comes
+from the CDN-constellation alias table, which works everywhere. The app copy
+was corrected to say this (ios `7a9fcc8`). Live-test signal: a pinned site's
+flows stay on their exit across a quarantine episode that would otherwise
+re-race them — observable as `event=quarantine` on an exit that keeps
+carrying that site's flows, not as a new log line.
 
 ## WP4 — build branch + CI for a testable IPA
 
