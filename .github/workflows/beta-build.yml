@@ -25,12 +25,18 @@ jobs:
         with:
           path: urnetwork-ios
 
+      # The checkpoint lineage carries upstream's app/URnetworkSdk/Package.swift,
+      # whose binaryTarget path is ../../../sdk/build/apple/URnetworkSdk.xcframework
+      # — i.e. $GITHUB_WORKSPACE/sdk, NOT the fork-era urnetwork-sdk/ path the
+      # beta/custom-server workflow used. Check the sdk out under the directory
+      # name Xcode expects; no symlink (the sdk Makefile warns Xcode does not
+      # handle symlinks consistently).
       - name: Check out forked SDK
         uses: actions/checkout@v4
         with:
           repository: Ryanmello07/urnetwork-sdk
-          ref: beta/custom-server
-          path: urnetwork-sdk
+          ref: feat/reliability-checkpoint-upstream
+          path: sdk
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -38,20 +44,39 @@ jobs:
           go-version: stable
 
       - name: Check out connect dependency
-        run: git clone --depth 1 --branch beta/custom-server https://github.com/Ryanmello07/connect.git connect
+        run: git clone --depth 1 --branch feat/reliability-checkpoint-upstream https://github.com/Ryanmello07/connect.git connect
 
       - name: Check out glog dependency
         run: git clone --depth 1 https://github.com/urnetwork/glog.git glog
 
+      # the sdk's go.mod resolves this with `replace ... => ../goidenticons`,
+      # so it has to sit next to the sdk checkout like connect and glog do
+      - name: Check out goidenticons dependency
+        run: git clone --depth 1 https://github.com/urnetwork/goidenticons.git goidenticons
+
+      # upstream sdk main references RenderPngV2, which the published
+      # goidenticons does not have; delegate to the published renderer
+      - name: Shim unpublished goidenticons RenderPngV2
+        run: |
+          echo 'package goidenticons' > goidenticons/render_v2_ci_shim.go
+          echo 'func RenderPngV2(data []byte, size int) ([]byte, error) { return RenderPng(data, size) }' >> goidenticons/render_v2_ci_shim.go
+
       - name: Build SDK for iOS
-        working-directory: urnetwork-sdk/build
+        working-directory: sdk/build
         env:
-          BRINGYOUR_HOME: ${{ github.workspace }}/urnetwork-sdk
-          WARP_HOME: ${{ github.workspace }}/urnetwork-sdk
-          WARP_VERSION_HOME: ${{ github.workspace }}/urnetwork-sdk/version
+          BRINGYOUR_HOME: ${{ github.workspace }}/sdk
+          WARP_HOME: ${{ github.workspace }}/sdk
+          WARP_VERSION_HOME: ${{ github.workspace }}/sdk/version
         run: |
           export PATH="$PATH:/usr/local/go/bin:$HOME/go/bin"
           make init build_apple
+          # app/URnetworkSdk/Package.swift consumes the framework from this
+          # exact path; fail here, while the make output is still on screen,
+          # if the layout ever drifts
+          if [ ! -d "${{ github.workspace }}/sdk/build/apple/URnetworkSdk.xcframework" ]; then
+            echo "::error::URnetworkSdk.xcframework missing at sdk/build/apple — the Package.swift binary target will not resolve"
+            exit 1
+          fi
 
       - name: Resolve Swift packages
         working-directory: urnetwork-ios/app
@@ -137,16 +162,19 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      # tag renamed from beta-custom-server-* so live-test builds from this
+      # branch never collide with (or pass for) real beta/custom-server
+      # releases — this line builds against the reliability checkpoint stack
       - name: Create prerelease
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: beta-custom-server-${{ github.run_number }}-${{ github.run_attempt }}
+          TAG: beta-checkpoint-${{ github.run_number }}-${{ github.run_attempt }}
         run: |
           gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes || true
           gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --prerelease \
-            --title "URnetwork iOS beta custom server ${{ github.run_number }}" \
+            --title "URnetwork iOS beta checkpoint ${{ github.run_number }}" \
             --generate-notes \
             urnetwork-ios/app/URnetwork-beta.ipa \
             urnetwork-ios/app/URnetwork-beta-macOS.zip
