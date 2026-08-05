@@ -35,7 +35,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Ryanmello07/urnetwork-sdk
-          ref: feat/reliability-checkpoint-upstream
+          ref: feat/ios-reliability-bridge-upstream
           path: sdk
 
       - name: Set up Go
