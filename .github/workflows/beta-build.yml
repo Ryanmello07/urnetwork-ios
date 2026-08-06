@@ -1,0 +1,194 @@
+name: Beta Build — iOS & macOS
+
+on:
+  push:
+    branches:
+      - beta/custom-server
+  pull_request:
+    branches:
+      - beta/custom-server
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  WARP_VERSION: beta-${{ github.run_number }}
+
+jobs:
+  build-apple:
+    name: Build unsigned iOS and macOS apps
+    runs-on: macos-latest
+    steps:
+      - name: Check out iOS repo
+        uses: actions/checkout@v4
+        with:
+          path: urnetwork-ios
+
+      # app/URnetworkSdk/Package.swift declares its binaryTarget at
+      # ../../../sdk/build/apple/URnetworkSdk.xcframework, which resolves to
+      # $GITHUB_WORKSPACE/sdk — so the sdk has to be checked out under that
+      # exact directory name. No symlink: the sdk Makefile warns that Xcode
+      # does not handle symlinks consistently.
+      - name: Check out forked SDK
+        uses: actions/checkout@v4
+        with:
+          repository: Ryanmello07/urnetwork-sdk
+          ref: beta/custom-server
+          path: sdk
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      # the sdk's go.mod resolves connect, glog and goidenticons with
+      # `replace ... => ../<name>`, so all three have to sit next to the sdk
+      # checkout at the workspace root.
+      - name: Check out connect dependency
+        run: git clone --depth 1 --branch beta/custom-server https://github.com/Ryanmello07/connect.git connect
+
+      - name: Check out glog dependency
+        run: git clone --depth 1 https://github.com/urnetwork/glog.git glog
+
+      - name: Check out goidenticons dependency
+        run: git clone --depth 1 https://github.com/urnetwork/goidenticons.git goidenticons
+
+      # sdk/post_quantum_identity.go calls goidenticons.RenderPngV2, which the
+      # published goidenticons does not export — its squashed "port
+      # nanoidenticons" RenderPng already renders the scheme the sdk calls v2.
+      # Delegate to it so the build can link. The guard makes this a no-op once
+      # goidenticons publishes the real RenderPngV2, instead of a redeclaration
+      # error.
+      - name: Shim unpublished goidenticons RenderPngV2
+        run: |
+          if grep -rq 'func RenderPngV2' goidenticons; then
+            echo "goidenticons already exports RenderPngV2 — skipping shim"
+            exit 0
+          fi
+          cat > goidenticons/render_v2_ci_shim.go <<'EOF'
+          package goidenticons
+
+          func RenderPngV2(data []byte, size int) ([]byte, error) {
+          	return RenderPng(data, size)
+          }
+          EOF
+
+      - name: Build SDK for Apple platforms
+        working-directory: sdk/build
+        env:
+          BRINGYOUR_HOME: ${{ github.workspace }}/sdk
+          WARP_HOME: ${{ github.workspace }}/sdk
+          WARP_VERSION_HOME: ${{ github.workspace }}/sdk/version
+        run: |
+          export PATH="$PATH:/usr/local/go/bin:$HOME/go/bin"
+          make init build_apple
+          # app/URnetworkSdk/Package.swift consumes the framework from this
+          # exact path; fail here, while the make output is still on screen,
+          # if the layout ever drifts. Otherwise it only surfaces later as
+          # "No such module 'URnetworkSdk'" across every swift file.
+          if [ ! -d "${{ github.workspace }}/sdk/build/apple/URnetworkSdk.xcframework" ]; then
+            echo "::error::URnetworkSdk.xcframework missing at sdk/build/apple — the Package.swift binary target will not resolve"
+            exit 1
+          fi
+
+      - name: Resolve Swift packages
+        working-directory: urnetwork-ios/app
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project app.xcodeproj \
+            -scheme URnetwork \
+            -derivedDataPath DerivedData
+
+      - name: Archive unsigned iOS app
+        working-directory: urnetwork-ios/app
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project app.xcodeproj \
+            -scheme URnetwork \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/URnetwork.xcarchive \
+            -derivedDataPath DerivedData \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            MARKETING_VERSION=beta \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            2>&1 | tee xcodebuild-archive.log
+
+      - name: Package unsigned IPA
+        working-directory: urnetwork-ios/app
+        run: |
+          APP=$(find build/URnetwork.xcarchive -name 'URnetwork.app' -type d | head -n 1)
+          if [ -z "$APP" ]; then
+            echo "Could not find URnetwork.app in archive"
+            exit 1
+          fi
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -r URnetwork-beta.ipa Payload
+
+      - name: Archive unsigned macOS app
+        working-directory: urnetwork-ios/app
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project app.xcodeproj \
+            -scheme URnetwork \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -archivePath build/URnetwork-macOS.xcarchive \
+            -derivedDataPath DerivedData \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            MARKETING_VERSION=beta \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            2>&1 | tee xcodebuild-archive-macos.log
+
+      - name: Package unsigned macOS app
+        working-directory: urnetwork-ios/app
+        run: |
+          APP=$(find build/URnetwork-macOS.xcarchive -name 'URnetwork.app' -type d | head -n 1)
+          if [ -z "$APP" ]; then
+            echo "Could not find URnetwork.app in macOS archive"
+            exit 1
+          fi
+          ditto -c -k --sequesterRsrc --keepParent "$APP" URnetwork-beta-macOS.zip
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: URnetwork-beta-ios
+          path: urnetwork-ios/app/URnetwork-beta.ipa
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: URnetwork-beta-macOS
+          path: urnetwork-ios/app/URnetwork-beta-macOS.zip
+          if-no-files-found: error
+          retention-days: 7
+
+      # push only: a PR run would race the push run for the same tag and both
+      # would try to publish the same release.
+      - name: Create prerelease
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: beta-custom-server-${{ github.run_number }}-${{ github.run_attempt }}
+        run: |
+          gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes || true
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --prerelease \
+            --title "URnetwork iOS beta custom server ${{ github.run_number }}" \
+            --generate-notes \
+            urnetwork-ios/app/URnetwork-beta.ipa \
+            urnetwork-ios/app/URnetwork-beta-macOS.zip
