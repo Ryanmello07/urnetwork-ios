@@ -1,9 +1,7 @@
 // swift-tools-version:5.3
 import PackageDescription
 
-// Points to the local checkout of the forked SDK:
-// https://github.com/Ryanmello07/urnetwork-sdk
-// Build the XCFramework from that repo before using this package.
+// see https://developer.apple.com/documentation/xcode/distributing-binary-frameworks-as-swift-packages
 let package = Package(
 	name: "URnetworkSdk",
 	products: [
@@ -15,7 +13,7 @@ let package = Package(
 	targets: [
 		.binaryTarget(
 			name: "URnetworkSdkBinary",
-			path: "../../../urnetwork-sdk/build/apple/URnetworkSdk.xcframework"
+			path: "../../../sdk/build/apple/URnetworkSdk.xcframework"
 		),
 		.testTarget(
 			name: "URnetworkSdkTests",

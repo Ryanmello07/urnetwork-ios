@@ -728,6 +728,184 @@
         }
       }
     },
+    "%1$lldh %2$lldm" : {
+      "comment" : "Compact duration a provider has been connected, as hours and minutes (e.g. 3h 24m). {hours} is the whole hours, {minutes} the remaining minutes.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld س %2$lld د"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld h %2$lld min"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld Std. %2$lld Min."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld ώ. %2$lld λ."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lldh %2$lldm"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld h %2$lld min"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld h %2$lld min"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld h %2$lld min"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld h %2$lld min"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld שע׳ %2$lld דק׳"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld घं. %2$lld मि."
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld j %2$lld mnt"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld h %2$lld min"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld時間%2$lld分"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld시간 %2$lld분"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld u %2$lld min"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld godz. %2$lld min"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld h %2$lld min"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld h %2$lld min"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld h %2$lld min"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld ч %2$lld мин"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld tim %2$lld min"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld ชม. %2$lld นาที"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld год %2$lld хв"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld giờ %2$lld phút"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld小时%2$lld分钟"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld小時%2$lld分鐘"
+          }
+        }
+      }
+    },
+    "%d peers" : {
+      "comment" : "Post quantum identity panel: peer identity count indicator. The argument is the number of peers with an identity-verified e2e session.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d peers"
+          }
+        }
+      }
+    },
     "%d providers" : {
       "comment" : "A label that shows the number of providers for a location. The argument is the number of providers.",
       "localizations" : {
@@ -2682,6 +2860,30 @@
         }
       }
     },
+    "%lld IPs" : {
+      "comment" : "A label showing the number of IP addresses in a block action cluster, rendered as a single pill. The argument is the number of IPs.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+            "one" : {
+              "stringUnit" : {
+                "state" : "translated",
+                "value" : "%lld IP"
+              }
+            },
+            "other" : {
+              "stringUnit" : {
+                "state" : "translated",
+                "value" : "%lld IPs"
+              }
+            }
+            }
+          }
+        }
+      }
+    },
     "%lld new" : {
       "comment" : "A count of new routing events that have not yet been scrolled into view.",
       "isCommentAutoGenerated" : true,
@@ -3763,6 +3965,18 @@
         }
       }
     },
+    "%lld/20" : {
+      "comment" : "A progress bar that shows how many friends you've invited. The first argument is the number of friends you've invited. The second argument is the maximum number of friends you can invite.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld/20"
+          }
+        }
+      }
+    },
     "%lld/5" : {
       "comment" : "A label displaying the number of referrals a user has made. The argument is the number of referrals.",
       "isCommentAutoGenerated" : true,
@@ -3927,6 +4141,340 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld/5"
+          }
+        }
+      }
+    },
+    "%lldm" : {
+      "comment" : "Compact duration a provider has been connected, as minutes (e.g. 24m).",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld د"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Min."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld λ."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lldm"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld דק׳"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld मि."
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld mnt"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld分"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld분"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld мин"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld นาที"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld хв"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld phút"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld分钟"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld分鐘"
+          }
+        }
+      }
+    },
+    "%llds" : {
+      "comment" : "Compact duration a provider has been connected, as seconds (e.g. 42s).",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld ث"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld s"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Sek."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld δ."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%llds"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld s"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld s"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld s"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld s"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld שנ׳"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld से."
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld dtk"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld s"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld秒"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld초"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld s"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld s"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld s"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld s"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld s"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld с"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld s"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld วิ"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld с"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld giây"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld秒"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld秒"
           }
         }
       }
@@ -4780,6 +5328,18 @@
         }
       }
     },
+    "+%lld GiB/Day" : {
+      "comment" : "A label that shows the daily data usage from referrals. The argument is the number of referrals.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+%lld GiB/Day"
+          }
+        }
+      }
+    },
     "+%lld GiB/Month" : {
       "comment" : "Call to action",
       "localizations" : {
@@ -4947,8 +5507,31 @@
         }
       }
     },
+    "⚠️ This is the ONLY time you'll see this." : {
+      "comment" : "A warning message displayed in the seedphrase display view.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ This is the ONLY time you'll see this."
+          }
+        }
+      }
+    },
     "0" : {
       "shouldTranslate" : false
+    },
+    "1 peer" : {
+      "comment" : "Post quantum identity panel: peer identity count indicator, singular.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 peer"
+          }
+        }
+      }
     },
     "100% open source and transparent" : {
       "comment" : "Call to action",
@@ -5113,6 +5696,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "100%開源及透明"
+          }
+        }
+      }
+    },
+    "2x your free and referral data" : {
+      "comment" : "A description of the benefits of using a Seeker Token.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2x your free and referral data"
+          }
+        }
+      }
+    },
+    "A new seedphrase will be generated and linked to your account." : {
+      "comment" : "A description of the seedphrase generation process.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A new seedphrase will be generated and linked to your account."
+          }
+        }
+      }
+    },
+    "A seedphrase lets you recover your account if you lose access." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A seedphrase lets you recover your account if you lose access."
+          }
+        }
+      }
+    },
+    "A seedphrase lets you recover your account if you lose access. Store it safely." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A seedphrase lets you recover your account if you lose access. Store it safely."
           }
         }
       }
@@ -5619,6 +6246,18 @@
         }
       }
     },
+    "Add a sign-in method" : {
+      "comment" : "A title for the screen that lets the user add a new sign-in method.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a sign-in method"
+          }
+        }
+      }
+    },
     "Add referral code" : {
       "comment" : "Call to action",
       "localizations" : {
@@ -5949,6 +6588,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "添加推薦碼以獲取額外獎勵"
+          }
+        }
+      }
+    },
+    "Add sign-in method" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add sign-in method"
+          }
+        }
+      }
+    },
+    "Add Sign-In Method" : {
+      "comment" : "Button text for adding a sign-in method.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Sign-In Method"
           }
         }
       }
@@ -6943,6 +7604,197 @@
         }
       }
     },
+    "API URL (optional)" : {
+      "comment" : "Label of the optional API URL field in the network API selector.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "عنوان URL لواجهة API (اختياري)"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL API (volitelné)"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API-URL (optional)"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL του API (προαιρετικό)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API URL (optional)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL de la API (opcional)"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL de la API (opcional)"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL de la API (opcional)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL de l'API (optionnelle)"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "כתובת URL של ה-API (אופציונלי)"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API URL (वैकल्पिक)"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL API (opsional)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL dell'API (facoltativo)"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API URL（任意）"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API URL(선택 사항)"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API-URL (optioneel)"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adres URL API (opcjonalnie)"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL da API (opcional)"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL da API (opcional)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL da API (opcional)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL API (необязательно)"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API-URL (valfritt)"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL ของ API (ไม่บังคับ)"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL API (необов'язково)"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL API (tùy chọn)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API URL（可选）"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API URL（可選）"
+          }
+        }
+      }
+    },
+    "Apple" : {
+      "comment" : "A method of adding a sign-in method.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple"
+          }
+        }
+      }
+    },
+    "Apple sign-in method added" : {
+      "comment" : "Snackbar message displayed when an Apple sign-in method is added.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple sign-in method added"
+          }
+        }
+      }
+    },
     "Apply bonus" : {
       "comment" : "Call to action",
       "localizations" : {
@@ -7110,6 +7962,173 @@
         }
       }
     },
+    "Apply Network API" : {
+      "comment" : "Button that applies the entered network API settings.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تطبيق API الشبكة"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Použít síťové API"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Netzwerk-API anwenden"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Εφαρμογή API δικτύου"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apply Network API"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aplicar API de red"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aplicar API de red"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aplicar API de red"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appliquer l'API réseau"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "החל את ה-API של הרשת"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "नेटवर्क API लागू करें"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terapkan API jaringan"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applica API di rete"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ネットワークAPIを適用"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 API 적용"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Netwerk-API toepassen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zastosuj API sieci"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aplicar API de rede"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aplicar API de rede"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aplicar API de rede"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Применить API сети"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tillämpa nätverks-API"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ใช้ API เครือข่าย"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Застосувати API мережі"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Áp dụng API mạng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用网络 API"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "套用網絡 API"
+          }
+        }
+      }
+    },
     "Are you sure you want to delete your account?" : {
       "comment" : "Call to action",
       "localizations" : {
@@ -7273,6 +8292,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "您確定要刪除您的帳戶嗎？"
+          }
+        }
+      }
+    },
+    "Are you sure you want to remove %@ as a sign-in method?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Are you sure you want to remove %@ as a sign-in method?"
           }
         }
       }
@@ -8292,7 +9321,7 @@
       }
     },
     "Auto" : {
-      "comment" : "Guidance for someone who has no code yet. Deliberately PLAIN TEXT with no link and no button: app store rules forbid steering a user to an external purchase, but nothing stops us saying where codes come from. Without this, the sheet asks for a code and gives no way to obtain one.",
+      "comment" : "Connect drawer: the auto connection mode (no fixed window type).",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12448,6 +13477,173 @@
         }
       }
     },
+    "Change Network API" : {
+      "comment" : "Button that opens the network API selector, for pointing the app at a custom network domain.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تغيير API الشبكة"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Změnit síťové API"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Netzwerk-API ändern"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Αλλαγή API δικτύου"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Network API"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cambiar API de red"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cambiar API de red"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cambiar API de red"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changer l'API réseau"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שינוי ה-API של הרשת"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "नेटवर्क API बदलें"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ubah API jaringan"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cambia API di rete"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ネットワークAPIを変更"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 API 변경"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Netwerk-API wijzigen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zmień API sieci"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alterar API de rede"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alterar API de rede"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alterar API de rede"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Изменить API сети"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ändra nätverks-API"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "เปลี่ยน API เครือข่าย"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Змінити API мережі"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đổi API mạng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更改网络 API"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更改網絡 API"
+          }
+        }
+      }
+    },
     "Check my IP" : {
       "comment" : "Call to action",
       "localizations" : {
@@ -12778,6 +13974,341 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "檢查您的手機"
+          }
+        }
+      }
+    },
+    "Choose the network domain used by the app. Leave the API and connect URLs blank to derive them from the domain." : {
+      "comment" : "Explains the network API selector.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اختر نطاق الشبكة الذي يستخدمه التطبيق. اترك عنواني API و connect فارغين ليتم اشتقاقهما من النطاق."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zvolte síťovou doménu, kterou aplikace používá. Ponechte URL API a connect prázdné, aby se odvodily z domény."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle die Netzwerkdomain, die die App verwendet. Lass die API- und Connect-URLs leer, um sie von der Domain abzuleiten."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Επιλέξτε τον τομέα δικτύου που χρησιμοποιεί η εφαρμογή. Αφήστε τα URL του API και του connect κενά για να προκύψουν από τον τομέα."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose the network domain used by the app. Leave the API and connect URLs blank to derive them from the domain."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elige el dominio de red que usa la app. Deja las URL de API y connect en blanco para derivarlas del dominio."
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elige el dominio de red que usa la app. Deja las URL de API y connect en blanco para derivarlas del dominio."
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elige el dominio de red que usa la app. Deja las URL de API y connect en blanco para derivarlas del dominio."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisissez le domaine réseau utilisé par l'application. Laissez les URL API et connect vides pour les dériver du domaine."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "בחר את דומיין הרשת שבו האפליקציה משתמשת. השאר את כתובות ה-API וה-connect ריקות כדי לגזור אותן מהדומיין."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ऐप द्वारा उपयोग किया जाने वाला नेटवर्क डोमेन चुनें। API और connect URL को डोमेन से प्राप्त करने के लिए खाली छोड़ें।"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pilih domain jaringan yang digunakan aplikasi. Biarkan URL API dan connect kosong agar diturunkan dari domain."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scegli il dominio di rete usato dall'app. Lascia vuoti gli URL API e connect per derivarli dal dominio."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アプリが使用するネットワークドメインを選択します。API と connect の URL を空欄にすると、ドメインから導出されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱이 사용할 네트워크 도메인을 선택하세요. API 및 connect URL을 비워 두면 도메인에서 파생됩니다."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kies het netwerkdomein dat de app gebruikt. Laat de API- en connect-URL's leeg om ze af te leiden van het domein."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wybierz domenę sieci używaną przez aplikację. Pozostaw adresy URL API i connect puste, aby wyprowadzić je z domeny."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escolha o domínio de rede usado pela app. Deixe os URL de API e connect em branco para os derivar do domínio."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escolha o domínio de rede usado pelo app. Deixe as URLs de API e connect em branco para derivá-las do domínio."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escolha o domínio de rede usado pela app. Deixe os URL de API e connect em branco para os derivar do domínio."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выберите домен сети, используемый приложением. Оставьте URL API и connect пустыми, чтобы вывести их из домена."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Välj nätverksdomänen som appen använder. Lämna API- och connect-URL:erna tomma för att härleda dem från domänen."
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "เลือกโดเมนเครือข่ายที่แอปใช้ เว้น URL ของ API และ connect ว่างไว้เพื่อให้ได้มาจากโดเมน"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Виберіть домен мережі, який використовує застосунок. Залиште URL API та connect порожніми, щоб вивести їх із домену."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chọn tên miền mạng mà ứng dụng sử dụng. Để trống URL API và connect để suy ra từ tên miền."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择应用使用的网络域名。将 API 和 connect URL 留空则从域名派生。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選擇應用程式使用的網絡網域。將 API 和 connect URL 留空則從網域衍生。"
+          }
+        }
+      }
+    },
+    "Claim a custom network name to replace your auto-generated one" : {
+      "comment" : "A description of the benefits of claiming a custom network name.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "احصل على اسم شبكة مخصص ليحل محل الاسم الذي تم إنشاؤه تلقائيًا"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Získejte vlastní název sítě, který nahradí automaticky vygenerovaný"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sichere dir einen eigenen Netzwerknamen, der deinen automatisch generierten ersetzt"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Αποκτήστε ένα προσαρμοσμένο όνομα δικτύου που θα αντικαταστήσει το αυτόματα δημιουργημένο"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claim a custom network name to replace your auto-generated one"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reclama un nombre de red personalizado para reemplazar el generado automáticamente"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reclama un nombre de red personalizado para reemplazar el generado automáticamente"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reclama un nombre de red personalizado para reemplazar el generado automáticamente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisissez un nom de réseau personnalisé pour remplacer celui généré automatiquement"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "בחר שם רשת מותאם אישית שיחליף את השם שנוצר אוטומטית"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "अपने-आप बने नाम की जगह लेने के लिए कस्टम नेटवर्क नाम चुनें"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klaim nama jaringan kustom untuk menggantikan nama yang dibuat otomatis"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Richiedi un nome di rete personalizzato per sostituire quello generato automaticamente"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動生成されたネットワーク名の代わりに、カスタムのネットワーク名を取得しましょう"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "자동 생성된 이름을 대체할 사용자 지정 네트워크 이름을 만드세요"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claim een eigen netwerknaam ter vervanging van je automatisch gegenereerde naam"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uzyskaj własną nazwę sieci, która zastąpi nazwę wygenerowaną automatycznie"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reivindique um nome de rede personalizado para substituir o gerado automaticamente"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reivindique um nome de rede personalizado para substituir o gerado automaticamente"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reivindique um nome de rede personalizado para substituir o gerado automaticamente"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Получите собственное имя сети вместо автоматически созданного"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skaffa ett eget nätverksnamn som ersätter det automatiskt genererade"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "รับชื่อเครือข่ายที่กำหนดเองเพื่อแทนที่ชื่อที่สร้างขึ้นอัตโนมัติ"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отримайте власну назву мережі замість автоматично створеної"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhận tên mạng tùy chỉnh để thay thế tên được tạo tự động"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "领取自定义网络名称，替换自动生成的名称"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "領取自訂網絡名稱，取代自動產生的名稱"
           }
         }
       }
@@ -15122,6 +16653,18 @@
         }
       }
     },
+    "Connect a Solana wallet (Phantom or Solflare) to add it as a sign-in method." : {
+      "comment" : "A description of how to connect a Solana wallet to add it as a sign-in method.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect a Solana wallet (Phantom or Solflare) to add it as a sign-in method."
+          }
+        }
+      }
+    },
     "Connect a wallet" : {
       "comment" : "Used in Main/Account/Settings/SettingsForm-iOS.swift.",
       "localizations" : {
@@ -15787,6 +17330,173 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "連接選項"
+          }
+        }
+      }
+    },
+    "Connect URL (optional)" : {
+      "comment" : "Label of the optional connect URL field in the network API selector.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect URL (اختياري)"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect URL (volitelné)"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect-URL (optional)"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect URL (προαιρετικό)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect URL (optional)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL de connect (opcional)"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL de connect (opcional)"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL de connect (opcional)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL connect (optionnelle)"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect URL (אופציונלי)"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect URL (वैकल्पिक)"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL connect (opsional)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL connect (facoltativo)"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect URL（任意）"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect URL(선택 사항)"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect-URL (optioneel)"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adres URL connect (opcjonalnie)"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL de connect (opcional)"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL de connect (opcional)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL de connect (opcional)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect URL (необязательно)"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect-URL (valfritt)"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect URL (ไม่บังคับ)"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect URL (необов'язково)"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL connect (tùy chọn)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect URL（可选）"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect URL（可選）"
           }
         }
       }
@@ -16839,6 +18549,18 @@
         }
       }
     },
+    "Connected: %@..." : {
+      "comment" : "A label showing the public key of the connected wallet.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connected: %@..."
+          }
+        }
+      }
+    },
     "Connecting to providers" : {
       "comment" : "Call to action",
       "localizations" : {
@@ -17002,6 +18724,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在連接到供應商"
+          }
+        }
+      }
+    },
+    "Connecting to wallet..." : {
+      "comment" : "A message displayed when a user is connecting a wallet.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting to wallet..."
           }
         }
       }
@@ -18178,6 +19912,18 @@
         }
       }
     },
+    "Copied!" : {
+      "comment" : "Text for a button that copies the seedphrase to the clipboard.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copied!"
+          }
+        }
+      }
+    },
     "Copy Auth Code" : {
       "comment" : "Call to action",
       "localizations" : {
@@ -18509,6 +20255,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "複製客戶端 ID"
+          }
+        }
+      }
+    },
+    "Copy to Clipboard" : {
+      "comment" : "Button text to copy the seedphrase to the clipboard.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy to Clipboard"
           }
         }
       }
@@ -20016,6 +21774,18 @@
         }
       }
     },
+    "Create Instant Account" : {
+      "comment" : "A title for the screen where a user can create an instant account.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create Instant Account"
+          }
+        }
+      }
+    },
     "Created auth codes expire after 5 minutes" : {
       "comment" : "Used in Main/Account/Settings/SettingsForm-iOS.swift.",
       "localizations" : {
@@ -20179,6 +21949,364 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "創建的認證碼將於5分鐘後失效"
+          }
+        }
+      }
+    },
+    "Current API: {url}" : {
+      "comment" : "Shows the API URL currently in use. The argument is the URL.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "واجهة API الحالية: %@"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktuální API: %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktuelle API: %@"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Τρέχον API: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current API: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API actual: %@"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API actual: %@"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API actual: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API actuelle : %@"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ה-API הנוכחי: %@"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "वर्तमान API: %@"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API saat ini: %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API attuale: %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現在のAPI: %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "현재 API: %@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Huidige API: %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bieżące API: %@"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API atual: %@"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API atual: %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API atual: %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Текущий API: %@"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktuellt API: %@"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API ปัจจุบัน: %@"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поточний API: %@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API hiện tại: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前 API：%@"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前 API：%@"
+          }
+        }
+      }
+    },
+    "Current API: %@" : {
+      "comment" : "A label showing the current network API and connect URLs.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current API: %@"
+          }
+        }
+      }
+    },
+    "Current connect: {url}" : {
+      "comment" : "Shows the connect URL currently in use. The argument is the URL.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect الحالي: %@"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktuální connect: %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktueller Connect: %@"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Τρέχον connect: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current connect: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect actual: %@"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect actual: %@"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect actual: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect actuel : %@"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ה-connect הנוכחי: %@"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "वर्तमान connect: %@"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect saat ini: %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect attuale: %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現在の Connect: %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "현재 connect: %@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Huidige connect: %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bieżący connect: %@"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect atual: %@"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect atual: %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect atual: %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Текущий connect: %@"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktuell connect: %@"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect ปัจจุบัน: %@"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поточний connect: %@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect hiện tại: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前 connect：%@"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前 connect：%@"
+          }
+        }
+      }
+    },
+    "Current connect: %@" : {
+      "comment" : "A label displaying the current connect URL.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current connect: %@"
           }
         }
       }
@@ -21354,7 +23482,7 @@
       }
     },
     "Delete" : {
-      "comment" : "Used in Main/Account/BlockedLocations/BlockedLocationsView.swift.",
+      "comment" : "Delete button label. Apple: Main/Account/BlockedLocations/BlockedLocationsView.swift. Android: the swipe-to-reveal delete button label (SwipeToRevealRow).",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -23359,6 +25487,18 @@
         }
       }
     },
+    "Done" : {
+      "comment" : "A button that dismisses a sheet.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        }
+      }
+    },
     "Earning multipliers" : {
       "comment" : "Call to action",
       "localizations" : {
@@ -24028,6 +26168,47 @@
         }
       }
     },
+    "Email" : {
+      "comment" : "App profile: email label",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "البريد الإلكتروني"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "E-Mail"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Correo electrónico"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电子邮箱"
+          }
+        }
+      }
+    },
     "Email or phone number" : {
       "comment" : "Label for the user authentication input field.",
       "localizations" : {
@@ -24191,6 +26372,173 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "電郵或電話號碼"
+          }
+        }
+      }
+    },
+    "Enable provide mode to make this device discoverable" : {
+      "comment" : "Hint shown when the device is not discoverable because provide mode is off.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فعّل وضع التوفير لجعل هذا الجهاز قابلاً للاكتشاف"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zapněte režim poskytování, aby bylo toto zařízení viditelné"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktiviere den Bereitstellungsmodus, um dieses Gerät auffindbar zu machen"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ενεργοποιήστε τη λειτουργία παροχής για να γίνει αυτή η συσκευή ανιχνεύσιμη"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable provide mode to make this device discoverable"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activa el modo de provisión para que este dispositivo sea detectable"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activa el modo de provisión para que este dispositivo sea detectable"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activa el modo de provisión para que este dispositivo sea detectable"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activez le mode de fourniture pour rendre cet appareil détectable"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הפעל את מצב האספקה כדי שהמכשיר יהיה ניתן לגילוי"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "इस डिवाइस को खोजने योग्य बनाने के लिए प्रदान मोड चालू करें"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktifkan mode penyediaan agar perangkat ini dapat ditemukan"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attiva la modalità di fornitura per rendere rilevabile questo dispositivo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提供モードを有効にすると、このデバイスが検出可能になります"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "제공 모드를 켜면 이 기기가 검색될 수 있습니다"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schakel de leveringsmodus in om dit apparaat vindbaar te maken"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Włącz tryb udostępniania, aby to urządzenie było wykrywalne"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ative o modo de fornecimento para tornar este dispositivo detetável"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ative o modo de fornecimento para tornar este dispositivo detectável"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ative o modo de fornecimento para tornar este dispositivo detetável"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Включите режим предоставления, чтобы это устройство было доступно для обнаружения"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktivera tillhandahållandeläget för att göra enheten upptäckbar"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "เปิดโหมดการให้บริการเพื่อให้อุปกรณ์นี้ถูกค้นพบได้"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Увімкніть режим надання, щоб цей пристрій був доступний для виявлення"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bật chế độ cung cấp để thiết bị này có thể được phát hiện"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启用提供模式以使此设备可被发现"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "啟用提供模式以使此裝置可被發現"
           }
         }
       }
@@ -24696,6 +27044,185 @@
         }
       }
     },
+    "Enter a network domain" : {
+      "comment" : "Validation message when the network domain field is empty.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أدخل نطاق شبكة"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zadejte síťovou doménu"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib eine Netzwerkdomain ein"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Εισαγάγετε έναν τομέα δικτύου"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a network domain"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ingresa un dominio de red"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ingresa un dominio de red"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ingresa un dominio de red"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisissez un domaine réseau"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הזן דומיין רשת"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "नेटवर्क डोमेन दर्ज करें"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Masukkan domain jaringan"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserisci un dominio di rete"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ネットワークドメインを入力してください"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 도메인을 입력하세요"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voer een netwerkdomein in"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wprowadź domenę sieci"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introduza um domínio de rede"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insira um domínio de rede"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introduza um domínio de rede"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Введите домен сети"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ange en nätverksdomän"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "กรอกโดเมนเครือข่าย"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Введіть домен мережі"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhập tên miền mạng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请输入网络域名"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請輸入網絡網域"
+          }
+        }
+      }
+    },
+    "Enter a password" : {
+      "comment" : "Placeholder text for the password field in the add auth sheet.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a password"
+          }
+        }
+      }
+    },
     "Enter a Solana or Bittensor wallet address" : {
       "comment" : "Used in Main/Account/Wallets/ConnectWalletSheet/EnterWalletAddress/EnterWalletAddressView.swift.",
       "localizations" : {
@@ -25192,6 +27719,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "輸入餘額碼"
+          }
+        }
+      }
+    },
+    "Enter network name" : {
+      "comment" : "A label for a text field where a user can enter a custom network name.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter network name"
           }
         }
       }
@@ -26031,6 +28570,18 @@
         }
       }
     },
+    "Error changing network name" : {
+      "comment" : "Error message displayed in a snackbar when there was an error changing the network name.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Error changing network name"
+          }
+        }
+      }
+    },
     "Error connecting to URnetwork" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -26718,6 +29269,173 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "設定預設錢包時發生錯誤：%@"
+          }
+        }
+      }
+    },
+    "Example: ur.network or your custom domain." : {
+      "comment" : "Help text under the network domain field of the network API selector.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مثال: ur.network أو نطاقك المخصص."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Příklad: ur.network nebo vaše vlastní doména."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beispiel: ur.network oder deine eigene Domain."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Παράδειγμα: ur.network ή ο δικός σας τομέας."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Example: ur.network or your custom domain."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ejemplo: ur.network o tu dominio personalizado."
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ejemplo: ur.network o tu dominio personalizado."
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ejemplo: ur.network o tu dominio personalizado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exemple : ur.network ou votre domaine personnalisé."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "דוגמה: ur.network או הדומיין המותאם שלך."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "उदाहरण: ur.network या आपका कस्टम डोमेन।"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contoh: ur.network atau domain kustom Anda."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esempio: ur.network o il tuo dominio personalizzato."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "例: ur.network またはカスタムドメイン。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "예: ur.network 또는 사용자 지정 도메인."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voorbeeld: ur.network of je eigen domein."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przykład: ur.network lub twoja własna domena."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exemplo: ur.network ou o seu domínio personalizado."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exemplo: ur.network ou seu domínio personalizado."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exemplo: ur.network ou o seu domínio personalizado."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пример: ur.network или ваш собственный домен."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exempel: ur.network eller din egen domän."
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ตัวอย่าง: ur.network หรือโดเมนที่คุณกำหนดเอง"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Приклад: ur.network або ваш власний домен."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ví dụ: ur.network hoặc tên miền tùy chỉnh của bạn."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "例如：ur.network 或您的自定义域名。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "例如：ur.network 或你的自訂網域。"
           }
         }
       }
@@ -27891,6 +30609,17 @@
         }
       }
     },
+    "Fallback enabled (temporary)" : {
+      "comment" : "Connect drawer: note under the post quantum encryption toggle. Plaintext fallback applies when the provider does not support the e2e sessions.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fallback enabled (temporary)"
+          }
+        }
+      }
+    },
     "Feedback" : {
       "comment" : "Used in Main/Feedback/FeedbackView.swift.",
       "localizations" : {
@@ -28723,6 +31452,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "一般"
+          }
+        }
+      }
+    },
+    "Generate" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generate"
+          }
+        }
+      }
+    },
+    "Generate a recovery seedphrase?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generate a recovery seedphrase?"
+          }
+        }
+      }
+    },
+    "Generate Seedphrase" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generate Seedphrase"
           }
         }
       }
@@ -29562,6 +32321,30 @@
         }
       }
     },
+    "Google" : {
+      "comment" : "A label for Google sign-in.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google"
+          }
+        }
+      }
+    },
+    "Google sign-in method added" : {
+      "comment" : "Snackbar message displayed when a Google sign-in method is successfully added.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google sign-in method added"
+          }
+        }
+      }
+    },
     "Got it" : {
       "comment" : "Used in Shared/Views/UpgradeSubscriptionSheet.swift.",
       "localizations" : {
@@ -30393,6 +33176,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "我同意 URnetwork 的[條款和服務](https://ur.io/terms)和[隱私政策](https://ur.io/privacy)"
+          }
+        }
+      }
+    },
+    "I've Saved My Seedphrase" : {
+      "comment" : "Button text for confirming that the user has saved their seedphrase.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I've Saved My Seedphrase"
+          }
+        }
+      }
+    },
+    "Identity key hash copied" : {
+      "comment" : "Post quantum identity: toast after tapping an identity key hash to copy it.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Identity key hash copied"
           }
         }
       }
@@ -33416,6 +36222,195 @@
         }
       }
     },
+    "Leave blank to derive from the network domain." : {
+      "comment" : "Help text under the API URL field of the network API selector.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اتركه فارغًا ليتم اشتقاقه من نطاق الشبكة."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ponechte prázdné pro odvození ze síťové domény."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leer lassen, um sie von der Netzwerkdomain abzuleiten."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Αφήστε το κενό για να προκύψει από τον τομέα δικτύου."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leave blank to derive from the network domain."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déjalo en blanco para derivarla del dominio de red."
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déjalo en blanco para derivarla del dominio de red."
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déjalo en blanco para derivarla del dominio de red."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laissez vide pour la dériver du domaine réseau."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "השאר ריק כדי לגזור מדומיין הרשת."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "नेटवर्क डोमेन से प्राप्त करने के लिए खाली छोड़ें।"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Biarkan kosong untuk diturunkan dari domain jaringan."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lascia vuoto per derivarlo dal dominio di rete."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "空欄にするとネットワークドメインから導出されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "비워 두면 네트워크 도메인에서 파생됩니다."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laat leeg om af te leiden van het netwerkdomein."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pozostaw puste, aby wyprowadzić z domeny sieci."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deixe em branco para derivar do domínio de rede."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deixe em branco para derivar do domínio de rede."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deixe em branco para derivar do domínio de rede."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оставьте пустым, чтобы вывести из домена сети."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lämna tomt för att härleda från nätverksdomänen."
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "เว้นว่างไว้เพื่อให้ได้มาจากโดเมนเครือข่าย"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Залиште порожнім, щоб вивести з домену мережі."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Để trống để suy ra từ tên miền mạng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "留空则从网络域名派生。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "留空則從網絡網域衍生。"
+          }
+        }
+      }
+    },
+    "Link another way to sign in to your account." : {
+      "comment" : "A description of the add auth sheet.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link another way to sign in to your account."
+          }
+        }
+      }
+    },
+    "Loading sign-in methods..." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading sign-in methods..."
+          }
+        }
+      }
+    },
     "Loading..." : {
       "comment" : "Used in ContentView.swift.",
       "localizations" : {
@@ -34759,6 +37754,173 @@
         }
       }
     },
+    "Location unknown" : {
+      "comment" : "Row subtitle in the provider locations list when a provider's location is not known.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الموقع غير معروف"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neznámá poloha"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standort unbekannt"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Άγνωστη τοποθεσία"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Location unknown"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ubicación desconocida"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ubicación desconocida"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ubicación desconocida"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Emplacement inconnu"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מיקום לא ידוע"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "स्थान अज्ञात"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lokasi tidak diketahui"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Posizione sconosciuta"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "場所は不明"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "위치 알 수 없음"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Locatie onbekend"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lokalizacja nieznana"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Localização desconhecida"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Localização desconhecida"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Localização desconhecida"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Локация неизвестна"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Okänd plats"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ไม่ทราบตำแหน่ง"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Локація невідома"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không rõ vị trí"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "位置未知"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "位置未知"
+          }
+        }
+      }
+    },
     "Log in with Auth Code" : {
       "comment" : "Guidance for someone who has no code yet. Deliberately PLAIN TEXT with no link and no button: app store rules forbid steering a user to an external purchase, but nothing stops us saying where codes come from. Without this, the sheet asks for a code and gives no way to obtain one.",
       "localizations" : {
@@ -35256,6 +38418,30 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "設為默認"
+          }
+        }
+      }
+    },
+    "max %@" : {
+      "comment" : "A label at the bottom of the contract stack",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "max %@"
+          }
+        }
+      }
+    },
+    "Method" : {
+      "comment" : "A label for the picker that lets the user select the sign-in method.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Method"
           }
         }
       }
@@ -36095,6 +39281,184 @@
         }
       }
     },
+    "Network" : {
+      "comment" : "Provide control mode option that provides bandwidth only to peers in the same network.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Network"
+          }
+        }
+      }
+    },
+    "Network domain" : {
+      "comment" : "Label of the network domain field in the network API selector.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "نطاق الشبكة"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Síťová doména"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Netzwerkdomain"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Τομέας δικτύου"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Network domain"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dominio de red"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dominio de red"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dominio de red"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Domaine réseau"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "דומיין רשת"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "नेटवर्क डोमेन"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Domain jaringan"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dominio di rete"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ネットワークドメイン"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 도메인"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Netwerkdomein"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Domena sieci"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Domínio de rede"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Domínio de rede"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Domínio de rede"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Домен сети"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nätverksdomän"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "โดเมนเครือข่าย"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Домен мережі"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tên miền mạng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网络域名"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "網絡網域"
+          }
+        }
+      }
+    },
     "Network earnings" : {
       "comment" : "Used in Main/Account/AccountRootView.swift.",
       "localizations" : {
@@ -36262,6 +39626,173 @@
         }
       }
     },
+    "Network manager unavailable" : {
+      "comment" : "Error shown when the network API manager is not available on this device.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مدير الشبكة غير متاح"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Správce sítě není dostupný"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Netzwerkmanager nicht verfügbar"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ο διαχειριστής δικτύου δεν είναι διαθέσιμος"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Network manager unavailable"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Administrador de red no disponible"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Administrador de red no disponible"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Administrador de red no disponible"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gestionnaire réseau indisponible"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מנהל הרשת אינו זמין"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "नेटवर्क प्रबंधक उपलब्ध नहीं है"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pengelola jaringan tidak tersedia"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gestore di rete non disponibile"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ネットワークマネージャーを利用できません"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네트워크 관리자를 사용할 수 없습니다"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Netwerkbeheerder niet beschikbaar"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menedżer sieci niedostępny"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gestor de rede indisponível"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerenciador de rede indisponível"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gestor de rede indisponível"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Менеджер сети недоступен"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nätverkshanteraren är inte tillgänglig"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ตัวจัดการเครือข่ายไม่พร้อมใช้งาน"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Менеджер мережі недоступний"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trình quản lý mạng không khả dụng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网络管理器不可用"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "網絡管理員不可用"
+          }
+        }
+      }
+    },
     "Network name" : {
       "comment" : "Label for the network name input field",
       "localizations" : {
@@ -36425,6 +39956,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "網絡名稱"
+          }
+        }
+      }
+    },
+    "Network name changed to %@" : {
+      "comment" : "A message that is displayed in a snackbar when the user changes the network name. The argument is the new network name.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Network name changed to %@"
           }
         }
       }
@@ -37935,6 +41478,18 @@
         }
       }
     },
+    "No email, phone, or password needed. Your account is secured by a seedphrase." : {
+      "comment" : "A description of the benefits of creating an Instant Account.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No email, phone, or password needed. Your account is secured by a seedphrase."
+          }
+        }
+      }
+    },
     "No open contracts" : {
       "comment" : "A label displayed when there are no open contracts.",
       "isCommentAutoGenerated" : true,
@@ -38099,6 +41654,173 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "沒有進行中的合約"
+          }
+        }
+      }
+    },
+    "No providers connected" : {
+      "comment" : "Empty state of the provider locations sheet when no providers are connected.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لم يتم الاتصال بأي مزود خدمة"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Žádní připojení poskytovatelé"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Anbieter verbunden"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Δεν υπάρχουν συνδεδεμένοι πάροχοι"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No providers connected"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay proveedores conectados"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay proveedores conectados"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay proveedores conectados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun fournisseur connecté"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "אין ספקים מחוברים"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "कोई प्रदाता कनेक्ट नहीं है"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tidak ada penyedia yang terhubung"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun provider connesso"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接続中のプロバイダーはありません"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "연결된 제공업체가 없습니다"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geen providers verbonden"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak połączonych dostawców"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nenhum fornecedor ligado"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nenhum provedor conectado"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nenhum fornecedor conectado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нет подключенных провайдеров"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inga leverantörer anslutna"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ไม่มีผู้ให้บริการที่เชื่อมต่ออยู่"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Немає підключених провайдерів"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không có nhà cung cấp nào được kết nối"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未连接任何提供商"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未連接任何供應商"
           }
         }
       }
@@ -39443,6 +43165,173 @@
         }
       }
     },
+    "Password must be at least 12 characters" : {
+      "comment" : "Hint for password input length requirements.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يجب أن تتكون كلمة المرور من 12 حرفًا على الأقل"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heslo musí mít alespoň 12 znaků"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Passwort muss mindestens 12 Zeichen lang sein"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ο κωδικός πρόσβασης πρέπει να έχει τουλάχιστον 12 χαρακτήρες"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Password must be at least 12 characters"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La contraseña debe tener al menos 12 caracteres"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La contraseña debe tener al menos 12 caracteres"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La contraseña debe tener al menos 12 caracteres"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le mot de passe doit comporter au moins 12 caractères"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הסיסמה חייבת להיות באורך של לפחות 12 תווים"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "पासवर्ड कम से कम 12 वर्णों का होना चाहिए"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kata sandi harus terdiri dari minimal 12 karakter"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La password deve contenere almeno 12 caratteri"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "パスワードは12文字以上である必要があります"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "비밀번호는 최소 12자 이상이어야 합니다"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wachtwoord moet minstens 12 tekens bevatten"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hasło musi mieć co najmniej 12 znaków"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A senha deve ter pelo menos 12 caracteres"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A senha deve ter pelo menos 12 caracteres"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A senha deve ter pelo menos 12 caracteres"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пароль должен содержать не менее 12 символов"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lösenordet måste vara minst 12 tecken"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "รหัสผ่านต้องมีความยาวอย่างน้อย 12 ตัวอักษร"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пароль має містити щонайменше 12 символів"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mật khẩu phải có ít nhất 12 ký tự"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "密码长度必须至少为 12 个字符"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "密碼長度必須至少為 12 個字元"
+          }
+        }
+      }
+    },
     "Password must be at least 12 characters long" : {
       "comment" : "Used in Authenticate/CreateNetwork/CreateNetworkView.swift.",
       "localizations" : {
@@ -39773,6 +43662,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "密碼重設連結已發送至 %@。"
+          }
+        }
+      }
+    },
+    "Paste your 24-word seedphrase here" : {
+      "comment" : "A placeholder text for the seedphrase field.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste your 24-word seedphrase here"
           }
         }
       }
@@ -40608,6 +44509,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "每週日 00:00 UTC 進行支付，並且需要達到最低 USDC 門檻。"
+          }
+        }
+      }
+    },
+    "Peer discovery disabled until connected" : {
+      "comment" : "Replaces the network peer count/list while the app is not attached to its remote device (the network extension or service rpc is down — not connected): the peer state lives in the remote device, so the stat is unavailable rather than zero. Shown with a gray dot.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Peer discovery disabled until connected"
           }
         }
       }
@@ -42131,6 +46043,28 @@
         }
       }
     },
+    "Post Quantum Encryption" : {
+      "comment" : "Connect drawer: post quantum encryption toggle label.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Post Quantum Encryption"
+          }
+        }
+      }
+    },
+    "Post Quantum Identity" : {
+      "comment" : "Account tab: post quantum identity panel title.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Post Quantum Identity"
+          }
+        }
+      }
+    },
     "Private Network" : {
       "comment" : "Network name when privacy is enabled",
       "localizations" : {
@@ -43298,6 +47232,195 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "供應商合約"
+          }
+        }
+      }
+    },
+    "Provider details are unavailable until connected" : {
+      "comment" : "Shown instead of the provider list when the device's window state cannot be read, because the network extension hosting it is not running. Never present an empty list as \"no providers\" in that case.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Provider details are unavailable until connected"
+          }
+        }
+      }
+    },
+    "Provider Identities" : {
+      "comment" : "Post quantum identity: title of the connected provider identity key details view.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Provider Identities"
+          }
+        }
+      }
+    },
+    "Provider Locations" : {
+      "comment" : "Title of the sheet that lists the connected providers and their locations.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مواقع مزودي الخدمة"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lokality poskytovatelů"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anbieter-Standorte"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Τοποθεσίες παρόχων"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Provider Locations"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ubicaciones de proveedores"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ubicaciones de proveedores"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ubicaciones de proveedores"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Emplacements des fournisseurs"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מיקומי ספקים"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "प्रदाताओं के स्थान"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lokasi Penyedia"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Posizioni dei provider"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロバイダーの場所"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "제공업체 위치"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Providerlocaties"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lokalizacje dostawców"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Localizações dos fornecedores"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Localizações dos provedores"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Localizações dos fornecedores"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Локации провайдеров"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leverantörsplatser"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ตำแหน่งผู้ให้บริการ"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Локації провайдерів"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vị trí nhà cung cấp"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提供商位置"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "供應商位置"
           }
         }
       }
@@ -44643,6 +48766,173 @@
         }
       }
     },
+    "Receive" : {
+      "comment" : "Direction label for the stack of contracts receiving data from a peer, shown next to Send.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "استقبل"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Přijmout"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empfange"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Λήψη"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Receive"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recibe"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recibir"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recibe"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reçois"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "קבל"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "प्राप्त करें"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terima"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ricevi"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "受信"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "받기"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ontvang"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odbierz"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Receba"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Receber"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Receber"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Получить"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ta emot"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "รับ"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отримати"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhận"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接收"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接收"
+          }
+        }
+      }
+    },
     "Receive connection notifications" : {
       "comment" : "Settings",
       "localizations" : {
@@ -45812,6 +50102,18 @@
         }
       }
     },
+    "Refer a friend = +3 GiB/Day" : {
+      "comment" : "A bullet point in the introduction view that describes how much extra bandwidth you can earn by referring a friend.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refer a friend = +3 GiB/Day"
+          }
+        }
+      }
+    },
     "Refer a friend = +30 GiB/Month" : {
       "comment" : "Used in Shared/Views/Introduction/IntroductionUsageBar.swift.",
       "localizations" : {
@@ -46977,6 +51279,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "推薦"
+          }
+        }
+      }
+    },
+    "Regenerate Seedphrase" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regenerate Seedphrase"
           }
         }
       }
@@ -48783,6 +53095,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "移除規則"
+          }
+        }
+      }
+    },
+    "Remove this sign-in method?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove this sign-in method?"
           }
         }
       }
@@ -50961,6 +55283,30 @@
         }
       }
     },
+    "Secure Your Account" : {
+      "comment" : "The title of the screen.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secure Your Account"
+          }
+        }
+      }
+    },
+    "Seedphrase" : {
+      "comment" : "A label displayed above a field for entering a seedphrase.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seedphrase"
+          }
+        }
+      }
+    },
     "Seeker Token Verified!" : {
       "comment" : "Call to action",
       "localizations" : {
@@ -52465,6 +56811,173 @@
         }
       }
     },
+    "Share" : {
+      "comment" : "Call to action",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "شارك"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sdílet"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Teile"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Κοινή χρήση"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparte"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparte"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparte"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Partage"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שתף"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "शेयर करें"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bagikan"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Condividi"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "共有"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "공유"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Udostępnij"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compartilhe"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compartilhar"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compartilhe"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поделиться"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dela"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "แชร์"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поділитися"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chia sẻ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分享"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分享"
+          }
+        }
+      }
+    },
     "Share Logs" : {
       "comment" : "Used in Shared/Views/ExportLogsButton/ExportLogsButton.swift.",
       "localizations" : {
@@ -53300,6 +57813,18 @@
         }
       }
     },
+    "Sign In" : {
+      "comment" : "Button text for signing in with a seedphrase.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign In"
+          }
+        }
+      }
+    },
     "Sign in with Bittensor" : {
       "comment" : "Call to action",
       "localizations" : {
@@ -53634,6 +58159,28 @@
         }
       }
     },
+    "Sign in with Google to add it as a sign-in method." : {
+      "comment" : "A description of how to sign in with Google.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in with Google to add it as a sign-in method."
+          }
+        }
+      }
+    },
+    "Sign in with Seedphrase" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in with Seedphrase"
+          }
+        }
+      }
+    },
     "Sign in with Solana" : {
       "comment" : "Call to action",
       "localizations" : {
@@ -53801,6 +58348,18 @@
         }
       }
     },
+    "Sign in with your Apple ID to add it as a sign-in method." : {
+      "comment" : "A description of the Apple Sign-In process.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in with your Apple ID to add it as a sign-in method."
+          }
+        }
+      }
+    },
     "Sign out" : {
       "comment" : "Used in NetworkApp.swift.",
       "localizations" : {
@@ -53964,6 +58523,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "登出"
+          }
+        }
+      }
+    },
+    "Sign with Wallet" : {
+      "comment" : "Button text for signing in with a wallet.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign with Wallet"
+          }
+        }
+      }
+    },
+    "Sign-in method added successfully" : {
+      "comment" : "Snackbar message displayed when a sign-in method is successfully added.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign-in method added successfully"
+          }
+        }
+      }
+    },
+    "Sign-In Methods" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign-In Methods"
           }
         }
       }
@@ -56133,7 +60726,7 @@
       }
     },
     "Strong Anonymization" : {
-      "comment" : "Guidance for someone who has no code yet. Deliberately PLAIN TEXT with no link and no button: app store rules forbid steering a user to an external purchase, but nothing stops us saying where codes come from. Without this, the sheet asks for a code and gives no way to obtain one.",
+      "comment" : "Connect drawer: strong anonymization toggle — the inverse of allow direct (direct connections expose the real source IP to the provider).",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -57470,6 +62063,174 @@
         }
       }
     },
+    "Tap the edit icon to change your network name" : {
+      "comment" : "A description of the action to change the user's network name.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "انقر على أيقونة التعديل لتغيير اسم الشبكة"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klepnutím na ikonu úprav změníte název sítě"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tippe auf das Bearbeiten-Symbol, um deinen Netzwerknamen zu ändern"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Πατήστε το εικονίδιο επεξεργασίας για να αλλάξετε το όνομα δικτύου σας"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap the edit icon to change your network name"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toca el icono de editar para cambiar el nombre de la red"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toca el ícono de editar para cambiar el nombre de la red"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toca el ícono de editar para cambiar el nombre de la red"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appuyez sur l'icône de modification pour changer le nom de votre réseau"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הקש על סמל העריכה כדי לשנות את שם הרשת שלך"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "अपना नेटवर्क नाम बदलने के लिए संपादन आइकॉन पर टैप करें"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ketuk ikon edit untuk mengubah nama jaringan Anda"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tocca l'icona di modifica per cambiare il nome della rete"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "編集アイコンをタップしてネットワーク名を変更します"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "수정 아이콘을 탭하여 네트워크 이름을 변경하세요"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tik op het bewerkingspictogram om je netwerknaam te wijzigen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kliknij ikonę edycji, aby zmienić nazwę sieci"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toque no ícone de edição para alterar o nome da rede"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toque no ícone de edição para alterar o nome da rede"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toque no ícone de edição para alterar o nome da rede"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нажмите на значок редактирования, чтобы изменить имя сети"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tryck på redigeringsikonen för att ändra ditt nätverksnamn"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "แตะไอคอนแก้ไขเพื่อเปลี่ยนชื่อเครือข่ายของคุณ"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Торкніться значка редагування, щоб змінити назву мережі"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhấn vào biểu tượng chỉnh sửa để thay đổi tên mạng của bạn"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点按编辑图标即可更改网络名称"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "輕按編輯圖示即可更改網絡名稱"
+          }
+        }
+      }
+    },
     "Tap traffic below to route it locally, bypassing the tunnel." : {
       "comment" : "A description of how to route traffic locally.",
       "isCommentAutoGenerated" : true,
@@ -57975,10 +62736,166 @@
     "The default safe settings are not applied" : {
       "comment" : "dns settings",
       "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الإعدادات الآمنة الافتراضية غير مطبقة"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Výchozí bezpečná nastavení nejsou použita"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die sicheren Standardeinstellungen sind nicht angewendet"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Οι προεπιλεγμένες ασφαλείς ρυθμίσεις δεν έχουν εφαρμοστεί"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The default safe settings are not applied"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La configuración segura predeterminada no está aplicada"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La configuración segura predeterminada no está aplicada"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La configuración segura predeterminada no está aplicada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les paramètres sûrs par défaut ne sont pas appliqués"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הגדרות ברירת המחדל הבטוחות אינן מוחלות"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "डिफ़ॉल्ट सुरक्षित सेटिंग्स लागू नहीं हैं"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pengaturan aman default tidak diterapkan"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le impostazioni sicure predefinite non sono applicate"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "デフォルトの安全な設定が適用されていません"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기본 안전 설정이 적용되어 있지 않습니다"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De veilige standaardinstellingen zijn niet toegepast"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Domyślne bezpieczne ustawienia nie są zastosowane"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As definições seguras predefinidas não estão aplicadas"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As configurações seguras padrão não estão aplicadas"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As definições seguras predefinidas não estão aplicadas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Безопасные настройки по умолчанию не применены"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De säkra standardinställningarna är inte tillämpade"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "การตั้งค่าปลอดภัยเริ่มต้นยังไม่ถูกนำมาใช้"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Безпечні налаштування за замовчуванням не застосовані"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cài đặt an toàn mặc định chưa được áp dụng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "默认安全设置未应用"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "預設安全設定未套用"
           }
         }
       }
@@ -58313,6 +63230,173 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已知最嚴格的安全規則在%@無法正常運作。可改用建議的 DNS 設定，安全性稍低但更好用。"
+          }
+        }
+      }
+    },
+    "There are unapplied recommended settings for {country}" : {
+      "comment" : "dns settings",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "توجد إعدادات موصى بها غير مطبقة لـ %@"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pro %@ existují nepoužitá doporučená nastavení"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Für %@ gibt es nicht angewendete empfohlene Einstellungen"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Υπάρχουν μη εφαρμοσμένες προτεινόμενες ρυθμίσεις για %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There are unapplied recommended settings for %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hay configuraciones recomendadas sin aplicar para %@"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hay configuraciones recomendadas sin aplicar para %@"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hay configuraciones recomendadas sin aplicar para %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Des paramètres recommandés pour %@ ne sont pas appliqués"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "יש הגדרות מומלצות שלא הוחלו עבור %@"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ के लिए अनुशंसित सेटिंग्स लागू नहीं हैं"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ada pengaturan yang disarankan belum diterapkan untuk %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ci sono impostazioni consigliate non applicate per %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 向けの推奨設定が適用されていません"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@에 대한 권장 설정이 적용되지 않았습니다"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Er zijn niet-toegepaste aanbevolen instellingen voor %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Istnieją niezastosowane zalecane ustawienia dla %@"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Há definições recomendadas por aplicar para %@"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Há configurações recomendadas não aplicadas para %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Há definições recomendadas por aplicar para %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Есть непримененные рекомендуемые настройки для %@"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Det finns otillämpade rekommenderade inställningar för %@"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "มีการตั้งค่าที่แนะนำสำหรับ %@ ที่ยังไม่ถูกนำมาใช้"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Є незастосовані рекомендовані налаштування для %@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Có cài đặt được đề xuất chưa áp dụng cho %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有针对 %@ 的未应用推荐设置"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有適用於 %@ 的未套用建議設定"
           }
         }
       }
@@ -60328,6 +65412,173 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "此代碼無效"
+          }
+        }
+      }
+    },
+    "This device is discoverable" : {
+      "comment" : "Status label shown when this device can be discovered by peers on the network.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "هذا الجهاز قابل للاكتشاف"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toto zařízení je viditelné pro ostatní"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Gerät ist auffindbar"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Αυτή η συσκευή είναι ανιχνεύσιμη"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device is discoverable"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este dispositivo es detectable"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este dispositivo es detectable"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este dispositivo es detectable"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cet appareil est détectable"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מכשיר זה ניתן לגילוי"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "यह डिवाइस खोजा जा सकता है"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Perangkat ini dapat ditemukan"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo dispositivo è rilevabile"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このデバイスは検出可能です"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 기기는 검색될 수 있습니다"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dit apparaat is vindbaar"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To urządzenie jest wykrywalne"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este dispositivo é detetável"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este dispositivo é detectável"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este dispositivo é detetável"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это устройство доступно для обнаружения"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Den här enheten är upptäckbar"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "อุปกรณ์นี้สามารถถูกค้นพบได้"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Цей пристрій доступний для виявлення"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thiết bị này có thể được phát hiện"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此设备可被发现"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此裝置可被發現"
           }
         }
       }
@@ -65879,6 +71130,173 @@
         }
       }
     },
+    "Use default network" : {
+      "comment" : "Button that resets the network API to the default network.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "استخدام الشبكة الافتراضية"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Použít výchozí síť"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standardnetzwerk verwenden"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Χρήση προεπιλεγμένου δικτύου"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use default network"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar red predeterminada"
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar red predeterminada"
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar red predeterminada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utiliser le réseau par défaut"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "השתמש ברשת ברירת המחדל"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "डिफ़ॉल्ट नेटवर्क का उपयोग करें"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gunakan jaringan default"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa rete predefinita"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "デフォルトのネットワークを使用"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기본 네트워크 사용"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standaardnetwerk gebruiken"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Użyj domyślnej sieci"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar rede predefinida"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar rede padrão"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar rede predefinida"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Использовать сеть по умолчанию"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Använd standardnätverk"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ใช้เครือข่ายเริ่มต้น"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Використовувати мережу за замовчуванням"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dùng mạng mặc định"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用默认网络"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用預設網絡"
+          }
+        }
+      }
+    },
     "Use recommended settings" : {
       "comment" : "dns settings",
       "localizations" : {
@@ -66042,6 +71460,173 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "使用建議設定"
+          }
+        }
+      }
+    },
+    "Use wss:// for secure custom connect servers." : {
+      "comment" : "Help text under the connect URL field of the network API selector.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "استخدم wss:// لخوادم connect المخصصة الآمنة."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pro zabezpečené vlastní connect servery použijte wss://."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verwende wss:// für sichere eigene Connect-Server."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Χρησιμοποιήστε wss:// για ασφαλείς προσαρμοσμένους διακομιστές connect."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use wss:// for secure custom connect servers."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa wss:// para servidores connect personalizados seguros."
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa wss:// para servidores connect personalizados seguros."
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa wss:// para servidores connect personalizados seguros."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilisez wss:// pour des serveurs connect personnalisés sécurisés."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "השתמש ב-wss:// עבור שרתי connect מותאמים ומאובטחים."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "सुरक्षित कस्टम connect सर्वर के लिए wss:// का उपयोग करें।"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gunakan wss:// untuk server connect kustom yang aman."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa wss:// per server connect personalizzati sicuri."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安全なカスタム connect サーバーには wss:// を使用してください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "안전한 사용자 지정 connect 서버에는 wss://를 사용하세요."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gebruik wss:// voor beveiligde aangepaste connect-servers."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Użyj wss:// dla bezpiecznych niestandardowych serwerów connect."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use wss:// para servidores connect personalizados seguros."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use wss:// para servidores connect personalizados seguros."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use wss:// para servidores connect personalizados seguros."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Используйте wss:// для защищённых пользовательских connect-серверов."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Använd wss:// för säkra anpassade connect-servrar."
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ใช้ wss:// สำหรับเซิร์ฟเวอร์ connect แบบกำหนดเองที่ปลอดภัย"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Використовуйте wss:// для захищених користувацьких connect-серверів."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dùng wss:// cho máy chủ connect tùy chỉnh an toàn."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自定义 connect 服务器请使用 wss:// 以确保安全。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自訂 connect 伺服器請使用 wss:// 以確保安全。"
           }
         }
       }
@@ -67716,6 +73301,18 @@
         }
       }
     },
+    "Waiting for wallet signature..." : {
+      "comment" : "A message displayed when waiting for a wallet signature.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for wallet signature..."
+          }
+        }
+      }
+    },
     "Wallet" : {
       "comment" : "Account Screen",
       "localizations" : {
@@ -68217,6 +73814,18 @@
         }
       }
     },
+    "Wallet sign-in method added" : {
+      "comment" : "Snackbar message displayed when a wallet sign-in method is successfully added.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wallet sign-in method added"
+          }
+        }
+      }
+    },
     "Wallets" : {
       "comment" : "Wallets Screen",
       "localizations" : {
@@ -68380,6 +73989,173 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "錢包"
+          }
+        }
+      }
+    },
+    "Warning: one or more custom endpoints are not using HTTPS/WSS. Traffic may be unencrypted." : {
+      "comment" : "Warning shown when a custom endpoint uses plain HTTP/WS instead of HTTPS/WSS.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تحذير: نقطة نهاية مخصصة واحدة أو أكثر لا تستخدم HTTPS/WSS. قد تكون حركة المرور غير مشفرة."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upozornění: jeden nebo více vlastních koncových bodů nepoužívá HTTPS/WSS. Provoz může být nešifrovaný."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warnung: Ein oder mehrere eigene Endpunkte verwenden kein HTTPS/WSS. Der Datenverkehr ist möglicherweise unverschlüsselt."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Προειδοποίηση: ένα ή περισσότερα προσαρμοσμένα σημεία δεν χρησιμοποιούν HTTPS/WSS. Η κίνηση μπορεί να μην είναι κρυπτογραφημένη."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warning: one or more custom endpoints are not using HTTPS/WSS. Traffic may be unencrypted."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Advertencia: uno o más endpoints personalizados no usan HTTPS/WSS. El tráfico puede no estar cifrado."
+          }
+        },
+        "es-419" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Advertencia: uno o más endpoints personalizados no usan HTTPS/WSS. El tráfico puede no estar cifrado."
+          }
+        },
+        "es-MX" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Advertencia: uno o más endpoints personalizados no usan HTTPS/WSS. El tráfico puede no estar cifrado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avertissement : un ou plusieurs points de terminaison personnalisés n'utilisent pas HTTPS/WSS. Le trafic peut être non chiffré."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "אזהרה: נקודת קצה מותאמת אחת או יותר אינה משתמשת ב-HTTPS/WSS. התעבורה עלולה להיות לא מוצפנת."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "चेतावनी: एक या अधिक कस्टम एंडपॉइंट HTTPS/WSS का उपयोग नहीं कर रहे हैं। ट्रैफ़िक अनएन्क्रिप्टेड हो सकता है।"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Peringatan: satu atau beberapa endpoint kustom tidak menggunakan HTTPS/WSS. Lalu lintas mungkin tidak terenkripsi."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avviso: uno o più endpoint personalizzati non usano HTTPS/WSS. Il traffico potrebbe non essere cifrato."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "警告: 1つ以上のカスタムエンドポイントが HTTPS/WSS を使用していません。通信が暗号化されない可能性があります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "경고: 하나 이상의 사용자 지정 엔드포인트가 HTTPS/WSS를 사용하지 않습니다. 트래픽이 암호화되지 않을 수 있습니다."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waarschuwing: een of meer aangepaste endpoints gebruiken geen HTTPS/WSS. Verkeer is mogelijk niet versleuteld."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ostrzeżenie: co najmniej jeden niestandardowy punkt końcowy nie używa HTTPS/WSS. Ruch może być nieszyfrowany."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aviso: um ou mais endpoints personalizados não usam HTTPS/WSS. O tráfego pode não estar encriptado."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aviso: um ou mais endpoints personalizados não usam HTTPS/WSS. O tráfego pode não estar criptografado."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aviso: um ou mais endpoints personalizados não usam HTTPS/WSS. O tráfego pode não estar encriptado."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Внимание: один или несколько пользовательских эндпоинтов не используют HTTPS/WSS. Трафик может быть незашифрованным."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Varning: en eller flera anpassade slutpunkter använder inte HTTPS/WSS. Trafiken kan vara okrypterad."
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "คำเตือน: ปลายทางที่กำหนดเองอย่างน้อยหนึ่งรายการไม่ได้ใช้ HTTPS/WSS การรับส่งข้อมูลอาจไม่ถูกเข้ารหัส"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Попередження: одна або кілька користувацьких кінцевих точок не використовують HTTPS/WSS. Трафік може бути незашифрованим."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cảnh báo: một hoặc nhiều điểm cuối tùy chỉnh không dùng HTTPS/WSS. Lưu lượng có thể không được mã hóa."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "警告：一个或多个自定义端点未使用 HTTPS/WSS。流量可能未加密。"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "警告：一個或多個自訂端點未使用 HTTPS/WSS。流量可能未加密。"
           }
         }
       }
@@ -69053,6 +74829,18 @@
         }
       }
     },
+    "Write it down and store it somewhere safe. If you lose it, you'll lose access to your account." : {
+      "comment" : "A warning message that instructs the user to write down their seedphrase and store it in a secure location.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Write it down and store it somewhere safe. If you lose it, you'll lose access to your account."
+          }
+        }
+      }
+    },
     "You can adjust the setting to Always to fill the free data faster." : {
       "extractionState" : "stale",
       "localizations" : {
@@ -69371,6 +75159,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "你亦可允許供應商使用流動網絡數據，如你有無限數據計劃則非常適合。"
+          }
+        }
+      }
+    },
+    "You get 3 GiB/day for life" : {
+      "comment" : "Text displayed in a scrollable view within a VStack in the body of a view that is displayed when the user is viewing their referral code.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You get 3 GiB/day for life"
           }
         }
       }
@@ -69706,6 +75506,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "你每月都能獲得免費數據，推薦朋友還可賺取更多。"
+          }
+        }
+      }
+    },
+    "You have %lld other devices online" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You have %lld other devices online"
+          }
+        }
+      }
+    },
+    "You have 1 other device online" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You have 1 other device online"
           }
         }
       }
@@ -71047,6 +76867,18 @@
         }
       }
     },
+    "Your friend gets 3 GiB/day for life" : {
+      "comment" : "Text displayed in a scrollable view within a VStack in the body of a view that is displayed in a modal.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your friend gets 3 GiB/day for life"
+          }
+        }
+      }
+    },
     "Your friend gets 30 GiB/month for life" : {
       "comment" : "Used in Shared/Views/Introduction/ParticipateReferView.swift.",
       "localizations" : {
@@ -71381,6 +77213,17 @@
         }
       }
     },
+    "Your identity key is stored locally on this device. If any peer's key appears different than their locally stored key, it means the network operator cannot be trusted." : {
+      "comment" : "Account tab: explanation under the post quantum identity panel — what the identity key is and how verifying provider keys detects interception.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your identity key is stored locally on this device. If any peer's key appears different than their locally stored key, it means the network operator cannot be trusted."
+          }
+        }
+      }
+    },
     "Your purchase needs to be approved before it can complete. UR Pro will turn on by itself once it goes through — there's no need to buy again." : {
       "comment" : "Used in Shared/Views/UpgradeSubscriptionSheet.swift.",
       "localizations" : {
@@ -71711,6 +77554,30 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "你的推薦連結"
+          }
+        }
+      }
+    },
+    "Your Seedphrase" : {
+      "comment" : "A title displayed above the user's seedphrase.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Seedphrase"
+          }
+        }
+      }
+    },
+    "your@email.com" : {
+      "comment" : "Placeholder text for the email field.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "your@email.com"
           }
         }
       }

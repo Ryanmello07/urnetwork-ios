@@ -8,6 +8,42 @@
 import SwiftUI
 import URnetworkSdk
 
+/// Coordinate space anchored at the top of [ConnectActions], in which the fold
+/// marker reports the bottom edge of the connect button. The iOS drawer sizes
+/// its collapsed peek so this fold sits a standard 12pt above the tab bar
+/// (Android parity). The space lives inside ConnectActions so hosts that never
+/// read the preference (macOS) still resolve it.
+let connectActionsFoldCoordinateSpace = "connectActionsFold"
+
+/// The bottom edge (maxY) of whichever connect/disconnect/reconnect button is
+/// showing, measured in [connectActionsFoldCoordinateSpace]. Only one button
+/// variant exists at a time; reduce keeps the deepest edge if that ever
+/// changes.
+struct ConnectActionsFoldPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat? = nil
+    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) {
+        if let next = nextValue() {
+            value = max(value ?? next, next)
+        }
+    }
+}
+
+private extension View {
+    /// Marks this view's bottom edge as the collapsed drawer's fold. A
+    /// zero-size sibling marker would add a VStack spacing slot, so the
+    /// measurement rides on the button's background instead.
+    func connectActionsFold() -> some View {
+        background(
+            GeometryReader { geometry in
+                Color.clear.preference(
+                    key: ConnectActionsFoldPreferenceKey.self,
+                    value: geometry.frame(in: .named(connectActionsFoldCoordinateSpace)).maxY
+                )
+            }
+        )
+    }
+}
+
 struct ConnectActions: View {
     
     let connect: () -> Void
@@ -32,6 +68,7 @@ struct ConnectActions: View {
     @Binding var selectedWindowType: WindowType
     @Binding var fixedIpSize: Bool
     @Binding var allowDirect: Bool
+    @Binding var postQuantumEncryption: Bool
     let dailyBalanceByteCount: Int
     let openStatsSheet: (ConnectStatsSheet) -> Void
 
@@ -42,6 +79,7 @@ struct ConnectActions: View {
     // ALL connected devices (a device is online whether or not it provides);
     // the chooser's peers section stays provide-filtered (connectable only)
     private var peerCount: Int { networkPeersStore.connectedCount }
+    private var peersAvailable: Bool { networkPeersStore.peersAvailable }
 
     // second line under the peers count: whether this device is itself
     // discoverable/connectable as a peer (providing to same-network peers).
@@ -85,7 +123,8 @@ struct ConnectActions: View {
                                 },
                                 style: .outlineSecondary
                             )
-        
+                            .connectActionsFold()
+
                         } else {
                             /**
                              * sufficient balance
@@ -98,21 +137,24 @@ struct ConnectActions: View {
                                 HStack {
                                     UrButton(text: "Connect", action: connect)
                                 }
+                                .connectActionsFold()
                             }
-                            
+
                             if (connectionStatus != .disconnected && !displayReconnectTunnel) {
                                 UrButton(
                                     text: "Disconnect",
                                     action: disconnect,
                                     style: .outlineSecondary
                                 )
+                                .connectActionsFold()
                             }
-                            
+
                             if displayReconnectTunnel {
                                 UrButton(
                                     text: "Reconnect",
                                     action: reconnectTunnel ?? {},
                                 )
+                                .connectActionsFold()
                             }
 
                             /**
@@ -121,15 +163,27 @@ struct ConnectActions: View {
                              * opens the location chooser, which lists these peers at top.
                              * The extra top spacing pushes it just below the collapsed
                              * drawer's peek fold, so it appears only when the drawer opens.
+                             * Peer state lives in the network extension's device, which
+                             * only runs while the tunnel is up: until then the count would
+                             * be a stale zero presented as fact, so the line goes gray and
+                             * says discovery is disabled instead.
                              */
                             Spacer().frame(height: 24)
                             HStack(spacing: 8) {
                                 Circle()
-                                    .fill(peerCount > 0 ? Color.urGreen : Color(hex: "F5C242"))
+                                    .fill(peersAvailable
+                                        ? (peerCount > 0 ? Color.urGreen : Color(hex: "F5C242"))
+                                        : themeManager.currentTheme.textMutedColor)
                                     .frame(width: 8, height: 8)
-                                Text(peerCount == 1 ? "You have 1 other device online" : "You have \(peerCount) other devices online")
-                                    .font(themeManager.currentTheme.secondaryBodyFont)
-                                    .foregroundColor(themeManager.currentTheme.textMutedColor)
+                                if peersAvailable {
+                                    Text(peerCount == 1 ? "You have 1 other device online" : "You have \(peerCount) other devices online")
+                                        .font(themeManager.currentTheme.secondaryBodyFont)
+                                        .foregroundColor(themeManager.currentTheme.textMutedColor)
+                                } else {
+                                    Text("Peer discovery disabled until connected")
+                                        .font(themeManager.currentTheme.secondaryBodyFont)
+                                        .foregroundColor(themeManager.currentTheme.textMutedColor)
+                                }
                                 Spacer()
                             }
                             .contentShape(Rectangle())
@@ -185,7 +239,19 @@ struct ConnectActions: View {
                                 Text("Strong Anonymization")
                                     .font(themeManager.currentTheme.bodyFont)
                             }
-                            
+
+                            Spacer().frame(height: 12)
+
+                            /**
+                             * Post quantum encryption
+                             * Opportunistic e2e: providers without support fall
+                             * back to plaintext at this layer
+                             */
+                            Toggle(isOn: $postQuantumEncryption) {
+                                Text("Post Quantum Encryption")
+                                    .font(themeManager.currentTheme.bodyFont)
+                            }
+
                         }
                         
                     }
@@ -257,6 +323,11 @@ struct ConnectActions: View {
             
             .padding(.horizontal)
             .padding(.bottom)
+            // the space sits inside the flexible frames below and has no top
+            // padding above it, so fold offsets measured in it are offsets
+            // from the top of the ConnectActions content, immune to any
+            // centering slack a host's frame could introduce
+            .coordinateSpace(name: connectActionsFoldCoordinateSpace)
             .frame(maxWidth: 600)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(

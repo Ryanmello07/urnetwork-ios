@@ -16,9 +16,26 @@ struct ConnectStatusIndicator: View {
     let windowCurrentSize: Int32
     let isPollingSubscriptionBalance: Bool
     let currentPlan: Plan
-    
+    // opens the provider-locations detail view; the label is the tap target,
+    // and only while it genuinely reads "Connected to N providers"
+    var showProviderLocations: (() -> Void)? = nil
+
     @EnvironmentObject var themeManager: ThemeManager
-    
+
+    /**
+     * Whether the status line is the live "Connected to N providers" label.
+     * Every other state — connecting, reconnecting the tunnel, polling a
+     * subscription balance, insufficient balance — has no window to show, so
+     * the row must not be tappable there.
+     */
+    var canShowProviderLocations: Bool {
+        showProviderLocations != nil
+            && connectionStatus == .connected
+            && !displayReconnectTunnel
+            && !isPollingSubscriptionBalance
+            && !(contractStatus?.insufficientBalance == true && currentPlan == .none)
+    }
+
     var statusMsgIconColor: Color {
         
         if (contractStatus?.insufficientBalance == true && currentPlan == .none) {
@@ -81,11 +98,25 @@ struct ConnectStatusIndicator: View {
             if connectionStatus == .connecting || connectionStatus == .destinationSet {
                 AnimatedEllipsis()
             }
+
+            if canShowProviderLocations {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(themeManager.currentTheme.textMutedColor)
+            }
         }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if canShowProviderLocations {
+                showProviderLocations?()
+            }
+        }
+        .accessibilityAddTraits(canShowProviderLocations ? .isButton : [])
     }
 }
 
 struct AnimatedEllipsis: View {
+    @Environment(\.presentationActive) private var presentationActive
     @State private var dotCount = 0
     @State private var timer: Timer?
 
@@ -97,15 +128,35 @@ struct AnimatedEllipsis: View {
         }
         .frame(width: 20, alignment: .leading)
         .onAppear {
-            timer?.invalidate()
-            timer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { _ in
-                dotCount = (dotCount + 1) % 4
+            startTimer()
+        }
+        .onChange(of: presentationActive) { active in
+            if active {
+                startTimer()
+            } else {
+                stopTimer()
             }
         }
         .onDisappear {
-            timer?.invalidate()
-            timer = nil
+            stopTimer()
         }
+    }
+
+    private func startTimer() {
+        stopTimer()
+        guard PresentationWorkState.shouldRun(
+            presentationActive: presentationActive
+        ) else {
+            return
+        }
+        timer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { _ in
+            dotCount = (dotCount + 1) % 4
+        }
+    }
+
+    private func stopTimer() {
+        timer?.invalidate()
+        timer = nil
     }
 }
 
@@ -119,4 +170,3 @@ struct AnimatedEllipsis: View {
         currentPlan: .none
     )
 }
-

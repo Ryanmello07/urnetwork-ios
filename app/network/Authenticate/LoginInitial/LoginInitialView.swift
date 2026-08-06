@@ -1055,10 +1055,10 @@ private struct SSOButtons: View {
                 .disabled(isLoginActionInFlight)
             }
             .frame(maxWidth: .infinity)
-            
+
             Spacer()
                 .frame(height: 8)
-            
+
             // Seedphrase login button (macOS)
             Button(action: presentSeedphraseLogin) {
                 HStack {
@@ -1105,7 +1105,7 @@ private struct SSOButtons: View {
             .disabled(isLoginActionInFlight)
             .opacity(isLoginActionInFlight ? 0.3 : 1)
         }
-        
+
     }
 }
 #endif

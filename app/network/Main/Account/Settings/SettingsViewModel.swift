@@ -20,15 +20,7 @@ extension SettingsView {
         let api: UrApiServiceProtocol
         
         @Published var presentUpdateReferralNetworkSheet: Bool = false
-        
-        // MARK: - Solana/Wallet Sign-In (restored from upstream merge)
-        @Published var presentSigninWithSolanaSheet: Bool = false
-        @Published private(set) var isSigningMessage: Bool = false
-        
-        func setIsSigningMessage(_ isSigning: Bool) -> Void {
-            isSigningMessage = isSigning
-        }
-        
+
         @Published var version: String = ""
         
         var networkUserViewModel: NetworkUserViewModel?
@@ -47,7 +39,7 @@ extension SettingsView {
                 await fetchReferralNetwork()
             }
             
-            self.version = SdkVersion
+            self.version = Sdk.version()
             
         }
         

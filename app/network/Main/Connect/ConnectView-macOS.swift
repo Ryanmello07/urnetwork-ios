@@ -76,6 +76,9 @@ import URnetworkSdk
                             },
                             currentPlan: isPro ? .supporter : .none,
                             isPollingSubscriptionBalance: subscriptionBalanceViewModel.isPolling,
+                            showProviderLocations: {
+                                presentedStatsSheet = .providerLocations
+                            },
                             tunnelConnected: $connectViewModel.tunnelConnected,
                         )
                         .animation(.spring(duration: 0.3), value: isProviderTableVisible)
@@ -109,6 +112,7 @@ import URnetworkSdk
                                 selectedWindowType: $deviceManager.selectedWindowType,
                                 fixedIpSize: $deviceManager.fixedIpSize,
                                 allowDirect: $deviceManager.allowDirect,
+                                postQuantumEncryption: $deviceManager.postQuantumEncryption,
                                 dailyBalanceByteCount: subscriptionBalanceViewModel.startBalanceByteCount,
                                 openStatsSheet: { sheet in
                                     presentedStatsSheet = sheet
