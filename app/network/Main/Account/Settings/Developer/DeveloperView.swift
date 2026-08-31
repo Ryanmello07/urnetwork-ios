@@ -28,6 +28,7 @@ struct DeveloperView: View {
 
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var reliabilityStore: ReliabilityStore
+    @EnvironmentObject var deviceManager: DeviceManager
     @Environment(\.presentationActive) private var presentationActive
 
     /**
@@ -40,10 +41,19 @@ struct DeveloperView: View {
         reliabilityStore.settings ?? ReliabilitySettings()
     }
 
+    @State private var exportedBundle: URL?
+    @State private var exportError: String?
+    @State private var exportSummary: String?
+
+    // read the flag recorded at startup; do NOT call configure() here, which
+    // would re-point glog every time this view is constructed
+    private var logRootIsShared: Bool { DiagnosticsLogLocation.isSharedContainerAvailable }
+
     var body: some View {
         Form {
 
             introSection
+            diagnosticsSection
 
             if reliabilityStore.connected {
                 measurementsSection
@@ -91,6 +101,54 @@ struct DeveloperView: View {
                 }
             }
             .padding(.vertical, 2)
+        }
+    }
+
+    /** Diagnostics: everything the client knows, as one file the user can send. */
+    private var diagnosticsSection: some View {
+        Section {
+            actionRow("Export all logs (raw)") {
+                exportBundle(redacted: false)
+            }
+            actionRow("Export redacted logs") {
+                exportBundle(redacted: true)
+            }
+            if let exportedBundle {
+                ShareLink(item: exportedBundle) {
+                    Text("Share \(exportedBundle.lastPathComponent)")
+                        .font(themeManager.currentTheme.bodyFont)
+                }
+            }
+            if let exportSummary {
+                Text(exportSummary)
+                    .font(themeManager.currentTheme.secondaryBodyFont)
+                    .foregroundColor(themeManager.currentTheme.textMutedColor)
+            }
+            if let exportError {
+                Text(exportError)
+                    .font(themeManager.currentTheme.secondaryBodyFont)
+                    .foregroundColor(themeManager.currentTheme.textMutedColor)
+            }
+        } header: {
+            sectionHeader("Diagnostics")
+        }
+    }
+
+    private func exportBundle(redacted: Bool, selected: [String] = []) {
+        do {
+            let export = try DiagnosticExportService.export(
+                redacted: redacted,
+                selectedNames: selected,
+                device: deviceManager.device,
+                isShared: logRootIsShared
+            )
+            exportedBundle = export.url
+            exportSummary = export.summary
+            exportError = nil
+        } catch {
+            exportedBundle = nil
+            exportSummary = nil
+            exportError = "Export failed: \(error.localizedDescription)"
         }
     }
 
