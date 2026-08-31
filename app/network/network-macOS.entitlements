@@ -1,12 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS build of the same target. Apple requires app group identifiers to be
+  team-id prefixed on macOS ("TEAMID.group.network.ur"); iOS requires them
+  unprefixed. One entitlements file cannot satisfy both, and with the
+  unprefixed identifier containerURL(forSecurityApplicationGroupIdentifier:)
+  returns nil on macOS -- so the app and the extension each fall back to their
+  own private directory and a macOS diagnostic bundle can never contain the
+  extension's logs. Wired by CODE_SIGN_ENTITLEMENTS[sdk=macosx*].
+  The running binary resolves the granted identifier from its own signature at
+  runtime (DiagnosticsLogContract.appGroupIdentifier), so this file and that
+  lookup agree without either hardcoding a team id.
+-->
 <plist version="1.0">
 <dict>
 	<key>aps-environment</key>
 	<string>development</string>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.network.ur</string>
+		<string>$(AppIdentifierPrefix)group.network.ur</string>
 	</array>
 	<key>com.apple.developer.applesignin</key>
 	<array>
