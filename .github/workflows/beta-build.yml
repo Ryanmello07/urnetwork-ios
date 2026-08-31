@@ -37,10 +37,19 @@ jobs:
           ref: beta/custom-server
           path: sdk
 
+      # NOT `go-version: stable`. Stable is go 1.27, which REMOVED the
+      # `gotypesalias` GODEBUG, and sdk/build/Makefile exports
+      # `GODEBUG=gotypesalias=0` in both the build_android and build_apple
+      # recipes (it says so itself: "gomobile/gobind must be built with go <=
+      # 1.26 -- the go 1.27 runtime fatals when this GODEBUG is set"). Under
+      # 1.27 the bind dies with `fatal error: removed GODEBUG "gotypesalias"
+      # set to old value "0"`. sdk/build/go.mod pins 1.26.5; read the
+      # version from it so this tracks the sdk rather than drifting again.
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: stable
+          go-version-file: sdk/build/go.mod
+          cache-dependency-path: sdk/build/go.sum
 
       # the sdk's go.mod resolves connect, glog and goidenticons with
       # `replace ... => ../<name>`, so all three have to sit next to the sdk
@@ -80,6 +89,12 @@ jobs:
           BRINGYOUR_HOME: ${{ github.workspace }}/sdk
           WARP_HOME: ${{ github.workspace }}/sdk
           WARP_VERSION_HOME: ${{ github.workspace }}/sdk/version
+          # setup-go pins 1.26.5 from build/go.mod, but a `go` directive
+          # anywhere in the graph could still make the toolchain silently
+          # self-upgrade to 1.27 and re-break the bind. `local` turns that into
+          # a loud "requires go >= ..." error instead. Every module in the graph
+          # is <= 1.26.5 today (sdk, sdk/build, connect, glog, goidenticons).
+          GOTOOLCHAIN: local
         run: |
           export PATH="$PATH:/usr/local/go/bin:$HOME/go/bin"
           make init build_apple
