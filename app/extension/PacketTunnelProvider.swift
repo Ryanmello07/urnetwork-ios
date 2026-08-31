@@ -592,20 +592,10 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         self.shouldSaveKeyMaterial = true
         memoryMonitor?.sample(event: "device-created")
 
-        // set glog dir
-        let logsURL: URL
-        if let cacheURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
-            logsURL = cacheURL.appendingPathComponent("Logs")
-        } else if let libURL = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first {
-            logsURL = libURL.appendingPathComponent("Logs")
-        } else {
-            // As a last resort, use the temporary directory
-            logsURL = FileManager.default.temporaryDirectory.appendingPathComponent("Logs")
-        }
-
-        try? FileManager.default.createDirectory(at: logsURL, withIntermediateDirectories: true)
-
-        SdkSetLogDir(logsURL.path, nil)
+        // set glog dir: the extension's own subdirectory of the shared log
+        // root, so the app can read these files for a diagnostic export and so
+        // retention prunes only this process's history
+        ExtensionDiagnosticsLogLocation.configure()
 
         // load initial device settings
         // these will be in effect until the app connects and sets the user values
