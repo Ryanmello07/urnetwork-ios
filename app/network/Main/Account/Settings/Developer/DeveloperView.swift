@@ -41,21 +41,17 @@ struct DeveloperView: View {
         reliabilityStore.settings ?? ReliabilitySettings()
     }
 
-    @State private var exportedBundle: URL?
-    @State private var exportError: String?
-    @State private var exportSummary: String?
-    // true from the moment an export is kicked off until the detached task
-    // hands the result back: guards against firing a second export on top of
-    // one still running, and gives the tap something to show for itself
-    // while the zip is being built off the main thread
-    @State private var isExporting = false
+    // the export outlives this screen, so its in-flight guard and its result
+    // are held outside the view -- see DiagnosticExportState
+    @ObservedObject private var exportState = DiagnosticExportState.shared
     @State private var showLogPicker = false
-    @State private var logInventory: [SdkLogFileInfo] = []
     @State private var selectedLogNames: Set<String> = []
 
-    // read the flag recorded at startup; do NOT call configure() here, which
+    // read what was recorded at startup; do NOT call configure() here, which
     // would re-point glog every time this view is constructed
-    private var logRootIsShared: Bool { DiagnosticsLogLocation.isSharedContainerAvailable }
+    private var sharedRootUnavailableReason: String? {
+        DiagnosticsLogLocation.sharedRootUnavailableReason
+    }
 
     var body: some View {
         Form {
@@ -85,6 +81,13 @@ struct DeveloperView: View {
         .onAppear {
             reliabilityStore.setActive(presentationActive)
         }
+        .task {
+            // the inventory (and with it the total size and any unavailable
+            // source) has to be on screen BEFORE the user commits to an
+            // export, so it is read here rather than when the picker opens
+            await exportState.refreshInventory(
+                sharedRootUnavailableReason: sharedRootUnavailableReason)
+        }
         .onChange(of: presentationActive) { active in
             reliabilityStore.setActive(active)
         }
@@ -103,7 +106,11 @@ struct DeveloperView: View {
                     .foregroundColor(themeManager.currentTheme.textMutedColor)
 
                 if !reliabilityStore.connected {
-                    Text("Connect to use these tools.")
+                    // the diagnostics section below works while disconnected
+                    // -- exporting the logs of a connection that will not come
+                    // up is exactly when it is wanted -- so this must not tell
+                    // the user the whole screen is dead
+                    Text("Connect to use the live connection tools. Diagnostics below work either way.")
                         .font(themeManager.currentTheme.bodyFont)
                         .foregroundColor(themeManager.currentTheme.textColor)
                 }
@@ -115,18 +122,43 @@ struct DeveloperView: View {
     /** Diagnostics: everything the client knows, as one file the user can send. */
     private var diagnosticsSection: some View {
         Section {
-            actionRow("Export all logs (raw)", isEnabled: !isExporting) {
+            if let inventoryLabel = exportState.inventoryLabel {
+                Text(inventoryLabel)
+                    .font(themeManager.currentTheme.secondaryBodyFont)
+                    .foregroundColor(themeManager.currentTheme.textMutedColor)
+            }
+            if let note = exportState.unavailableSourceNote {
+                Text(note)
+                    .font(themeManager.currentTheme.secondaryBodyFont)
+                    .foregroundColor(themeManager.currentTheme.textMutedColor)
+            }
+            actionRow("Export all logs (raw)", isEnabled: !exportState.isExporting) {
                 exportBundle(redacted: false)
             }
-            actionRow("Export redacted logs", isEnabled: !isExporting) {
+            actionRow("Export redacted logs", isEnabled: !exportState.isExporting) {
                 exportBundle(redacted: true)
             }
-            actionRow("Choose logs…") {
-                logInventory = DiagnosticExportService.inventory()
+            // disabled while an export runs like the other three rows: its
+            // handler re-reads the on-disk inventory, and that read is exactly
+            // the work the running export is already doing
+            actionRow("Choose logs…", isEnabled: !exportState.isExporting) {
                 showLogPicker.toggle()
+                Task {
+                    await exportState.refreshInventory(
+                        sharedRootUnavailableReason: sharedRootUnavailableReason)
+                    // a checked file that has since rotated away would be
+                    // dropped by the SDK filter without a word, so the picker
+                    // would promise files the bundle does not contain
+                    selectedLogNames.formIntersection(
+                        Set(exportState.inventory.map { $0.name }))
+                }
             }
             if showLogPicker {
-                ForEach(logInventory, id: \.name) { info in
+                // identified by source+name, not name alone: glog names embed
+                // the program and pid so a collision across processes is
+                // unlikely, but nothing enforces it, and a duplicate id is a
+                // SwiftUI diffing hazard
+                ForEach(exportState.inventory, id: \.pickerRowId) { info in
                     Button {
                         if selectedLogNames.contains(info.name) {
                             selectedLogNames.remove(info.name)
@@ -136,7 +168,10 @@ struct DeveloperView: View {
                     } label: {
                         HStack {
                             Text(DiagnosticExportService.rowLabel(
-                                source: info.source, severity: info.severity, byteCount: info.byteCount))
+                                source: info.source,
+                                severity: info.severity,
+                                byteCount: info.byteCount,
+                                modifiedMillis: info.modifiedMillis))
                                 .font(themeManager.currentTheme.secondaryBodyFont)
                                 .foregroundColor(
                                     selectedLogNames.contains(info.name)
@@ -155,29 +190,30 @@ struct DeveloperView: View {
                 // of what this row's label promises.
                 actionRow(
                     "Export selected",
-                    isEnabled: !isExporting && DiagnosticExportService.canExportSelection(selectedLogNames)
+                    isEnabled: !exportState.isExporting
+                        && DiagnosticExportService.canExportSelection(selectedLogNames)
                 ) {
                     guard DiagnosticExportService.canExportSelection(selectedLogNames) else { return }
                     exportBundle(redacted: false, selected: Array(selectedLogNames))
                 }
             }
-            if isExporting {
+            if exportState.isExporting {
                 Text("Exporting…")
                     .font(themeManager.currentTheme.secondaryBodyFont)
                     .foregroundColor(themeManager.currentTheme.textMutedColor)
             }
-            if let exportedBundle {
+            if let exportedBundle = exportState.bundle {
                 ShareLink(item: exportedBundle) {
                     Text("Share \(exportedBundle.lastPathComponent)")
                         .font(themeManager.currentTheme.bodyFont)
                 }
             }
-            if let exportSummary {
+            if let exportSummary = exportState.summary {
                 Text(exportSummary)
                     .font(themeManager.currentTheme.secondaryBodyFont)
                     .foregroundColor(themeManager.currentTheme.textMutedColor)
             }
-            if let exportError {
+            if let exportError = exportState.errorMessage {
                 Text(exportError)
                     .font(themeManager.currentTheme.secondaryBodyFont)
                     .foregroundColor(themeManager.currentTheme.textMutedColor)
@@ -188,52 +224,23 @@ struct DeveloperView: View {
     }
 
     /**
-     * `DiagnosticExportService.export` is a synchronous worker: it flushes
-     * glog, makes an RPC round trip into the network extension over a
-     * websocket for the manifest, then reads and DEFLATE-compresses up to 4
-     * log files of up to 16MB each into a zip. Calling it inline from this
-     * Button action would run all of that on the main actor -- freezing the
-     * UI and risking an iOS watchdog kill on a slow device. So the call is
-     * pushed onto a detached task (the same off-main pattern already used
-     * for the globe's topology decode in ProviderGlobeView), and the
-     * `@State` result is written back only after the `await`, which resumes
-     * on the main actor.
-     *
-     * Everything the worker needs is read from `self`/`deviceManager` here,
-     * before the hop, rather than inside the detached closure -- reading
-     * `deviceManager.device` off the main actor would itself be unsafe.
+     * The work itself, its in-flight guard and its result all live in
+     * DiagnosticExportState, which outlives this view. Everything the export
+     * needs from the environment is read here, on the main actor, before the
+     * hop -- reading `deviceManager.device` off the main actor would itself be
+     * unsafe.
      */
     private func exportBundle(redacted: Bool, selected: [String] = []) {
-        guard !isExporting else { return }
-        isExporting = true
-        exportError = nil
-
         let device = deviceManager.device
-        let isShared = logRootIsShared
+        let reason = sharedRootUnavailableReason
 
         Task {
-            let outcome = await Task.detached(priority: .userInitiated) {
-                Result {
-                    try DiagnosticExportService.export(
-                        redacted: redacted,
-                        selectedNames: selected,
-                        device: device,
-                        isShared: isShared
-                    )
-                }
-            }.value
-
-            isExporting = false
-            switch outcome {
-            case .success(let export):
-                exportedBundle = export.url
-                exportSummary = export.summary
-                exportError = nil
-            case .failure(let error):
-                exportedBundle = nil
-                exportSummary = nil
-                exportError = "Export failed: \(error.localizedDescription)"
-            }
+            await exportState.export(
+                redacted: redacted,
+                selected: selected,
+                device: device,
+                sharedRootUnavailableReason: reason
+            )
         }
     }
 
