@@ -6,14 +6,257 @@
 //
 
 import NetworkExtension
-import URnetworkSdk
+import URnetworkExtensionSdk
 import OSLog
+import Security
+import CryptoKit
 
 //import Atomics
 
 private struct TunnelNetworkSettingsPlan {
     let settings: NEPacketTunnelNetworkSettings
     let signature: String
+}
+
+private struct SharedTunnelJwtEnvelope: Codable {
+    static let currentVersion = 2
+    let version: Int
+    let instanceId: String
+    let byJwt: String
+    let issuedAt: Int64?
+    let expiresAt: Int64?
+
+    init(
+        instanceId: String,
+        byJwt: String,
+        issuedAt: Int64?,
+        expiresAt: Int64?
+    ) {
+        self.version = Self.currentVersion
+        self.instanceId = instanceId
+        self.byJwt = byJwt
+        self.issuedAt = issuedAt
+        self.expiresAt = expiresAt
+    }
+}
+
+private struct LegacySharedTunnelJwtEnvelope: Codable {
+    let version: Int
+    let instanceId: String
+    let byJwt: String
+}
+
+private struct SharedTunnelJwtCandidate {
+    let account: String
+    let byJwt: String
+    let issuedAt: Int64?
+    let expiresAt: Int64?
+}
+
+private enum SharedTunnelJwtStore {
+    private static let service = "network.ur.shared-tunnel-jwt"
+    private static let accountPrefix = "v2-"
+    private static let retainedTokensPerInstance = 3
+
+    static func load(expectedInstanceId: String) -> String? {
+        freshest(loadCandidates(expectedInstanceId: expectedInstanceId))?.byJwt
+    }
+
+    @discardableResult
+    static func save(byJwt: String, instanceId: String) -> Bool {
+        let dates = jwtDates(byJwt)
+        guard !byJwt.isEmpty, !instanceId.isEmpty,
+              let account = account(byJwt: byJwt, instanceId: instanceId),
+              let data = try? JSONEncoder().encode(
+                SharedTunnelJwtEnvelope(
+                    instanceId: instanceId,
+                    byJwt: byJwt,
+                    issuedAt: dates.issuedAt,
+                    expiresAt: dates.expiresAt
+                )
+              ), var query = keychainIdentityQuery(account: account) else {
+            return false
+        }
+        query[kSecValueData as String] = data
+        query[kSecAttrAccessible as String] =
+            kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        let status = SecItemAdd(query as CFDictionary, nil)
+        guard status == errSecSuccess || status == errSecDuplicateItem else {
+            return false
+        }
+        prune(expectedInstanceId: instanceId)
+        return true
+    }
+
+    static func clear() {
+        guard let query = keychainIdentityQuery() else { return }
+        _ = SecItemDelete(query as CFDictionary)
+    }
+
+    private static func loadCandidates(
+        expectedInstanceId: String
+    ) -> [SharedTunnelJwtCandidate] {
+        guard var query = keychainIdentityQuery() else { return [] }
+        query[kSecReturnAttributes as String] = true
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitAll
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess else {
+            return []
+        }
+        let items: [[String: Any]]
+        if let array = result as? [[String: Any]] {
+            items = array
+        } else if let item = result as? [String: Any] {
+            items = [item]
+        } else {
+            return []
+        }
+        return items.compactMap { item in
+            guard let data = item[kSecValueData as String] as? Data,
+                  let account = item[kSecAttrAccount as String] as? String else {
+                return nil
+            }
+            return candidate(
+                data: data,
+                account: account,
+                expectedInstanceId: expectedInstanceId
+            )
+        }
+    }
+
+    private static func candidate(
+        data: Data,
+        account: String,
+        expectedInstanceId: String
+    ) -> SharedTunnelJwtCandidate? {
+        let decoder = JSONDecoder()
+        if let envelope = try? decoder.decode(
+            SharedTunnelJwtEnvelope.self,
+            from: data
+        ), envelope.version == SharedTunnelJwtEnvelope.currentVersion,
+           envelope.instanceId == expectedInstanceId,
+           !envelope.byJwt.isEmpty {
+            return SharedTunnelJwtCandidate(
+                account: account,
+                byJwt: envelope.byJwt,
+                issuedAt: envelope.issuedAt,
+                expiresAt: envelope.expiresAt
+            )
+        }
+        if let legacy = try? decoder.decode(
+            LegacySharedTunnelJwtEnvelope.self,
+            from: data
+        ), legacy.version == 1,
+           legacy.instanceId == expectedInstanceId,
+           !legacy.byJwt.isEmpty {
+            let dates = jwtDates(legacy.byJwt)
+            return SharedTunnelJwtCandidate(
+                account: account,
+                byJwt: legacy.byJwt,
+                issuedAt: dates.issuedAt,
+                expiresAt: dates.expiresAt
+            )
+        }
+        return nil
+    }
+
+    private static func freshest(
+        _ candidates: [SharedTunnelJwtCandidate],
+        now: Int64 = Int64(Date().timeIntervalSince1970)
+    ) -> SharedTunnelJwtCandidate? {
+        candidates.max { lhs, rhs in
+            isPreferred(rhs, over: lhs, now: now)
+        }
+    }
+
+    private static func isPreferred(
+        _ lhs: SharedTunnelJwtCandidate,
+        over rhs: SharedTunnelJwtCandidate,
+        now: Int64
+    ) -> Bool {
+        let lhsExpired = lhs.expiresAt.map { $0 <= now } ?? false
+        let rhsExpired = rhs.expiresAt.map { $0 <= now } ?? false
+        if lhsExpired != rhsExpired { return !lhsExpired }
+        let lhsIssuedAt = lhs.issuedAt ?? Int64.min
+        let rhsIssuedAt = rhs.issuedAt ?? Int64.min
+        if lhsIssuedAt != rhsIssuedAt { return lhsIssuedAt > rhsIssuedAt }
+        let lhsExpiresAt = lhs.expiresAt ?? Int64.min
+        let rhsExpiresAt = rhs.expiresAt ?? Int64.min
+        if lhsExpiresAt != rhsExpiresAt { return lhsExpiresAt > rhsExpiresAt }
+        return lhs.account > rhs.account
+    }
+
+    private static func prune(expectedInstanceId: String) {
+        let candidates = loadCandidates(expectedInstanceId: expectedInstanceId)
+        guard candidates.count > retainedTokensPerInstance else { return }
+        let now = Int64(Date().timeIntervalSince1970)
+        let keep = Set(
+            candidates.sorted { isPreferred($0, over: $1, now: now) }
+                .prefix(retainedTokensPerInstance)
+                .map(\.account)
+        )
+        for candidate in candidates where !keep.contains(candidate.account) {
+            guard let query = keychainIdentityQuery(account: candidate.account) else {
+                continue
+            }
+            _ = SecItemDelete(query as CFDictionary)
+        }
+    }
+
+    private static func jwtDates(
+        _ jwt: String
+    ) -> (issuedAt: Int64?, expiresAt: Int64?) {
+        let components = jwt.split(separator: ".", omittingEmptySubsequences: false)
+        guard components.count >= 2 else { return (nil, nil) }
+        var payload = String(components[1])
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        let remainder = payload.count % 4
+        if remainder != 0 {
+            payload += String(repeating: "=", count: 4 - remainder)
+        }
+        guard let data = Data(base64Encoded: payload),
+              let object = try? JSONSerialization.jsonObject(with: data),
+              let claims = object as? [String: Any] else {
+            return (nil, nil)
+        }
+        func int64(_ value: Any?) -> Int64? {
+            if let number = value as? NSNumber { return number.int64Value }
+            if let string = value as? String { return Int64(string) }
+            return nil
+        }
+        return (int64(claims["iat"]), int64(claims["exp"]))
+    }
+
+    private static func account(byJwt: String, instanceId: String) -> String? {
+        guard !byJwt.isEmpty, !instanceId.isEmpty else { return nil }
+        func digest(_ value: String) -> String {
+            SHA256.hash(data: Data(value.utf8)).map {
+                String(format: "%02x", $0)
+            }.joined()
+        }
+        return accountPrefix + digest(instanceId) + "-" + digest(byJwt)
+    }
+
+    private static func keychainIdentityQuery(
+        account: String? = nil
+    ) -> [String: Any]? {
+        guard let accessGroup = Bundle.main.object(
+            forInfoDictionaryKey: "URSharedKeychainAccessGroup"
+        ) as? String, !accessGroup.isEmpty else {
+            return nil
+        }
+        var query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccessGroup as String: accessGroup,
+        ]
+        if let account {
+            query[kSecAttrAccount as String] = account
+        }
+        return query
+    }
 }
 
 // see https://developer.apple.com/documentation/networkextension/nepackettunnelprovider
@@ -36,6 +279,8 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private var localState: SdkLocalState?
     private var close: (() -> Void)?
     private var memoryPressureSource: DispatchSourceMemoryPressure?
+    private var memoryMonitor: ExtensionMemoryMonitor?
+    private var fips140Enabled = false
     private var connected: Bool = false
     // NetworkExtension applies settings asynchronously. Listener bursts during
     // connect/reconnect used to overlap several identical applies; serialize
@@ -64,6 +309,11 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
         logger.info("[PacketTunnelProvider]init")
 
+        fips140Enabled = SdkGetFips140Enabled()
+        if fips140Enabled {
+            logger.fault("[PacketTunnelProvider]FIPS 140 is outside the network-extension memory budget")
+        }
+
         if #available(iOS 26, macOS 26, *) {
             // the memory limit in the PacketTunnelProvider is 50mib in iOS 16, 17, 18, 26
             // the binary and go runtime take about 16mib of that
@@ -72,7 +322,10 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             // SdkSetMemoryLimit sizes the global message pools (packet 12 :
             // large-object 2, of 34 parts) + go soft limit; the per-device
             // memory target is set separately at device creation. 32mb total
-            // footprint budget for the constrained extension.
+            // footprint budget for the constrained extension. At this target
+            // the aggregate platform budget admits H1 + H3, so iOS keeps the
+            // normal Auto policy. Smaller targets admit H1 first and leave H3
+            // unstarted when the two carriers do not fit together.
 #if os(iOS)
             SdkSetMemoryLimit(32 * 1024 * 1024)
 #else
@@ -93,23 +346,39 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         // see https://developer.apple.com/documentation/dispatch/dispatchsource/makememorypressuresource(eventmask:queue:)
         memoryPressureSource = DispatchSource.makeMemoryPressureSource(eventMask: .all, queue: nil)
         if let memoryPressureSource = memoryPressureSource {
-            memoryPressureSource.setEventHandler {
-                let event = DispatchSource.MemoryPressureEvent(rawValue: memoryPressureSource.data)
+            memoryPressureSource.setEventHandler { [weak self] in
+                guard let self, let source = self.memoryPressureSource else {
+                    return
+                }
+                let event = DispatchSource.MemoryPressureEvent(rawValue: source.data)
                 if event.contains(.warning) || event.contains(.critical) {
+                    self.memoryMonitor?.sample(event: "pressure-before-free")
                     SdkFreeMemory()
+                    self.memoryMonitor?.sample(event: "pressure-after-free")
                 }
             }
             memoryPressureSource.activate()
         }
+
+        memoryMonitor = ExtensionMemoryMonitor(logger: logger)
+        memoryMonitor?.start()
     }
 
     deinit {
+        memoryMonitor?.sample(event: "deinit")
+        memoryMonitor?.stop()
         memoryPressureSource?.cancel()
     }
 
 
     override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping ((any Error)?) -> Void) {
         logger.info("[PacketTunnelProvider]start")
+        memoryMonitor?.sample(event: "start-requested")
+
+        guard !fips140Enabled else {
+            completionHandler(NSError(domain: "network.ur.extension", code: 11, userInfo: [NSLocalizedDescriptionKey: "FIPS 140 exceeds the network extension memory budget"]))
+            return
+        }
 
         guard let providerConfiguration = (protocolConfiguration as? NETunnelProviderProtocol)?.providerConfiguration else {
             logger.error( "[PacketTunnelProvider]start failed - no providerConfiguration")
@@ -118,10 +387,31 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
 
 
-        guard let byJwt = providerConfiguration["by_jwt"] as? String else {
+        guard let configuredByJwt = providerConfiguration["by_jwt"] as? String else {
             completionHandler(NSError(domain: "network.ur.extension", code: 2, userInfo: [NSLocalizedDescriptionKey: "Missing by_jwt"]))
             return
         }
+
+        guard let configuredInstanceId =
+                providerConfiguration["instance_id"] as? String,
+              !configuredInstanceId.isEmpty else {
+            completionHandler(NSError(domain: "network.ur.extension", code: 5, userInfo: [NSLocalizedDescriptionKey: "Missing instance_id"]))
+            return
+        }
+
+        // Add the profile snapshot to the immutable shared history before
+        // selecting. This handles an OS-driven launch after the app refreshed
+        // the profile but before either process wrote the v2 Keychain format.
+        if !SharedTunnelJwtStore.save(
+            byJwt: configuredByJwt,
+            instanceId: configuredInstanceId
+        ) {
+            logger.error("[PacketTunnelProvider]could not migrate configured tunnel JWT")
+        }
+        // Prefer the freshest exact-instance token written by either process.
+        let byJwt = SharedTunnelJwtStore.load(
+            expectedInstanceId: configuredInstanceId
+        ) ?? configuredByJwt
 
         guard let networkSpaceJson = providerConfiguration["network_space"] as? String else {
             completionHandler(NSError(domain: "network.ur.extension", code: 3, userInfo: [NSLocalizedDescriptionKey: "Missing network_space"]))
@@ -148,7 +438,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
         var err: NSError?
 
-        let instanceId = SdkParseId(providerConfiguration["instance_id"] as? String, &err)
+        let instanceId = SdkParseId(configuredInstanceId, &err)
         if let err {
             completionHandler(err)
             return
@@ -156,6 +446,12 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         guard let instanceId = instanceId else {
             completionHandler(NSError(domain: "network.ur.extension", code: 5, userInfo: [NSLocalizedDescriptionKey: "Failed to parse instance_id"]))
             return
+        }
+        if !SharedTunnelJwtStore.save(
+            byJwt: byJwt,
+            instanceId: configuredInstanceId
+        ) {
+            logger.error("[PacketTunnelProvider]could not persist shared tunnel JWT")
         }
 
 
@@ -194,6 +490,9 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         self.connected = false
         self.close?()
         self.close = nil
+        self.device = nil
+        self.deviceConfiguration = nil
+        self.localState = nil
         
 
 
@@ -259,12 +558,20 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             return
         }
 
+        // DeviceLocal starts background work during construction. Until the
+        // complete session close closure is installed below, any early return
+        // must close it rather than leaving its Go graph alive in the extension.
+        let startupCleanup = TunnelStartupCleanup {
+            device.close()
+        }
+
         // start the rpc server listening on the per-session host/port,
         // presenting the self-signed server certificate and requiring + pinning
         // the client certificate (mTLS) from the app
         do {
             try device.setRpcServer(rpcServerPem, clientCertPem: rpcClientPem, hostPort: rpcListenHostPort)
         } catch {
+            startupCleanup.cleanUpNow()
             completionHandler(error)
             return
         }
@@ -283,6 +590,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         self.device = device
         self.localState = localState
         self.shouldSaveKeyMaterial = true
+        memoryMonitor?.sample(event: "device-created")
 
         // set glog dir
         let logsURL: URL
@@ -376,6 +684,15 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
         let provideSecretKeysSub = device.add(ProvideSecretKeysListener { _ in
             saveKeyMaterial()
+        })
+        let jwtRefreshSub = device.add(TunnelJwtRefreshListener { jwt in
+            guard let jwt, !jwt.isEmpty else { return }
+            if !SharedTunnelJwtStore.save(
+                byJwt: jwt,
+                instanceId: configuredInstanceId
+            ) {
+                self.logger.error("[PacketTunnelProvider]could not save refreshed shared tunnel JWT")
+            }
         })
         if let keyMaterial {
             device.setKeyMaterial(keyMaterial)
@@ -484,7 +801,9 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         let updatePath = { (path: Network.NWPath) in
             let canProvideOnCell = device.getProvideNetworkMode() == "all"
             let canProvideOnNetwork = canProvideOnNetwork(path: path, canProvideOnCell: canProvideOnCell)
-            self.logger.info("[PacketTunnelProvider]provider network update cell=\(canProvideOnCell) provide=\(canProvideOnNetwork)")
+            self.logger.info(
+                "[PacketTunnelProvider]provider network update cell=\(canProvideOnCell) expensive=\(path.isExpensive) constrained=\(path.isConstrained) provide=\(canProvideOnNetwork)"
+            )
             device.setProvidePaused(!canProvideOnNetwork)
         }
         let pathMonitor = NWPathMonitor.init(prohibitedInterfaceTypes: [.loopback, .other])
@@ -568,22 +887,22 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
 
 //        let packetWriteLock = NSLock()
-        let packetReceiverSub = device.add(PacketReceiver { ipVersion, ipProtocol, packet in
-//            let dataCopy = try! data.withUnsafeBytes<Data> { body in
-//                return Data(bytes: body, count: data.count)
-//            }
-
-//            packetWriteLock.lock()
-//            defer { packetWriteLock.unlock() }
-
-            switch ipVersion {
-            case 4:
-                self.packetFlow.writePackets([packet], withProtocols: [AF_INET as NSNumber])
-            case 6:
-                self.packetFlow.writePackets([packet], withProtocols: [AF_INET6 as NSNumber])
-            default:
-                // unknown version, drop
-                break
+        let packetReceiverSub = device.add(PacketBatchBytesReceiver { packetBatchBytes in
+            autoreleasepool {
+                var packets: [Data] = []
+                var protocols: [NSNumber] = []
+                packets.reserveCapacity(TunnelPacketBatchCodec.maxPacketCount)
+                protocols.reserveCapacity(TunnelPacketBatchCodec.maxPacketCount)
+                let valid = TunnelPacketBatchCodec.decode(packetBatchBytes) { packet, ipVersion in
+                    packets.append(packet)
+                    protocols.append((ipVersion == 4 ? AF_INET : AF_INET6) as NSNumber)
+                }
+                if valid && !packets.isEmpty {
+                    // This is Connect's deliberate device-TUN receive
+                    // exception: keep final NEPacketTunnelFlow injection
+                    // synchronous so Transfer ACK follows accepted delivery.
+                    self.packetFlow.writePackets(packets, withProtocols: protocols)
+                }
             }
         })
 
@@ -605,6 +924,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             canReferChangeSub?.close()
             performanceProfileChangeSub?.close()
             provideSecretKeysSub?.close()
+            jwtRefreshSub?.close()
             locationChangeSub?.close()
             defaultLocationChangeSub?.close()
             dnsResolverSettingsChangeSub?.close()
@@ -613,6 +933,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 //            packetContext.wrappingIncrement(ordering: .relaxed)
             device.close()
         }
+        startupCleanup.commit()
 
 //        Thread.setThreadPriority(1.0)
 //        self.setTunnelNetworkSettings(self.networkSettings()) { _ in
@@ -648,6 +969,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
                 updateWindowStatus(device.getWindowStatus())
                 self.readToDevice(generation: packetReadGeneration)
+                self.memoryMonitor?.sample(event: "tunnel-started")
                 completionHandler(nil)
             }
         }
@@ -663,8 +985,8 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         // exclude the local network from the tunnel, matching Android (MainService's
         // excludeRoute set): the RFC1918 private ranges bypass the tunnel so LAN
         // traffic reaches local devices directly. DNS is unaffected — it still routes
-        // to the tunnel resolver via matchDomains below (the ipv6 tunnel carries no
-        // routes, so ipv6 ULA fd00::/8 already bypasses without an explicit exclude).
+        // to the tunnel resolver via matchDomains below. The tunnel advertises no IPv6
+        // settings, so there are no IPv6 tunnel routes to exclude.
         ipv4Settings.excludedRoutes = [
             NEIPv4Route(destinationAddress: "10.0.0.0", subnetMask: "255.0.0.0"),
             NEIPv4Route(destinationAddress: "172.16.0.0", subnetMask: "255.240.0.0"),
@@ -672,8 +994,10 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         ]
         networkSettings.ipv4Settings = ipv4Settings
 
-        let ipv6Settings = NEIPv6Settings()
-        networkSettings.ipv6Settings = ipv6Settings
+        // Remote providers do not forward IPv6 yet. Keep the tunnel IPv4-only:
+        // do not assign an IPv6 address, install IPv6 routes, or advertise an
+        // IPv6 tunnel interface that applications might select.
+        networkSettings.ipv6Settings = nil
 
         // DNS from the SDK device: the dns settings' unencrypted local servers
         // when set, otherwise the distinct plain-DNS UpgradeMux mask (see
@@ -690,10 +1014,12 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         dnsSettings.matchDomains = [""]
         networkSettings.dnsSettings = dnsSettings
 
-        // default URnetwork MTU
-        networkSettings.mtu = 1440
+        // Keep one full encrypted tunnel packet eligible for H3's single-
+        // DATAGRAM lane. This is the same value used by provider packetization.
+        let tunnelMtu = SdkGetDefaultTunnelMtu()
+        networkSettings.mtu = NSNumber(value: tunnelMtu)
 
-        let signature = "v4=\(tunnelLocalAddress)|dns=\(dnsServers.joined(separator: ","))|mtu=1440"
+        let signature = "v4=\(tunnelLocalAddress)|v6=off|dns=\(dnsServers.joined(separator: ","))|mtu=\(tunnelMtu)"
         return TunnelNetworkSettingsPlan(
             settings: networkSettings,
             signature: signature
@@ -951,6 +1277,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
         logger.info("[PacketTunnelProvider]stop with reason: \(String(describing: reason))")
+        memoryMonitor?.sample(event: "tunnel-stopping")
 
         self.stopPacketReads()
         self.endTunnelSettingsSession()
@@ -963,6 +1290,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         self.device = nil
         self.localState = nil
         self.shouldSaveKeyMaterial = true
+        memoryMonitor?.sample(event: "tunnel-stopped")
         completionHandler()
     }
 
@@ -978,6 +1306,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
         if String(data: messageData, encoding: .utf8) == logoutProviderMessage {
             shouldSaveKeyMaterial = false
+            SharedTunnelJwtStore.clear()
             do {
                 try localState?.logout()
                 deviceConfiguration = nil
@@ -1025,14 +1354,29 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             guard self.isPacketReadActive(generation: generation) else { return }
 
             if let device = self.device {
-                for packet in packets {
-                    device.sendPacket(packet, n: Int32(packet.count))
+                TunnelPacketBatchCodec.encode(packets) { packetBatchBytes in
+                    autoreleasepool {
+                        _ = device.sendPacketBatch(packetBatchBytes)
+                    }
                 }
             }
             self.readToDevice(generation: generation)
         }
     }
 
+}
+
+private final class TunnelJwtRefreshListener: NSObject,
+    SdkJwtRefreshListenerProtocol {
+    private let callback: (String?) -> Void
+
+    init(_ callback: @escaping (String?) -> Void) {
+        self.callback = callback
+    }
+
+    func jwtRefreshed(_ jwt: String?) {
+        callback(jwt)
+    }
 }
 
 
@@ -1051,16 +1395,16 @@ private class ProvideSecretKeysListener: NSObject, SdkProvideSecretKeysListenerP
 
 
 
-private class PacketReceiver: NSObject, SdkReceivePacketProtocol {
-    func receivePacket(_ ipVersion: Int, ipProtocol: Int, packet: Data?) {
-        if let packet {
-            c(ipVersion, ipProtocol, packet)
+private class PacketBatchBytesReceiver: NSObject, SdkReceivePacketBatchProtocol {
+    func receivePacketBatch(_ packetBatchBytes: Data?) {
+        if let packetBatchBytes {
+            c(packetBatchBytes)
         }
     }
 
-    private let c: (Int, Int, Data) -> Void
+    private let c: (Data) -> Void
 
-    init(c: @escaping (Int, Int, Data) -> Void) {
+    init(c: @escaping (Data) -> Void) {
         self.c = c
     }
 
@@ -1269,8 +1613,16 @@ private class ProvideNetworkModeChangeListener: NSObject, SdkProvideNetworkModeC
 func canProvideOnNetwork(path: Network.NWPath, canProvideOnCell: Bool) ->  Bool {
     // TODO it seems like iOS 16,17 have more issues than 18, but the root cause is unknown
     if #available(iOS 18, macOS 15, *) {
+        // Low Data Mode is an explicit request to reduce data use, so never
+        // provide while the physical path is constrained. An expensive Wi-Fi
+        // path is commonly a Personal Hotspot and must not be treated like
+        // unmetered Wi-Fi. Cellular remains available only through the user's
+        // explicit "Allow providing on cellular network" setting.
+        if path.isConstrained {
+            return false
+        }
         if path.usesInterfaceType(.wifi) || path.usesInterfaceType(.wiredEthernet) {
-            return true
+            return !path.isExpensive
         }
         if path.usesInterfaceType(.cellular) {
             return canProvideOnCell

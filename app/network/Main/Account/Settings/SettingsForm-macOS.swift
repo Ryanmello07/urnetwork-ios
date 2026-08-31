@@ -493,9 +493,7 @@ struct SettingsForm_macOS: View {
                                 get: { !deviceManager.routeLocal },
                                 set: { deviceManager.routeLocal = !$0 }
                             )) {
-                                Text("Kill switch")
-                                    .font(themeManager.currentTheme.bodyFont)
-                                    .foregroundColor(themeManager.currentTheme.textColor)
+                                KillSwitchLabel()
                             }
                             
                             Spacer()
@@ -676,6 +674,7 @@ struct SettingsForm_macOS: View {
                     }) {
                         Text("Delete account")
                     }
+                    .accessibilityIdentifier("acceptance.account.delete.request")
                     
                     Spacer().frame(height: 12)
                     
@@ -686,6 +685,7 @@ struct SettingsForm_macOS: View {
                 .frame(minHeight: geometry.size.height)
                 
             }
+            .accessibilityIdentifier("acceptance.account.settings.scroll")
         }
     }
     

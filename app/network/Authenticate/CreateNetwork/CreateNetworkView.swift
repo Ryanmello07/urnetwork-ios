@@ -23,8 +23,12 @@ struct CreateNetworkView: View {
     @EnvironmentObject var deviceManager: DeviceManager
     
     @StateObject private var viewModel: ViewModel
-    
+
     @FocusState private var focusedField: Field?
+
+    // flips to true when the referral code is accepted; the bonus sheet shows
+    // the gold royal welcome for a beat before dismissing itself
+    @State private var showRoyalWelcome = false
     
     init(
         authLoginArgs: SdkAuthLoginArgs,
@@ -121,7 +125,8 @@ struct CreateNetworkView: View {
                         isEnabled: !viewModel.isCreatingNetwork,
                         validationState: viewModel.networkNameValidationState,
                         submitLabel: .next,
-                        disableCapitalization: true
+                        disableCapitalization: true,
+                        accessibilityIdentifier: "acceptance.create.network"
                     )
                     .focused($focusedField, equals: .networkName)
                     .onSubmit {
@@ -143,7 +148,8 @@ struct CreateNetworkView: View {
                             supportingText: "Password must be at least 12 characters long",
                             isEnabled: !viewModel.isCreatingNetwork,
                             submitLabel: .done,
-                            isSecure: true
+                            isSecure: true,
+                            accessibilityIdentifier: "acceptance.create.password"
                         )
                         .focused($focusedField, equals: .password)
                         
@@ -156,25 +162,21 @@ struct CreateNetworkView: View {
                             .foregroundColor(themeManager.currentTheme.textMutedColor)
                             .font(themeManager.currentTheme.secondaryBodyFont)
                     }
+                    .accessibilityIdentifier("acceptance.create.terms")
                     
                     Spacer().frame(height: 24)
                     
                     HStack {
-                     
+
                         if viewModel.isValidReferralCode && !viewModel.isCappedReferralCode {
-                            
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.urGreen)
-                            
-                            Text("Referral Bonus applied")
-                                .font(themeManager.currentTheme.secondaryBodyFont)
-                                .foregroundColor(themeManager.currentTheme.textMutedColor)
-                            
+
+                            ReferralAppliedChip()
+
                             Spacer()
                         } else {
                             Text("")
                         }
-                        
+
                     }
                     
                     Spacer().frame(height: 24)
@@ -200,7 +202,8 @@ struct CreateNetworkView: View {
                             
                         },
                         enabled: viewModel.formIsValid && !viewModel.isCreatingNetwork,
-                        isProcessing: viewModel.isCreatingNetwork
+                        isProcessing: viewModel.isCreatingNetwork,
+                        accessibilityIdentifier: "acceptance.create.submit"
                     )
                     
                     Spacer().frame(height: 8)
@@ -229,19 +232,29 @@ struct CreateNetworkView: View {
                     
                 }
                 .padding()
-                .sheet(isPresented: $viewModel.isPresentedAddBonusSheet) {
-                
+                .sheet(isPresented: $viewModel.isPresentedAddBonusSheet, onDismiss: {
+                    showRoyalWelcome = false
+                }) {
+
                     VStack {
-                        
+
+                        if showRoyalWelcome {
+
+                            // the code was accepted: show the gold royal
+                            // welcome for a beat before dismissing the sheet
+                            RoyalWelcomeContent()
+
+                        } else {
+
                         HStack {
                             Text("Add referral code to earn extra rewards")
                                 .font(themeManager.currentTheme.toolbarTitleFont)
-                            
+
                             Spacer()
                         }
-                        
+
                         Spacer().frame(height: 32)
-                        
+
                         UrTextField(
                             text: $viewModel.bonusReferralCode,
                             label: "Bonus referral code",
@@ -257,12 +270,12 @@ struct CreateNetworkView: View {
                                 }
                             }
                         )
-                        
+
                         Spacer().frame(height: 32)
-                        
+
                         UrButton(
                             text: "Apply bonus",
-                        
+
                             action: {
                                 Task {
                                     let result = await viewModel.validateReferralCode()
@@ -272,11 +285,13 @@ struct CreateNetworkView: View {
                             enabled: !viewModel.isValidatingReferralCode && !viewModel.bonusReferralCode.isEmpty,
                             isProcessing: viewModel.isValidatingReferralCode
                         )
-                        
+
+                        }
+
                     }
                     .padding()
-                    .presentationDetents([.height(264)])
-                    
+                    .presentationDetents([.height(showRoyalWelcome ? 420 : 264)])
+
                 }
                 .frame(minHeight: geometry.size.height)
                 .frame(maxWidth: 400)
@@ -286,18 +301,26 @@ struct CreateNetworkView: View {
     }
     
     private func handleValidateReferralResult(_ result: Result<SdkValidateReferralCodeResult, Error>) {
-        
+
         switch result {
             case .success(let validationResult):
             if (validationResult.isValid && !validationResult.isCapped) {
-                viewModel.isPresentedAddBonusSheet = false
+                // royal welcome moment, then dismiss the sheet
+                withAnimation {
+                    showRoyalWelcome = true
+                }
+                Task {
+                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                    viewModel.isPresentedAddBonusSheet = false
+                    showRoyalWelcome = false
+                }
             }
-            
+
             case .failure(let error):
                 print("validate referral code error: \(error.localizedDescription)")
-            
+
         }
-        
+
     }
     
     private func handleResult(_ result: LoginNetworkResult) async {
