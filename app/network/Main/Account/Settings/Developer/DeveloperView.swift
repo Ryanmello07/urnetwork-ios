@@ -44,6 +44,9 @@ struct DeveloperView: View {
     @State private var exportedBundle: URL?
     @State private var exportError: String?
     @State private var exportSummary: String?
+    @State private var showLogPicker = false
+    @State private var logInventory: [SdkLogFileInfo] = []
+    @State private var selectedLogNames: Set<String> = []
 
     // read the flag recorded at startup; do NOT call configure() here, which
     // would re-point glog every time this view is constructed
@@ -112,6 +115,37 @@ struct DeveloperView: View {
             }
             actionRow("Export redacted logs") {
                 exportBundle(redacted: true)
+            }
+            actionRow("Choose logs…") {
+                logInventory = DiagnosticExportService.inventory()
+                showLogPicker.toggle()
+            }
+            if showLogPicker {
+                ForEach(logInventory, id: \.name) { info in
+                    Button {
+                        if selectedLogNames.contains(info.name) {
+                            selectedLogNames.remove(info.name)
+                        } else {
+                            selectedLogNames.insert(info.name)
+                        }
+                    } label: {
+                        HStack {
+                            Text(DiagnosticExportService.rowLabel(
+                                source: info.source, severity: info.severity, byteCount: info.byteCount))
+                                .font(themeManager.currentTheme.secondaryBodyFont)
+                                .foregroundColor(
+                                    selectedLogNames.contains(info.name)
+                                        ? themeManager.currentTheme.accentColor
+                                        : themeManager.currentTheme.textMutedColor)
+                            Spacer()
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                actionRow("Export selected") {
+                    exportBundle(redacted: false, selected: Array(selectedLogNames))
+                }
             }
             if let exportedBundle {
                 ShareLink(item: exportedBundle) {

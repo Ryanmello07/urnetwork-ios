@@ -25,4 +25,11 @@ struct DiagnosticExportServiceTests {
             date: Date(timeIntervalSince1970: 1767225500), redacted: false)
         #expect(earlier < raw)
     }
+
+    @Test func rowLabelNamesTheSourceSeverityAndSize() {
+        let label = DiagnosticExportService.rowLabel(source: "extension", severity: "ERROR", byteCount: 2048)
+        #expect(label.contains("extension"))
+        #expect(label.contains("ERROR"))
+        #expect(label.contains("2 KiB"))
+    }
 }

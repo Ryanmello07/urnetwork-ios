@@ -80,4 +80,20 @@ enum DiagnosticExportService {
         }
         return Export(url: destination, summary: summary)
     }
+
+    static func rowLabel(source: String, severity: String, byteCount: Int64) -> String {
+        "\(source) · \(severity) · \(byteCount / 1024) KiB"
+    }
+
+    static func inventory() -> [SdkLogFileInfo] {
+        guard let list = SdkLogInventory() else { return [] }
+        var infos: [SdkLogFileInfo] = []
+        infos.reserveCapacity(list.len())
+        for i in 0..<list.len() {
+            if let info = list.get(i) {
+                infos.append(info)
+            }
+        }
+        return infos
+    }
 }
