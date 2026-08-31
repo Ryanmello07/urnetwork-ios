@@ -44,6 +44,11 @@ struct DeveloperView: View {
     @State private var exportedBundle: URL?
     @State private var exportError: String?
     @State private var exportSummary: String?
+    // true from the moment an export is kicked off until the detached task
+    // hands the result back: guards against firing a second export on top of
+    // one still running, and gives the tap something to show for itself
+    // while the zip is being built off the main thread
+    @State private var isExporting = false
     @State private var showLogPicker = false
     @State private var logInventory: [SdkLogFileInfo] = []
     @State private var selectedLogNames: Set<String> = []
@@ -110,10 +115,10 @@ struct DeveloperView: View {
     /** Diagnostics: everything the client knows, as one file the user can send. */
     private var diagnosticsSection: some View {
         Section {
-            actionRow("Export all logs (raw)") {
+            actionRow("Export all logs (raw)", isEnabled: !isExporting) {
                 exportBundle(redacted: false)
             }
-            actionRow("Export redacted logs") {
+            actionRow("Export redacted logs", isEnabled: !isExporting) {
                 exportBundle(redacted: true)
             }
             actionRow("Choose logs…") {
@@ -144,16 +149,22 @@ struct DeveloperView: View {
                     .buttonStyle(.plain)
                 }
                 // Disabled (and a no-op even if somehow tapped) with nothing
-                // checked: an empty selection means "no filter" to the SDK,
-                // which would otherwise export every log file unredacted --
-                // the opposite of what this row's label promises.
+                // checked, or while an export is already running: an empty
+                // selection means "no filter" to the SDK, which would
+                // otherwise export every log file unredacted -- the opposite
+                // of what this row's label promises.
                 actionRow(
                     "Export selected",
-                    isEnabled: DiagnosticExportService.canExportSelection(selectedLogNames)
+                    isEnabled: !isExporting && DiagnosticExportService.canExportSelection(selectedLogNames)
                 ) {
                     guard DiagnosticExportService.canExportSelection(selectedLogNames) else { return }
                     exportBundle(redacted: false, selected: Array(selectedLogNames))
                 }
+            }
+            if isExporting {
+                Text("Exporting…")
+                    .font(themeManager.currentTheme.secondaryBodyFont)
+                    .foregroundColor(themeManager.currentTheme.textMutedColor)
             }
             if let exportedBundle {
                 ShareLink(item: exportedBundle) {
@@ -176,21 +187,53 @@ struct DeveloperView: View {
         }
     }
 
+    /**
+     * `DiagnosticExportService.export` is a synchronous worker: it flushes
+     * glog, makes an RPC round trip into the network extension over a
+     * websocket for the manifest, then reads and DEFLATE-compresses up to 4
+     * log files of up to 16MB each into a zip. Calling it inline from this
+     * Button action would run all of that on the main actor -- freezing the
+     * UI and risking an iOS watchdog kill on a slow device. So the call is
+     * pushed onto a detached task (the same off-main pattern already used
+     * for the globe's topology decode in ProviderGlobeView), and the
+     * `@State` result is written back only after the `await`, which resumes
+     * on the main actor.
+     *
+     * Everything the worker needs is read from `self`/`deviceManager` here,
+     * before the hop, rather than inside the detached closure -- reading
+     * `deviceManager.device` off the main actor would itself be unsafe.
+     */
     private func exportBundle(redacted: Bool, selected: [String] = []) {
-        do {
-            let export = try DiagnosticExportService.export(
-                redacted: redacted,
-                selectedNames: selected,
-                device: deviceManager.device,
-                isShared: logRootIsShared
-            )
-            exportedBundle = export.url
-            exportSummary = export.summary
-            exportError = nil
-        } catch {
-            exportedBundle = nil
-            exportSummary = nil
-            exportError = "Export failed: \(error.localizedDescription)"
+        guard !isExporting else { return }
+        isExporting = true
+        exportError = nil
+
+        let device = deviceManager.device
+        let isShared = logRootIsShared
+
+        Task {
+            let outcome = await Task.detached(priority: .userInitiated) {
+                Result {
+                    try DiagnosticExportService.export(
+                        redacted: redacted,
+                        selectedNames: selected,
+                        device: device,
+                        isShared: isShared
+                    )
+                }
+            }.value
+
+            isExporting = false
+            switch outcome {
+            case .success(let export):
+                exportedBundle = export.url
+                exportSummary = export.summary
+                exportError = nil
+            case .failure(let error):
+                exportedBundle = nil
+                exportSummary = nil
+                exportError = "Export failed: \(error.localizedDescription)"
+            }
         }
     }
 
