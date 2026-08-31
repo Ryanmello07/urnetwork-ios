@@ -143,7 +143,15 @@ struct DeveloperView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                actionRow("Export selected") {
+                // Disabled (and a no-op even if somehow tapped) with nothing
+                // checked: an empty selection means "no filter" to the SDK,
+                // which would otherwise export every log file unredacted --
+                // the opposite of what this row's label promises.
+                actionRow(
+                    "Export selected",
+                    isEnabled: DiagnosticExportService.canExportSelection(selectedLogNames)
+                ) {
+                    guard DiagnosticExportService.canExportSelection(selectedLogNames) else { return }
                     exportBundle(redacted: false, selected: Array(selectedLogNames))
                 }
             }
@@ -612,17 +620,23 @@ struct DeveloperView: View {
      * A tappable action, rendered as accent-colored text like the android
      * screen's actions rather than a bordered button.
      */
-    private func actionRow(_ title: LocalizedStringKey, action: @escaping () -> Void) -> some View {
+    private func actionRow(
+        _ title: LocalizedStringKey, isEnabled: Bool = true, action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             HStack {
                 Text(title)
                     .font(themeManager.currentTheme.bodyFont)
-                    .foregroundColor(themeManager.currentTheme.accentColor)
+                    .foregroundColor(
+                        isEnabled
+                            ? themeManager.currentTheme.accentColor
+                            : themeManager.currentTheme.textMutedColor)
                 Spacer()
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(!isEnabled)
     }
 
     /** A read-only counter row: label and detail with a value in place of a control. */

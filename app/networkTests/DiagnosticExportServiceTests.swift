@@ -32,4 +32,13 @@ struct DiagnosticExportServiceTests {
         #expect(label.contains("ERROR"))
         #expect(label.contains("2 KiB"))
     }
+
+    @Test func exportSelectionIsBlockedWithNothingChecked() {
+        // An empty `selectedNames` means "no filter" to the SDK -- the same
+        // as "Export all logs" -- so "Export selected" must refuse to run
+        // rather than silently exporting everything unredacted.
+        #expect(DiagnosticExportService.canExportSelection([]) == false)
+        #expect(DiagnosticExportService.canExportSelection(["app.log"]) == true)
+        #expect(DiagnosticExportService.canExportSelection(["app.log", "extension.log"]) == true)
+    }
 }

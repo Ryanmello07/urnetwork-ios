@@ -85,6 +85,16 @@ enum DiagnosticExportService {
         "\(source) · \(severity) · \(byteCount / 1024) KiB"
     }
 
+    /// "Export selected" must never silently fall back to exporting every
+    /// log: underneath, `SdkExportOptions.selectedNames` empty means "no
+    /// filter" to the SDK ("Empty means every file", per its header
+    /// comment), the same as the raw "Export all logs" action. So the picker
+    /// action is a no-op until at least one row is checked -- not a smaller
+    /// version of "export all".
+    static func canExportSelection(_ selectedNames: Set<String>) -> Bool {
+        !selectedNames.isEmpty
+    }
+
     static func inventory() -> [SdkLogFileInfo] {
         guard let list = SdkLogInventory() else { return [] }
         var infos: [SdkLogFileInfo] = []
