@@ -35,7 +35,29 @@ enum LogVerbosity {
     }
 
     /**
-     * The user-facing name of a level.
+     * Shown in place of a level when there is no device to read one from.
+     *
+     * NOT the same claim as "Default". Level 0 says the process that writes
+     * the logs reports it is at 0; this says nobody has been asked yet, so
+     * the level is unknown. The whole reason the row reads back from the
+     * device is that the contract and transport logging happens in the packet
+     * tunnel extension, not in this process -- so with no device there is
+     * nothing to report and a number here would be a guess.
+     */
+    static let unavailableLabel = "Unavailable"
+
+    /// Why the row is inert, in the Diagnostics section's voice: what is
+    /// missing, and what to do about it -- the same shape as the
+    /// unavailable-source lines beneath it. Matches Android's
+    /// `dev_log_verbosity_unavailable_detail`.
+    static let unavailableDetail =
+        "There is no device to read the log level from yet. Sign in first."
+
+    /**
+     * The user-facing name of a level, or of not having one.
+     *
+     * `nil` means there is no device to ask, and is deliberately distinct
+     * from 0 -- see `unavailableLabel`.
      *
      * NOTE these are NOT the SDK's constant names. `SdkLogVerbosityTrace` is
      * 1 and `SdkLogVerbosityDetail` is 2; here 1 is "Verbose" and 2 is
@@ -43,7 +65,8 @@ enum LogVerbosity {
      * what a user expects the loudest setting to be called. Read the number,
      * not the word, when comparing against the SDK.
      */
-    static func name(_ level: Int) -> String {
+    static func name(_ level: Int?) -> String {
+        guard let level else { return unavailableLabel }
         switch clamp(level) {
         case minimum: return "Default"
         case 1: return "Verbose"
@@ -56,7 +79,8 @@ enum LogVerbosity {
      * rather than as "more logging", so the choice can be made before the
      * reproduction rather than discovered in the bundle afterwards.
      */
-    static func detail(_ level: Int) -> String {
+    static func detail(_ level: Int?) -> String {
+        guard let level else { return unavailableDetail }
         switch clamp(level) {
         case minimum:
             return "Connection errors and contract pings."
@@ -69,9 +93,12 @@ enum LogVerbosity {
     }
 
     /// Number and name together: the number is what the SDK reports and what
-    /// a support thread can compare, the name is what the row means.
-    static func valueLabel(_ level: Int) -> String {
-        "\(level) · \(name(level))"
+    /// a support thread can compare, the name is what the row means. With no
+    /// device there is no number the device gave, so the label is the
+    /// unavailable one alone rather than a level nobody reported.
+    static func valueLabel(_ level: Int?) -> String {
+        guard let level else { return unavailableLabel }
+        return "\(level) · \(name(level))"
     }
 
     /**
@@ -82,9 +109,15 @@ enum LogVerbosity {
      * Written against the level rather than a stored flag so a level restored
      * from a previous run, or one an embedder set some other way, warns the
      * same as one just chosen here.
+     *
+     * `nil` -- no device, so nothing was read back -- is not a warning. The
+     * warning is a claim about what IS being written, and with no device that
+     * is unknown in both directions; asserting it would be as much of a guess
+     * as reporting level 0.
      */
-    static func revealsDestinations(_ level: Int) -> Bool {
-        minimum < level
+    static func revealsDestinations(_ level: Int?) -> Bool {
+        guard let level else { return false }
+        return minimum < level
     }
 
     /// Shown for as long as the level is raised, not once when it is changed:

@@ -255,6 +255,11 @@ struct DeveloperView: View {
      * never applied is visible here rather than silently assumed. Believing
      * you are capturing at 2 while the extension logs at 0 is the failure
      * this screen exists to prevent, not one it should introduce.
+     *
+     * With no device the row reads "Unavailable" and is inert. That is not
+     * level 0: the logs come from the packet tunnel extension, so with
+     * nothing read back the level in force there is unknown, and printing
+     * "0 · Default" would be the guess the read-back exists to avoid.
      */
     private var verbosityRow: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -262,8 +267,11 @@ struct DeveloperView: View {
                 value: Binding(
                     // clamped for the control only -- an out-of-range level
                     // an embedder set is still REPORTED as what it is, in the
-                    // value label below
-                    get: { LogVerbosity.clamp(verbosityState.level) },
+                    // value label below. The stepper needs a number even when
+                    // there is none to show; it is disabled in that state, so
+                    // this fallback is never a value the user can act on or
+                    // see.
+                    get: { LogVerbosity.clamp(verbosityState.level ?? LogVerbosity.minimum) },
                     set: { newLevel in setLogVerbosity(newLevel) }
                 ),
                 in: LogVerbosity.range
@@ -275,11 +283,20 @@ struct DeveloperView: View {
                     Spacer()
                     Text(LogVerbosity.valueLabel(verbosityState.level))
                         .font(themeManager.currentTheme.secondaryBodyFont)
-                        .foregroundColor(themeManager.currentTheme.accentColor)
+                        // an unavailable row is not a setting value: it reads
+                        // as muted text, not as a level in force
+                        .foregroundColor(
+                            verbosityState.level == nil
+                                ? themeManager.currentTheme.textMutedColor
+                                : themeManager.currentTheme.accentColor)
                 }
             }
-            // held across the write, which is an rpc into the extension
-            .disabled(deviceManager.device == nil || verbosityState.isApplying)
+            // inert with no level read back (there is nothing to step from),
+            // and held across a write, which is an rpc into the extension
+            .disabled(
+                deviceManager.device == nil
+                    || verbosityState.level == nil
+                    || verbosityState.isApplying)
 
             Text(LogVerbosity.detail(verbosityState.level))
                 .font(themeManager.currentTheme.secondaryBodyFont)
