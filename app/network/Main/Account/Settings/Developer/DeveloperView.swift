@@ -127,7 +127,7 @@ struct DeveloperView: View {
                     .font(themeManager.currentTheme.secondaryBodyFont)
                     .foregroundColor(themeManager.currentTheme.textMutedColor)
             }
-            if let note = exportState.unavailableSourceNote {
+            ForEach(exportState.unavailableSources, id: \.self) { note in
                 Text(note)
                     .font(themeManager.currentTheme.secondaryBodyFont)
                     .foregroundColor(themeManager.currentTheme.textMutedColor)
@@ -183,6 +183,12 @@ struct DeveloperView: View {
                     }
                     .buttonStyle(.plain)
                 }
+                Text(DiagnosticExportService.selectionLabel(
+                    fileCount: selectedLogNames.count,
+                    byteCount: DiagnosticExportService.totalByteCount(
+                        of: exportState.inventory.filter { selectedLogNames.contains($0.name) })))
+                    .font(themeManager.currentTheme.secondaryBodyFont)
+                    .foregroundColor(themeManager.currentTheme.textMutedColor)
                 // Disabled (and a no-op even if somehow tapped) with nothing
                 // checked, or while an export is already running: an empty
                 // selection means "no filter" to the SDK, which would

@@ -37,7 +37,7 @@ final class DiagnosticExportState: ObservableObject {
     /// degradation rule requires an unavailable source and its reason to be
     /// visible in the export UI, and by the time it appears in a completed
     /// export's summary the user has already committed to it.
-    @Published private(set) var unavailableSourceNote: String?
+    @Published private(set) var unavailableSources: [String] = []
 
     /// Reads the on-disk inventory off the main thread and publishes the
     /// totals. `SdkLogInventory()` is an os.ReadDir plus a Stat per file over
@@ -54,14 +54,10 @@ final class DiagnosticExportState: ObservableObject {
             fileCount: infos.count,
             byteCount: DiagnosticExportService.totalByteCount(of: infos)
         )
-        if let reason = DiagnosticExportService.missingExtensionReason(
+        unavailableSources = DiagnosticExportService.missingSources(
             sharedRootUnavailableReason: sharedRootUnavailableReason,
             inventorySources: DiagnosticExportService.sources(of: infos)
-        ) {
-            unavailableSourceNote = "Not available: \(DiagnosticsLogLocation.extensionProcessName) — \(reason)"
-        } else {
-            unavailableSourceNote = nil
-        }
+        ).map { DiagnosticExportService.unavailableSourceLabel(source: $0.source, reason: $0.reason) }
     }
 
     /**

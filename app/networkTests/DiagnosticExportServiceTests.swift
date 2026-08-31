@@ -37,12 +37,12 @@ struct DiagnosticExportServiceTests {
         let label = DiagnosticExportService.rowLabel(source: "extension", severity: "ERROR", byteCount: 2048)
         #expect(label.contains("extension"))
         #expect(label.contains("ERROR"))
-        #expect(label.contains("2 KiB"))
+        #expect(label.contains("KiB"))
 
         // a freshly rotated file is not empty, and must not read as if it were
-        #expect(DiagnosticExportService.rowLabel(source: "app", severity: "INFO", byteCount: 12)
-                .contains("<1 KiB"))
-        #expect(DiagnosticExportService.sizeLabel(0) == "0 KiB")
+        // -- `byteCount / 1024` rendered a 400 byte log as "0 KiB"
+        #expect(DiagnosticExportService.sizeLabel(400) == "400 B")
+        #expect(DiagnosticExportService.sizeLabel(0) == "0 B")
     }
 
     @Test func inventoryLabelReportsTheTotalBeforeExporting() {
@@ -50,9 +50,15 @@ struct DiagnosticExportServiceTests {
                 == "No log files on disk")
         let label = DiagnosticExportService.inventoryLabel(fileCount: 3, byteCount: 4 * 1024 * 1024)
         #expect(label.contains("3 log files"))
-        #expect(label.contains("4096 KiB"))
+        #expect(label.contains("4.00 MiB"))
         #expect(DiagnosticExportService.inventoryLabel(fileCount: 1, byteCount: 1024)
                 .contains("1 log file "))
+
+        // the picker's own total, for the subset that is checked
+        #expect(DiagnosticExportService.selectionLabel(fileCount: 0, byteCount: 0)
+                == "Nothing selected")
+        #expect(DiagnosticExportService.selectionLabel(fileCount: 2, byteCount: 2048)
+                == "Selected 2 files · 2.00 KiB")
     }
 
     @Test func exportSelectionIsBlockedWithNothingChecked() {
@@ -69,32 +75,47 @@ struct DiagnosticExportServiceTests {
     /// ordinary ones -- the tunnel has never run on this install, the
     /// extension could not write to the group -- the bundle shipped with only
     /// logs/app/ and nothing anywhere saying the extension was left out.
-    @Test func anAbsentExtensionSourceIsReportedEvenWhenTheAppGroupResolves() {
-        #expect(DiagnosticExportService.missingExtensionReason(
+    @Test func anAbsentSourceIsReportedEvenWhenTheAppGroupResolves() {
+        #expect(DiagnosticExportService.missingSources(
             sharedRootUnavailableReason: nil,
             inventorySources: ["app", "extension"]
-        ) == nil)
+        ).isEmpty)
 
-        let absent = DiagnosticExportService.missingExtensionReason(
+        let absent = DiagnosticExportService.missingSources(
             sharedRootUnavailableReason: nil,
             inventorySources: ["app"]
         )
-        #expect(absent != nil)
-        #expect(absent?.contains("extension") == true)
+        #expect(absent.count == 1)
+        #expect(absent.first?.source == "extension")
+        #expect(absent.first?.reason.contains("tunnel has not run") == true)
 
         // the container reason wins when there is one, and is passed through
         // verbatim so the bundle says which of the two it was
-        #expect(DiagnosticExportService.missingExtensionReason(
+        #expect(DiagnosticExportService.missingSources(
             sharedRootUnavailableReason: "app group container unavailable in this build",
             inventorySources: ["app"]
-        ) == "app group container unavailable in this build")
+        ).first?.reason == "app group container unavailable in this build")
 
         // ... and it is reported even if an extension directory somehow
         // survives from an earlier build that did have the group
-        #expect(DiagnosticExportService.missingExtensionReason(
+        #expect(DiagnosticExportService.missingSources(
             sharedRootUnavailableReason: "app group container unavailable in this build",
             inventorySources: ["app", "extension"]
-        ) != nil)
+        ).count == 1)
+
+        // the app's own logs are a source too: the SDK swallows a directory
+        // read failure entirely, so this is the only place their absence can
+        // be noticed
+        let noApp = DiagnosticExportService.missingSources(
+            sharedRootUnavailableReason: nil,
+            inventorySources: []
+        )
+        #expect(noApp.count == 2)
+        #expect(noApp.first?.source == "app")
+
+        #expect(DiagnosticExportService.unavailableSourceLabel(
+            source: "extension", reason: "no log directory on disk")
+                == "Not available: extension: no log directory on disk")
     }
 
     @Test func rowIdentityIsQualifiedBySourceAndTotalsAreSummed() {
@@ -125,7 +146,7 @@ struct DiagnosticExportServiceTests {
         // what distinguishes the live file from last week's rotation
         let label = DiagnosticExportService.rowLabel(
             source: "app", severity: "INFO", byteCount: 2048, modifiedMillis: 1767225600000)
-        #expect(label.contains("2026-01-01 00:00"))
+        #expect(label.contains("2026-01-01 00:00Z"))
         // unknown (the SDK reports 0) leaves the row shorter rather than
         // claiming the epoch
         #expect(!DiagnosticExportService.rowLabel(

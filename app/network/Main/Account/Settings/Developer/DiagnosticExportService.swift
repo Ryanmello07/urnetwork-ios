@@ -71,14 +71,11 @@ enum DiagnosticExportService {
         if let device {
             options.setManifestJson(device.diagnosticManifestJson())
         }
-        if let reason = missingExtensionReason(
+        for missing in missingSources(
             sharedRootUnavailableReason: sharedRootUnavailableReason,
             inventorySources: sources(of: inventory())
         ) {
-            options.missingSourceReason(
-                DiagnosticsLogLocation.extensionProcessName,
-                reason: reason
-            )
+            options.missingSourceReason(missing.source, reason: missing.reason)
         }
 
         var err: NSError?
@@ -103,37 +100,58 @@ enum DiagnosticExportService {
         return Export(url: destination, summary: summary)
     }
 
-    /// Why the extension's logs are not in this bundle, or nil when they are.
+    /// Every log source this bundle will not contain, as (source, reason).
+    /// Empty is the normal case.
     ///
-    /// The entitlement being absent is only one of the ways this source goes
+    /// The App Group being absent is only one of the ways a source goes
     /// missing, and it was the only one being reported. In the ordinary cases
     /// -- the tunnel has never run on this install, the extension's own
     /// profile lacks the group, the extension's own SetLogDirForProcess fell
     /// back -- the container resolves for the app and `logs/extension/` simply
     /// does not exist, and the bundle used to ship with nothing anywhere
     /// saying so. Support then reads that as "the extension had no logs".
-    /// Spec goal 5: an unreachable source is recorded as missing.
-    static func missingExtensionReason(
+    /// The SDK cannot close this either: it records a missing source only when
+    /// an individual file fails to open, never when a whole directory is
+    /// absent or unreadable. Spec goal 5: an unreachable source is recorded
+    /// as missing.
+    static func missingSources(
         sharedRootUnavailableReason: String?,
         inventorySources: Set<String>
-    ) -> String? {
+    ) -> [(source: String, reason: String)] {
+        var missing: [(source: String, reason: String)] = []
+
+        if !inventorySources.contains(DiagnosticsLogLocation.appProcessName) {
+            missing.append((
+                DiagnosticsLogLocation.appProcessName,
+                "no logs from the app process in the log root"
+            ))
+        }
+
         if let sharedRootUnavailableReason {
-            return sharedRootUnavailableReason
+            missing.append((DiagnosticsLogLocation.extensionProcessName, sharedRootUnavailableReason))
+        } else if !inventorySources.contains(DiagnosticsLogLocation.extensionProcessName) {
+            missing.append((
+                DiagnosticsLogLocation.extensionProcessName,
+                "no logs from the extension process in the shared log root"
+                    + " -- the tunnel has not run on this install, or the extension could not write there"
+            ))
         }
-        if inventorySources.contains(DiagnosticsLogLocation.extensionProcessName) {
-            return nil
-        }
-        return "no logs from the extension process in the shared log root"
-            + " -- the tunnel has not run on this install, or the extension could not write there"
+
+        return missing
     }
 
-    /// Sub-KiB files render as "<1 KiB" rather than "0 KiB", which reads as
-    /// empty for a file that has just rotated.
+    /// One line per unavailable source, matching Android's
+    /// R.string.dev_export_unavailable.
+    static func unavailableSourceLabel(source: String, reason: String) -> String {
+        "Not available: \(source): \(reason)"
+    }
+
+    /// Sizes go through the app's own compact formatter rather than
+    /// `byteCount / 1024`: that integer division rendered a freshly rotated
+    /// 400-byte log as "0 KiB", and in a picker "0" reads as "nothing in this
+    /// file" rather than as a rounding. Android formats these the same way.
     static func sizeLabel(_ byteCount: Int64) -> String {
-        if 0 < byteCount && byteCount < 1024 {
-            return "<1 KiB"
-        }
-        return "\(byteCount / 1024) KiB"
+        formatByteCountCompact(byteCount)
     }
 
     /// A picker row: source, severity, size and modified time, as the spec's
@@ -145,16 +163,19 @@ enum DiagnosticExportService {
         source: String, severity: String, byteCount: Int64, modifiedMillis: Int64 = 0
     ) -> String {
         let label = "\(source) · \(severity) · \(sizeLabel(byteCount))"
-        guard 0 < modifiedMillis else { return label }
-        return "\(label) · \(modifiedLabel(modifiedMillis))"
+        let modified = modifiedLabel(modifiedMillis)
+        guard !modified.isEmpty else { return label }
+        return "\(label) · \(modified)"
     }
 
+    /// When a log was last written, UTC, or "" when unknown.
     static func modifiedLabel(_ modifiedMillis: Int64) -> String {
+        guard 0 < modifiedMillis else { return "" }
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm"
         formatter.timeZone = TimeZone(identifier: "UTC")
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter.string(from: Date(timeIntervalSince1970: Double(modifiedMillis) / 1000))
+        return formatter.string(from: Date(timeIntervalSince1970: Double(modifiedMillis) / 1000)) + "Z"
     }
 
     /// What the export would contain, shown before the user commits to it.
@@ -165,6 +186,14 @@ enum DiagnosticExportService {
             return "No log files on disk"
         }
         return "\(fileCount) log file\(fileCount == 1 ? "" : "s") on disk · \(sizeLabel(byteCount))"
+    }
+
+    /// The same, for the subset currently checked in the picker.
+    static func selectionLabel(fileCount: Int, byteCount: Int64) -> String {
+        if fileCount == 0 {
+            return "Nothing selected"
+        }
+        return "Selected \(fileCount) file\(fileCount == 1 ? "" : "s") · \(sizeLabel(byteCount))"
     }
 
     /// "Export selected" must never silently fall back to exporting every
