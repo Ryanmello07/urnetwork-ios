@@ -61,6 +61,18 @@ struct DiagnosticExportServiceTests {
                 == "Selected 2 files · 2.00 KiB")
     }
 
+    /// The summary of a finished export is the last thing read before the
+    /// bundle is sent on, and it reported "Exported 1 log files".
+    @Test func theExportSummaryCountsInSingularAndPlural() {
+        #expect(DiagnosticExportService.exportSummaryLabel(fileCount: 1, byteCount: 1024)
+                == "Exported 1 log file (1.00 KiB)")
+        #expect(DiagnosticExportService.exportSummaryLabel(fileCount: 2, byteCount: 2048)
+                == "Exported 2 log files (2.00 KiB)")
+        // an empty bundle is plural, like every other zero-count label here
+        #expect(DiagnosticExportService.exportSummaryLabel(fileCount: 0, byteCount: 0)
+                == "Exported 0 log files (0 B)")
+    }
+
     @Test func exportSelectionIsBlockedWithNothingChecked() {
         // An empty `selectedNames` means "no filter" to the SDK -- the same
         // as "Export all logs" -- so "Export selected" must refuse to run

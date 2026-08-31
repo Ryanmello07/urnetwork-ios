@@ -90,7 +90,8 @@ enum DiagnosticExportService {
 
         var summary = ""
         if let result {
-            summary = "Exported \(result.fileCount) log files (\(sizeLabel(result.byteCount)))"
+            summary = exportSummaryLabel(
+                fileCount: result.fileCount, byteCount: result.byteCount)
             if let missing = result.missingSources {
                 for i in 0..<missing.len() {
                     summary += "\nNot included: \(missing.get(i))"
@@ -176,6 +177,14 @@ enum DiagnosticExportService {
         formatter.timeZone = TimeZone(identifier: "UTC")
         formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter.string(from: Date(timeIntervalSince1970: Double(modifiedMillis) / 1000)) + "Z"
+    }
+
+    /// What the finished bundle contains. Singular reads as singular: a
+    /// one-file bundle used to report "Exported 1 log files", and the summary
+    /// of an export is the last thing a user reads before sending it on.
+    /// `inventoryLabel` and `selectionLabel` already agreed on this.
+    static func exportSummaryLabel(fileCount: Int, byteCount: Int64) -> String {
+        "Exported \(fileCount) log file\(fileCount == 1 ? "" : "s") (\(sizeLabel(byteCount)))"
     }
 
     /// What the export would contain, shown before the user commits to it.
