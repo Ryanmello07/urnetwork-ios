@@ -82,8 +82,9 @@ struct DiagnosticExportServiceTests {
         #expect(DiagnosticExportService.canExportSelection(["app.log", "extension.log"]) == true)
     }
 
-    /// An unreachable source has to be recorded as missing (spec goal 5). The
-    /// entitlement being absent was the only case being reported, so in the
+    /// An unreachable source has to be recorded as missing, never silently
+    /// dropped. The entitlement being absent was the only case being
+    /// reported, so in the
     /// ordinary ones -- the tunnel has never run on this install, the
     /// extension could not write to the group -- the bundle shipped with only
     /// logs/app/ and nothing anywhere saying the extension was left out.
@@ -154,8 +155,8 @@ struct DiagnosticExportServiceTests {
     }
 
     @Test func pickerRowsCarryTheModifiedTime() {
-        // spec: picker rows show severity, size AND modified time -- which is
-        // what distinguishes the live file from last week's rotation
+        // picker rows show severity, size AND modified time -- the modified
+        // time is what distinguishes the live file from last week's rotation
         let label = DiagnosticExportService.rowLabel(
             source: "app", severity: "INFO", byteCount: 2048, modifiedMillis: 1767225600000)
         #expect(label.contains("2026-01-01 00:00Z"))

@@ -33,10 +33,10 @@ final class DiagnosticExportState: ObservableObject {
 
     @Published private(set) var inventory: [SdkLogFileInfo] = []
     @Published private(set) var inventoryLabel: String?
-    /// Shown BEFORE an export, not only in the summary afterwards: the spec's
-    /// degradation rule requires an unavailable source and its reason to be
-    /// visible in the export UI, and by the time it appears in a completed
-    /// export's summary the user has already committed to it.
+    /// Shown BEFORE an export, not only in the summary afterwards: an
+    /// unavailable source and its reason have to be visible in the export UI,
+    /// and by the time they appear in a completed export's summary the user
+    /// has already committed to it.
     @Published private(set) var unavailableSources: [String] = []
 
     /// Reads the on-disk inventory off the main thread and publishes the

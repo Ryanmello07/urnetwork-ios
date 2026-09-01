@@ -59,11 +59,10 @@ enum LogVerbosity {
      * `nil` means there is no device to ask, and is deliberately distinct
      * from 0 -- see `unavailableLabel`.
      *
-     * NOTE these are NOT the SDK's constant names. `SdkLogVerbosityTrace` is
-     * 1 and `SdkLogVerbosityDetail` is 2; here 1 is "Verbose" and 2 is
-     * "Trace", because "detail" says nothing about the volume and "trace" is
-     * what a user expects the loudest setting to be called. Read the number,
-     * not the word, when comparing against the SDK.
+     * These are also the SDK's constant names: `SdkLogVerbosityVerbose` is 1
+     * and `SdkLogVerbosityTrace` is 2. The SDK follows these labels rather
+     * than the other way round -- the word a bug report quotes is the one the
+     * user read here, so the number and the word agree on both sides.
      */
     static func name(_ level: Int?) -> String {
         guard let level else { return unavailableLabel }

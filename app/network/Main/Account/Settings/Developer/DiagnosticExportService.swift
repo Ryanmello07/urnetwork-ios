@@ -113,8 +113,8 @@ enum DiagnosticExportService {
     /// saying so. Support then reads that as "the extension had no logs".
     /// The SDK cannot close this either: it records a missing source only when
     /// an individual file fails to open, never when a whole directory is
-    /// absent or unreadable. Spec goal 5: an unreachable source is recorded
-    /// as missing.
+    /// absent or unreadable. The rule this export holds to is that a source
+    /// that cannot be read is recorded as missing, never silently dropped.
     static func missingSources(
         sharedRootUnavailableReason: String?,
         inventorySources: Set<String>
@@ -155,8 +155,8 @@ enum DiagnosticExportService {
         formatByteCountCompact(byteCount)
     }
 
-    /// A picker row: source, severity, size and modified time, as the spec's
-    /// UI section requires. The time is what tells the user which file is the
+    /// A picker row: source, severity, size and modified time. The time is
+    /// what tells the user which file is the
     /// live one and which is a rotation from last week, and it is UTC for the
     /// same reason the bundle name is -- a support thread compares stamps from
     /// devices in several timezones.
@@ -188,8 +188,8 @@ enum DiagnosticExportService {
     }
 
     /// What the export would contain, shown before the user commits to it.
-    /// The spec's UI section requires the total size up front: a bundle is up
-    /// to 4x16MB per process, which is not a thing to discover afterwards.
+    /// The total size belongs up front: a bundle is up to 4x16MB per
+    /// process, which is not a thing to discover afterwards.
     static func inventoryLabel(fileCount: Int, byteCount: Int64) -> String {
         if fileCount == 0 {
             return "No log files on disk"
