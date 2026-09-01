@@ -42,10 +42,10 @@ struct DeviceSettingWritePolicy {
 /// just created (first install, or a migration to a newer bundle), or no active
 /// space is recorded at all. Any other launch keeps whatever the user chose.
 ///
-/// Parity source: android's `MainApplication.kt:300`
+/// Parity source: android's `MainApplication.kt`
 ///     `if (!bundleNetworkSpaceExists || networkSpaceManager?.activeNetworkSpace == null)`
 /// This is a pure function so the boolean itself is testable -- the iOS side of
-/// it diverged from Android unnoticed precisely because it was inlined.
+/// it diverged from android unnoticed precisely because it was inlined.
 struct NetworkSpaceSelection {
     static func shouldActivateBundled(bundledSpaceExisted: Bool, hasActiveSpace: Bool) -> Bool {
         !bundledSpaceExisted || !hasActiveSpace
@@ -680,7 +680,7 @@ extension DeviceManager {
         
         // Sampled BEFORE updateNetworkSpace, which creates the bundled space when it
         // is missing -- asking afterwards would always answer "it existed".
-        // Mirrors android's MainApplication.kt:282.
+        // Mirrors the sample android takes in MainApplication.kt.
         let bundledSpaceExisted = networkSpaceManager?.getNetworkSpace(networkSpaceKey) != nil
 
         // Refreshing the bundled values on every launch is intentional: it migrates a
@@ -701,16 +701,16 @@ extension DeviceManager {
             }
         ))
 
-        // Parity with android's MainApplication.kt:300 -- force the bundled space
-        // active ONLY when it was just created or when nothing is active yet.
+        // Parity with android's MainApplication.kt -- force the bundled space active
+        // ONLY when it was just created or when nothing is active yet.
         //
         // Without this the app bound the bundled key on every launch and never read
-        // the space the SDK had persisted, so a user on a custom host lost both their
-        // session and their host on every restart: `asyncLocalState` derives from
-        // `self.networkSpace`, so the startup jwt read went to
-        // <Documents>/network_spaces/ur.network/main/.by/.auth_state while the real
-        // credentials sat unread under .../beta-test.net/main/..., and the official
-        // space's "bringyour.com" migrationHostName was re-stamped over their API URL.
+        // the space the SDK had persisted, so a user who had selected a different
+        // network space lost both their session and their API host on every restart:
+        // `asyncLocalState` derives from `self.networkSpace`, so the startup jwt read
+        // went to the BUNDLED space's per-host state directory while the credentials
+        // sat unread under the selected space's, and the bundled space's
+        // migrationHostName was re-stamped over the selected API URL.
         if NetworkSpaceSelection.shouldActivateBundled(
             bundledSpaceExisted: bundledSpaceExisted,
             hasActiveSpace: networkSpaceManager?.getActiveNetworkSpace() != nil
@@ -718,9 +718,10 @@ extension DeviceManager {
             networkSpaceManager?.setActiveNetworkSpace(bundledNetworkSpace)
         }
 
-        // The fallback is load-bearing, not decorative: if .network_spaces is corrupt
-        // or unreadable the active lookup returns nil, and without it the app would
-        // come up bound to no space at all -- no api, no auth, no way back.
+        // The fallback is load-bearing, not decorative: if the persisted network space
+        // state is corrupt or unreadable the active lookup returns nil, and without it
+        // the app would come up bound to no space at all -- no api, no auth, no way
+        // back.
         self.networkSpace = networkSpaceManager?.getActiveNetworkSpace()
             ?? networkSpaceManager?.getNetworkSpace(networkSpaceKey)
         
@@ -728,13 +729,13 @@ extension DeviceManager {
             networkStore: self,
             deviceSpecs: deviceSpecs,
             onResult: { result, ok in
-                // `ok` already means "non-empty": AsyncLocalState.GetByClientJwt
-                // reports `byClientJwt != ""` (sdk/local_state.go:1159), so an empty
-                // jwt arrives as ok == false. The empty-string branch that used to
-                // live here was unreachable, and had it ever run it would have wiped
-                // stored auth on what is only a failed READ. Come up signed out
-                // instead -- never destroy credentials we merely could not read.
-                if ok, let result, !result.isEmpty {
+                if ok {
+                    guard let result, !result.isEmpty else {
+                        print("[\(self.domain)] stored client JWT is missing or empty")
+                        self.clearAuthStateAndMarkInitialized()
+                        return
+                    }
+
                     self.initDeviceFromStoredAuthentication(
                         clientJwt: result,
                         deviceSpec: deviceSpecs

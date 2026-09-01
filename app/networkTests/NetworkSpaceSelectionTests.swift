@@ -8,13 +8,13 @@
 //  This is the truth table iOS got wrong. `initializeNetworkSpace()` used to
 //  bind `getNetworkSpace(<bundled key>)` unconditionally and never read the
 //  space the SDK had persisted, which is the same as answering "activate the
-//  bundled space" to every row below. For a user on a custom host that reverted
-//  the API host to the bundled space's "bringyour.com" migration host AND sent
-//  the startup jwt read to the wrong per-host directory -- reported as being
-//  logged out and reset to the default server on every restart.
+//  bundled space" to every row below. For a user who had selected a different
+//  network space that reverted the API host to the bundled space's
+//  "bringyour.com" migration host AND sent the startup jwt read to the wrong
+//  per-host state directory -- reported as being logged out and reset to the
+//  default server on every restart.
 //
-//  Android has always had it right, so it is the reference:
-//  MainApplication.kt:300
+//  Android has always had it right, so it is the reference. MainApplication.kt:
 //      if (!bundleNetworkSpaceExists || networkSpaceManager?.activeNetworkSpace == null)
 //
 //  The bug survived because the condition was inlined and unreachable from a
@@ -38,12 +38,12 @@ struct NetworkSpaceSelectionTests {
         )
     }
 
-    @Test func normalLaunchKeepsTheUsersCustomSpace() {
+    @Test func normalLaunchKeepsTheUsersSelectedSpace() {
         // The regression case. The bundled space already exists and something is
-        // already active -- on a custom-host install that active space is
-        // beta-test.net, holding the credentials and the API host. Re-activating
-        // the bundled space here is exactly what logged the user out and reverted
-        // them to bringyour.com.
+        // already active -- on an install pointed at a self-hosted server that
+        // active space holds the credentials and the API host. Re-activating the
+        // bundled space here is exactly what logged the user out and reverted
+        // them to the official host.
         #expect(
             NetworkSpaceSelection.shouldActivateBundled(
                 bundledSpaceExisted: true,
