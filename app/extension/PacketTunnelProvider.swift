@@ -563,10 +563,24 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         // demotion ledger is in-memory and process-global, so a fresh
         // extension process starts with an empty one every time: an
         // unforced user re-learns the bad family, at the price of one
-        // stalled handshake, on every connect. The force-setter pays that
-        // same price once and is then strictly better off, because the sync
-        // persists the policy into this process's own container and every
-        // later start restores it here.
+        // stalled first handshake, on every connect.
+        //
+        // That price is bounded and known: ControlFamilyFirstHandshakeTimeout,
+        // 8s -- the floor connect puts on the first handshake of a control
+        // dial so the retry over the other family still has budget to run
+        // (connect/control_family_dial.go). The api jwt refresh is the dial
+        // that pays it and the dial that learns; the platform websocket
+        // arrives with gorilla's 5s cap, which is under 8s +
+        // ControlFamilyRetryReserve, so connect leaves that handshake
+        // unbounded and it inherits the answer from the process-global ledger
+        // instead of paying for its own. (An earlier revision of this comment
+        // said ~3s. That figure came from a budget-halving helper which has
+        // since been deleted in favour of the floor, and it was wrong from the
+        // moment the floor landed.)
+        //
+        // The force-setter pays that same 8s once and is then strictly better
+        // off, because the sync persists the policy into this process's own
+        // container and every later start restores it here.
         //
         // The regimes that actually hurt are already covered: the app
         // process dials pre-login and with the tunnel down, and there the
@@ -578,11 +592,11 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         // by copying a preference into a durable store owned by the OS or by
         // the filesystem, beside LocalState which already owns it. That is a
         // second, staleable source of truth and a third channel for
-        // preferences into this process, bought for ~3s on one connect of a
-        // developer-only setting. It also contradicts the contract the rest
-        // of this block states plainly below: the extension seeds from its
-        // own local state, and those values hold "until the app connects and
-        // sets the user values".
+        // preferences into this process, bought for one stalled 8s handshake
+        // on one connect of a developer-only setting. It also contradicts the
+        // contract the rest of this block states plainly below: the extension
+        // seeds from its own local state, and those values hold "until the app
+        // connects and sets the user values".
 
         let newDevice = SdkNewDeviceLocalWithMemoryTarget(
             networkSpace,
