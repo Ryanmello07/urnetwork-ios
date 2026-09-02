@@ -95,8 +95,17 @@ struct DeveloperView: View {
             // places, so what the row shows has to be re-read here rather than
             // carried over from the last appearance -- and until it resolves
             // the row renders its initial Automatic, which a tap in that
-            // window would advance from as if it were the value in force. Two
-            // cgo reads, so putting it first closes that window at no cost.
+            // window would advance from as if it were the value in force, so
+            // it goes first to close that window as early as possible.
+            //
+            // NOT free, unlike the rest of this screen's reads. The learned
+            // demotion belongs to whichever process dialed, so with a device
+            // the status half is an rpc into the extension rather than a cgo
+            // call. Over the live loopback connection the app already holds
+            // that is a sub-millisecond round trip, but a wedged extension
+            // makes it the head of this chain -- bounded by the rpc keepalive
+            // reaping the connection, after which the read falls back to this
+            // process's own ledger.
             await ipFamilyState.refresh(device: deviceManager.device)
             // the inventory (and with it the total size and any unavailable
             // source) has to be on screen BEFORE the user commits to an

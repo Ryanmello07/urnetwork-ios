@@ -36,6 +36,13 @@ final class IpFamilyState: ObservableObject {
     /// What the sdk has learned on its own, empty when nothing is demoted.
     /// Rendered in the detail line so Automatic does not look identical
     /// whether the heuristic has fired or not.
+    ///
+    /// Read from the DEVICE when there is one, unlike `policy`, which either
+    /// process can answer. A demotion is not set, it is LEARNED in whichever
+    /// process made the dial that failed, and while the tunnel is up that is
+    /// the network extension. Asking this process there would report an empty
+    /// string with a demotion actively in force -- exactly the ambiguity the
+    /// detail line exists to remove.
     @Published private(set) var status: String = ""
 
     /// True across a write AND the read-back that follows it, as one unit.
@@ -48,7 +55,12 @@ final class IpFamilyState: ObservableObject {
         let read = await Task.detached(priority: .userInitiated) {
             (
                 policy: device?.getControlIpFamilyPolicy() ?? Int(SdkGetControlIpFamilyPolicy()),
-                status: SdkGetControlIpFamilyStatus()
+                // an rpc round trip into the dialing process. The
+                // process-global is the right answer only when there is no
+                // device, because then THIS process is the one dialing --
+                // see DeviceRemote.GetControlIpFamilyStatus, which falls
+                // back the same way and for the same reason
+                status: device?.getControlIpFamilyStatus() ?? SdkGetControlIpFamilyStatus()
             )
         }.value
         policy = IpFamily.clamp(read.policy)
