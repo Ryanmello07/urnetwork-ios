@@ -38,9 +38,9 @@ final class IpFamilyState: ObservableObject {
     /// whether the heuristic has fired or not.
     @Published private(set) var status: String = ""
 
-    /// True across a write. With a device the write is an rpc round trip into
-    /// the extension, so the row is held rather than allowed to queue a second
-    /// tap behind it.
+    /// True across a write AND the read-back that follows it, as one unit.
+    /// With a device the write is an rpc round trip into the extension, so the
+    /// row is held rather than allowed to queue a second tap behind it.
     @Published private(set) var isApplying = false
 
     @MainActor
@@ -80,7 +80,21 @@ final class IpFamilyState: ObservableObject {
         guard !isApplying else { return }
         let next = IpFamily.next(policy)
 
+        // Held across the write AND the read-back as one unit. Clearing it
+        // between the two would leave the guard open while `refresh` is
+        // suspended on its detached read, and the main actor is free there:
+        // a second tap queued behind this one would run, compute
+        // `IpFamily.next(policy)` from the PRE-refresh policy this call has
+        // already superseded, write that same policy again, and be silently
+        // lost -- auto -> force4, tap again -> force4 instead of force6.
+        //
+        // `defer` rather than an assignment after the read-back so it clears
+        // on every exit path, including any early return added later: a stuck
+        // flag would wedge the row permanently, which is worse than the lost
+        // tap this guards against.
         isApplying = true
+        defer { isApplying = false }
+
         await Task.detached(priority: .userInitiated) {
             if let device {
                 device.setControlIpFamilyPolicy(next)
@@ -92,7 +106,6 @@ final class IpFamilyState: ObservableObject {
                 SdkSetControlIpFamilyPolicy(next)
             }
         }.value
-        isApplying = false
 
         await refresh(device: device)
     }

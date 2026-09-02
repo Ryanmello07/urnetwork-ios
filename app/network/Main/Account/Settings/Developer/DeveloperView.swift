@@ -90,6 +90,14 @@ struct DeveloperView: View {
             reliabilityStore.setActive(presentationActive)
         }
         .task {
+            // FIRST, ahead of the inventory's disk enumeration: restored by
+            // the sdk across a relaunch and settable from three different
+            // places, so what the row shows has to be re-read here rather than
+            // carried over from the last appearance -- and until it resolves
+            // the row renders its initial Automatic, which a tap in that
+            // window would advance from as if it were the value in force. Two
+            // cgo reads, so putting it first closes that window at no cost.
+            await ipFamilyState.refresh(device: deviceManager.device)
             // the inventory (and with it the total size and any unavailable
             // source) has to be on screen BEFORE the user commits to an
             // export, so it is read here rather than when the picker opens
@@ -99,10 +107,6 @@ struct DeveloperView: View {
             // it), so what the control shows has to come from the device on
             // every appearance rather than defaulting to 0
             await verbosityState.refresh(device: deviceManager.device)
-            // likewise restored by the sdk across a relaunch, and settable
-            // from three different places -- so what the row shows has to be
-            // re-read here rather than carried over from the last appearance
-            await ipFamilyState.refresh(device: deviceManager.device)
         }
         .onChange(of: presentationActive) { active in
             reliabilityStore.setActive(active)
@@ -332,7 +336,13 @@ struct DeveloperView: View {
      * queued behind it.
      */
     private var ipFamilyRow: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        // `.disabled` alone is invisible here: `.plain` dims nothing of its
+        // own and does not override an explicit `foregroundColor`, so the row
+        // would look fully tappable while every tap is dropped by cycle's
+        // in-flight guard. Muted the same way `actionRow` mutes a disabled
+        // action -- one demoted-to-textMutedColor idiom for the whole screen.
+        let isEnabled = !ipFamilyState.isApplying
+        return VStack(alignment: .leading, spacing: 4) {
             Button(action: cycleIpFamily) {
                 HStack {
                     // same words as android's dev_ip_family, the way "Log
@@ -340,16 +350,22 @@ struct DeveloperView: View {
                     // one setting across the two support threads
                     Text("Control connections")
                         .font(themeManager.currentTheme.bodyFont)
-                        .foregroundColor(themeManager.currentTheme.textColor)
+                        .foregroundColor(
+                            isEnabled
+                                ? themeManager.currentTheme.textColor
+                                : themeManager.currentTheme.textMutedColor)
                     Spacer()
                     Text(IpFamily.valueLabel(ipFamilyState.policy))
                         .font(themeManager.currentTheme.secondaryBodyFont)
-                        .foregroundColor(themeManager.currentTheme.accentColor)
+                        .foregroundColor(
+                            isEnabled
+                                ? themeManager.currentTheme.accentColor
+                                : themeManager.currentTheme.textMutedColor)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .disabled(ipFamilyState.isApplying)
+            .disabled(!isEnabled)
 
             Text(IpFamily.detail(ipFamilyState.policy, status: ipFamilyState.status))
                 .font(themeManager.currentTheme.secondaryBodyFont)
