@@ -9,6 +9,9 @@ import Foundation
 import URnetworkSdk
 import Combine
 import Network
+#if os(iOS)
+import BackgroundTasks
+#endif
 
 #if canImport(UIKit)
 import UIKit
@@ -84,12 +87,62 @@ class DeviceManager: ObservableObject {
         }
     }
     
-    @Published private(set) var vpnManager: VPNManager? = nil
+    @Published private(set) var vpnManager: VPNManager? = nil {
+        didSet {
+            guard let vpnManager else { return }
+            if applicationIsActive {
+                vpnManager.applicationDidBecomeActive()
+            } else {
+                vpnManager.applicationDidBecomeInactive()
+            }
+        }
+    }
+    private var applicationIsActive = false
     private var isLoggingOut = false
 
     func applicationDidBecomeActive() {
+        applicationIsActive = true
         vpnManager?.applicationDidBecomeActive()
     }
+
+    func applicationDidBecomeInactive() {
+        applicationIsActive = false
+        vpnManager?.applicationDidBecomeInactive()
+    }
+
+    #if os(iOS)
+    func handleBackgroundUpdate(task: BGTask) {
+        let finisher = VPNBackgroundTaskFinisher(task: task)
+        task.expirationHandler = {
+            finisher.finish(success: false)
+        }
+
+        Task { @MainActor [weak self] in
+            let managerDeadline = Date().addingTimeInterval(10)
+            while !finisher.isFinished, Date() < managerDeadline {
+                guard let self else {
+                    finisher.finish(success: false)
+                    return
+                }
+                if let vpnManager = self.vpnManager {
+                    vpnManager.handleBackgroundUpdate(
+                        task: task,
+                        finisher: finisher
+                    )
+                    return
+                }
+                if self.deviceInitialized {
+                    // Initialization completed without an authenticated device,
+                    // so there is no tunnel state this refresh can reconcile.
+                    finisher.finish(success: true)
+                    return
+                }
+                try? await Task.sleep(nanoseconds: 250_000_000)
+            }
+            finisher.finish(success: false)
+        }
+    }
+    #endif
     
     
     @Published var provideControlMode: ProvideControlMode = ProvideControlMode.Never {
@@ -901,6 +954,11 @@ extension DeviceManager {
             markInitializedWithoutDevice()
             return false
         }
+
+        // a quick connect or disconnect made from Control Center, the widget
+        // or Settings since the app last ran is the newest decision: fold it
+        // into the saved connect location before it is pushed to the device
+        TunnelIntentAdoption.adoptPending(localState: localState, device: nil)
 
         let routeLocal = localState.getRouteLocal()
         let blockerEnabled = localState.getBlockerEnabled()

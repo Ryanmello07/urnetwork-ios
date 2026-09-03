@@ -73,7 +73,7 @@ The only genuinely iPad-adaptive screen is login (`LoginInitialView.swift:52-95`
 
 **iOS-only (Android lacks):**
 - Sign in with Apple (platform-appropriate; still a login-method gap).
-- **Any OS-level quick connect** — iOS has Siri/App Intents (`Shared/Intents/`, `Shortcuts.swift`); Android has no quick-settings tile, no widget, no app shortcuts. Real gap: a QS tile is the obvious Android answer.
+- **OS-level quick connect and widgets** — at parity as of 2026-09-02: iOS has the Control Center / Lock Screen / Action button control, Siri/App Intents and the dashboard, provider globe and contracts Home Screen widgets (`app/widgets/`, `QUICKCONNECT.md`); Android has the polished Quick Settings tile, launcher shortcuts and the same three widgets (`android/QUICKCONNECT.md`).
 - On-demand VPN reconnect rules (`VPNManager.swift` `NEOnDemandRuleConnect`); Android relies on always-on only.
 - "Review URnetwork" explicit row (`AccountRootView.swift`); Android fires in-app review programmatically instead.
 

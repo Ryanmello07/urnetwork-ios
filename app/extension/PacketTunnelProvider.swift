@@ -273,11 +273,16 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         subsystem: "network.ur.extension",
         category: "PacketTunnel"
     )
+    private let lifecycleId = String(UUID().uuidString.prefix(8))
+    private let lifecycleLock = NSLock()
+    private var sleepStartedAt: Date?
 
     private var deviceConfiguration: [String: String]?
     private var device: SdkDeviceLocal?
     private var localState: SdkLocalState?
     private var close: (() -> Void)?
+    /// Publishes the widgets' snapshot for the life of the tunnel session.
+    private var snapshotWriter: WidgetSnapshotWriter?
     private var memoryPressureSource: DispatchSourceMemoryPressure?
     private var memoryMonitor: ExtensionMemoryMonitor?
     private var fips140Enabled = false
@@ -300,6 +305,14 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     // re-checks the network path + power state on demand (set per tunnel
     // session; used by wake() after sleep, when the sockets are stale)
     private var networkStateRefresh: (() -> Void)?
+    // Main-queue-only recovery state. Path and lifecycle signals are coalesced
+    // here so wake + NWPath cannot tear down the same reconnect attempt twice.
+    private var transportRecoveryWork: DispatchWorkItem?
+    private var wakeHealthWork: DispatchWorkItem?
+    private var lastTransportRecoveryAt: Date?
+    private let transportRecoveryDebounce: TimeInterval = 0.350
+    private let minimumTransportRecoveryInterval: TimeInterval = 2
+    private let wakeHealthGrace: TimeInterval = 5
     private var packetReadGeneration: UInt64 = 0
     private let logoutProviderMessage = "logout"
     // the app asks for this immediately before it reads this process's log
@@ -320,7 +333,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         // nothing saying why.
         ExtensionDiagnosticsLogLocation.configure()
 
-        logger.info("[PacketTunnelProvider]init")
+        logger.info("[PacketTunnelProvider][\(self.lifecycleId)] init")
 
         fips140Enabled = SdkGetFips140Enabled()
         if fips140Enabled {
@@ -385,8 +398,11 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
 
     override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping ((any Error)?) -> Void) {
-        logger.info("[PacketTunnelProvider]start")
+        logger.info("[PacketTunnelProvider][\(self.lifecycleId)] start")
         memoryMonitor?.sample(event: "start-requested")
+        DispatchQueue.main.async { [weak self] in
+            self?.cancelPendingTransportRecovery()
+        }
 
         guard !fips140Enabled else {
             completionHandler(NSError(domain: "network.ur.extension", code: 11, userInfo: [NSLocalizedDescriptionKey: "FIPS 140 exceeds the network extension memory budget"]))
@@ -666,6 +682,13 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         device.setProvidePaused(true)
         if let location = localState.getConnectLocation() {
             device.setConnectLocation(location)
+        } else if let location = WidgetSnapshotWriter.connectLocationForSharedIntent(localState: localState) {
+            // a quick connect from Control Center or the widget on a device
+            // whose last in-app action was a disconnect: nothing is saved
+            // here, so honor the newer shared intent with the last selected
+            // location, else the best available provider
+            logger.info("[PacketTunnelProvider][\(self.lifecycleId)] connecting for the shared quick connect intent")
+            device.setConnectLocation(location)
         }
         device.setProvideMode(localState.getProvideMode())
         device.setProvideControlMode(localState.getProvideControlMode())
@@ -808,10 +831,15 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         })
         let updateWindowStatus = { (windowStatus: SdkWindowStatus?) in
             var connected = false
+            var providerCount = 0
             if let windowStatus = windowStatus {
-                connected = 0 < windowStatus.providerStateAdded
+                providerCount = windowStatus.providerStateAdded
+                connected = 0 < providerCount
             }
             if self.connected != connected {
+                self.logger.info(
+                    "[PacketTunnelProvider][\(self.lifecycleId)] window connected=\(connected) providers=\(providerCount)"
+                )
                 self.connected = connected
                 if !connected {
                     if device.getConnectLocation() == nil {
@@ -861,11 +889,14 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
         let pathMonitor = NWPathMonitor.init(prohibitedInterfaceTypes: [.loopback, .other])
         let pathMonitorQueue = DispatchQueue(label: "network.ur.extension.pathMonitor")
-        // signature of the physical path (the tunnel's utun is .other, excluded above):
-        // only a material change — interface set, status, or gateways (an AP/subnet
-        // roam keeps the interface name but changes the gateway) — kicks the transports.
-        // all mutable path/power state below is confined to pathMonitorQueue.
-        var lastPathSignature: String? = nil
+        // Signature of the physical path (the tunnel's utun is .other, excluded
+        // above). Compare only interfaces the path actually uses, not every
+        // available interface in preference order. Commit a satisfied signature
+        // only after it is stable so Wi-Fi/cellular transition bursts produce one
+        // transport recovery at most. Mutable state is pathMonitorQueue-confined.
+        var stablePathSignature: String? = nil
+        var pathSignatureGeneration: UInt64 = 0
+        var physicalPathWasUnavailable = false
         var lastPathConstrained: Bool = false
         // degraded performance: a device in low power mode, thermally throttled, or on
         // a constrained (Low Data Mode) path answers control pings slowly — ease the
@@ -882,18 +913,46 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             updatePath(path)
             lastPathConstrained = path.isConstrained
             updatePerformanceDegraded()
-            let gateways = path.gateways.map { "\($0)" }.joined(separator: ",")
-            let pathSignature = "\(path.status)|"
-                + path.availableInterfaces.map { "\($0.name):\($0.type)" }.joined(separator: ",")
-                + "|" + gateways
-            if let last = lastPathSignature, last != pathSignature {
-                // the old sockets are likely bound to a dead path: re-dial the
-                // platform transports and re-prove/re-warm the tunnel DoH now,
-                // instead of waiting for ping timeouts to notice
-                self.logger.info("[PacketTunnelProvider]network path changed, re-dialing transports")
-                device.networkChanged()
+            pathSignatureGeneration &+= 1
+            let generation = pathSignatureGeneration
+            guard path.status == .satisfied else {
+                // A Wi-Fi sleep/rejoin can return with the same interface and
+                // gateway. Remember the unavailable edge so signature equality
+                // cannot hide the fact that existing sockets crossed a dead path.
+                if stablePathSignature != nil {
+                    physicalPathWasUnavailable = true
+                }
+                return
             }
-            lastPathSignature = pathSignature
+
+            let interfaces = path.availableInterfaces
+                .filter { path.usesInterfaceType($0.type) }
+                .map { "\($0.name):\($0.type)" }
+                .sorted()
+                .joined(separator: ",")
+            let gateways = path.gateways
+                .map { "\($0)" }
+                .sorted()
+                .joined(separator: ",")
+            let pathSignature = "interfaces=\(interfaces)|gateways=\(gateways)"
+
+            pathMonitorQueue.asyncAfter(
+                deadline: .now() + self.transportRecoveryDebounce
+            ) {
+                guard generation == pathSignatureGeneration else { return }
+                if let previous = stablePathSignature,
+                   previous != pathSignature || physicalPathWasUnavailable {
+                    let reason = physicalPathWasUnavailable
+                        ? "physical-path-restored"
+                        : "physical-path-change"
+                    self.logger.info(
+                        "[PacketTunnelProvider][\(self.lifecycleId)] stable physical path transition=\(reason); scheduling transport recovery"
+                    )
+                    self.requestTransportRecovery(reason: reason)
+                }
+                stablePathSignature = pathSignature
+                physicalPathWasUnavailable = false
+            }
         }
         pathMonitor.pathUpdateHandler = { path in
             handlePathUpdate(path)
@@ -923,7 +982,8 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             pathMonitorQueue.async { updatePerformanceDegraded() }
         }
         pathMonitorQueue.async { updatePerformanceDegraded() }
-        // wake() re-dials and refreshes path/power state after sleep (see wake below)
+        // wake() refreshes path/power state. A stable signature change requests
+        // one transport recovery; an unchanged healthy path remains untouched.
         self.networkStateRefresh = {
             pathMonitorQueue.async {
                 handlePathUpdate(pathMonitor.currentPath)
@@ -959,7 +1019,13 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             }
         })
 
+        // publish location, providers, throughput and balance for the widgets
+        let snapshotWriter = WidgetSnapshotWriter(device: device, logger: logger)
+        self.snapshotWriter = snapshotWriter
+        snapshotWriter.start()
+
         self.close = {
+            snapshotWriter.close()
             packetReceiverSub?.close()
             defaultPathObservation.invalidate()
             NotificationCenter.default.removeObserver(powerStateObserver)
@@ -1024,6 +1090,9 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 self.readToDevice(generation: packetReadGeneration)
                 self.memoryMonitor?.sample(event: "tunnel-started")
                 completionHandler(nil)
+                // the tunnel is up: re-render the quick connect control and
+                // the widgets now that NEVPNStatus reads connected
+                snapshotWriter.tunnelStarted()
             }
         }
     }
@@ -1328,9 +1397,129 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
     }
 
+    private func requestTransportRecovery(reason: String) {
+        DispatchQueue.main.async { [weak self] in
+            self?.scheduleTransportRecovery(reason: reason)
+        }
+    }
+
+    private func scheduleTransportRecovery(reason: String) {
+        guard let device, !device.getDone() else { return }
+
+        var delay = transportRecoveryDebounce
+        if let lastTransportRecoveryAt {
+            delay = max(
+                delay,
+                minimumTransportRecoveryInterval -
+                    Date().timeIntervalSince(lastTransportRecoveryAt)
+            )
+        }
+        delay = max(0, delay)
+
+        transportRecoveryWork?.cancel()
+        let work = DispatchWorkItem { [weak self, weak device] in
+            guard let self,
+                  let device,
+                  self.device === device,
+                  !device.getDone() else {
+                return
+            }
+            self.transportRecoveryWork = nil
+            self.lastTransportRecoveryAt = Date()
+            self.logger.info(
+                "[PacketTunnelProvider][\(self.lifecycleId)] transport recovery reason=\(reason)"
+            )
+            self.memoryMonitor?.sample(event: "transport-recovery")
+            device.networkChanged()
+        }
+        transportRecoveryWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+
+    private func cancelPendingTransportRecovery() {
+        transportRecoveryWork?.cancel()
+        transportRecoveryWork = nil
+        wakeHealthWork?.cancel()
+        wakeHealthWork = nil
+    }
+
+    private func refreshAndProbeAfterWake() {
+        guard let device, !device.getDone() else { return }
+
+        let wakeStartedAt = Date()
+        networkStateRefresh?()
+        let scheduledProbes = device.probeAllExits()
+        logger.info(
+            "[PacketTunnelProvider][\(self.lifecycleId)] wake probe passes=\(scheduledProbes)"
+        )
+
+        wakeHealthWork?.cancel()
+        let work = DispatchWorkItem { [weak self, weak device] in
+            guard let self,
+                  let device,
+                  self.device === device,
+                  !device.getDone() else {
+                return
+            }
+            self.wakeHealthWork = nil
+
+            // A real path change already owns the transport reset. Do not issue
+            // a second reset while its reconnect is forming a provider window.
+            if let lastRecovery = self.lastTransportRecoveryAt,
+               lastRecovery >= wakeStartedAt {
+                self.logger.info(
+                    "[PacketTunnelProvider][\(self.lifecycleId)] wake health covered by path recovery"
+                )
+                return
+            }
+
+            // Local/provide-only operation has no remote provider window to
+            // validate. The SDK's suspend detector has already rebased its
+            // liveness clocks, and a physical path change is handled above.
+            guard device.getConnectLocation() != nil else {
+                self.logger.info(
+                    "[PacketTunnelProvider][\(self.lifecycleId)] wake healthy local mode"
+                )
+                return
+            }
+
+            let providerCount = device.getWindowStatus()?.providerStateAdded ?? 0
+            guard providerCount <= 0 else {
+                self.logger.info(
+                    "[PacketTunnelProvider][\(self.lifecycleId)] wake healthy providers=\(providerCount)"
+                )
+                return
+            }
+
+            // The unchanged path did not recover within the grace period. This
+            // is the bounded fallback for genuinely stale sockets.
+            self.logger.error(
+                "[PacketTunnelProvider][\(self.lifecycleId)] wake unhealthy after grace; providers=0"
+            )
+            self.scheduleTransportRecovery(reason: "wake-unhealthy")
+        }
+        wakeHealthWork = work
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + wakeHealthGrace,
+            execute: work
+        )
+    }
+
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
-        logger.info("[PacketTunnelProvider]stop with reason: \(String(describing: reason))")
+        logger.info("[PacketTunnelProvider][\(self.lifecycleId)] stop reason=\(String(describing: reason))")
         memoryMonitor?.sample(event: "tunnel-stopping")
+        DispatchQueue.main.async { [weak self] in
+            self?.cancelPendingTransportRecovery()
+        }
+
+        recordSharedIntentForStop(reason: reason)
+        if let snapshotWriter = self.snapshotWriter {
+            self.snapshotWriter = nil
+            // writes the widgets' snapshot as inactive and re-renders the
+            // control and widgets; synchronous, since this process may be
+            // reaped as soon as the completion handler runs
+            snapshotWriter.tunnelStopped()
+        }
 
         self.stopPacketReads()
         self.endTunnelSettingsSession()
@@ -1347,13 +1536,59 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         completionHandler()
     }
 
+    /// A stop the user made outside the app (Settings > VPN, the system's VPN
+    /// control, or another VPN taking over) is a disconnect the app must not
+    /// undo on its next foreground. The app marks the stops it makes itself
+    /// (TunnelIntentStore.markAppInitiatedStop) so they are not mistaken for
+    /// one; the quick connect control records its own intent before stopping.
+    private func recordSharedIntentForStop(reason: NEProviderStopReason) {
+        let appInitiated = TunnelIntentStore.consumeAppInitiatedStop()
+        switch reason {
+        case .userInitiated, .configurationDisabled, .providerDisabled, .superceded:
+            guard !appInitiated else { return }
+            if let current = TunnelIntentStore.load(),
+               !current.connect,
+               Date().timeIntervalSince(current.changedAt) < TunnelIntentStore.appStopWindow {
+                // the control or the widget already recorded this disconnect
+                return
+            }
+            TunnelIntentStore.record(connect: false, source: TunnelIntentStore.sourceSystem)
+            logger.info("[PacketTunnelProvider][\(self.lifecycleId)] recorded a system disconnect intent")
+        default:
+            return
+        }
+    }
+
+    override func sleep(completionHandler: @escaping () -> Void) {
+        lifecycleLock.lock()
+        sleepStartedAt = Date()
+        lifecycleLock.unlock()
+
+        logger.info("[PacketTunnelProvider][\(self.lifecycleId)] sleep")
+        memoryMonitor?.sample(event: "sleep")
+        DispatchQueue.main.async { [weak self] in
+            self?.cancelPendingTransportRecovery()
+        }
+        // Keep the SDK device and its transports intact. Its scheduler-pause
+        // detector rebases liveness clocks when execution resumes.
+        completionHandler()
+    }
+
     override func wake() {
-        // returning from sleep: the transport sockets are stale — re-dial and
-        // refresh the path/power state now instead of waiting for ping
-        // timeouts to notice the dead connections
-        logger.info("[PacketTunnelProvider]wake")
-        device?.networkChanged()
-        networkStateRefresh?()
+        lifecycleLock.lock()
+        let sleepDuration = sleepStartedAt.map {
+            Date().timeIntervalSince($0)
+        }
+        sleepStartedAt = nil
+        lifecycleLock.unlock()
+
+        logger.info(
+            "[PacketTunnelProvider][\(self.lifecycleId)] wake sleptSeconds=\(sleepDuration ?? 0)"
+        )
+        memoryMonitor?.sample(event: "wake")
+        DispatchQueue.main.async { [weak self] in
+            self?.refreshAndProbeAfterWake()
+        }
     }
 
     override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
