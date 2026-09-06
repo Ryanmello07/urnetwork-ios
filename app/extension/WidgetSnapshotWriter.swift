@@ -6,7 +6,7 @@
 //  network/Shared/Widgets/WidgetSnapshots.swift) from the process that owns
 //  the truth: the connected location, the connected providers with their
 //  coordinates and country colors, the per-minute throughput folded from the
-//  device's cumulative packet counters, and, on a slow cadence, the transfer
+//  device's cumulative byte and packet counters, and, on a slow cadence, the transfer
 //  balance. Everything is written into the App Group container and WidgetKit
 //  is asked to re-render, within a budget.
 //
@@ -22,6 +22,11 @@ final class WidgetSnapshotWriter {
     /// How often the snapshot file is rewritten while the tunnel is up. Cheap
     /// (a few KB, atomic), so the next reload always finds fresh buckets.
     static let writeInterval: TimeInterval = 60
+    /// The write cadence while the app's Account > Widgets previews are on
+    /// screen (WidgetPreviewVisibility): the previews read every write, so
+    /// they move like the real widgets would if WidgetKit re-rendered that
+    /// often. Back to `writeInterval` when the mark clears or expires.
+    static let previewWriteInterval: TimeInterval = 2
     /// Routine widget reload cadence while the tunnel is up. WidgetKit
     /// budgets roughly 40-70 reloads a day per widget instance.
     static let routineReloadInterval: TimeInterval = 15 * 60
@@ -55,8 +60,14 @@ final class WidgetSnapshotWriter {
     private var location: WidgetLocationSnapshot?
     private var providers: [WidgetProviderSnapshot] = []
     private var providing = false
+    private var provideMode: String? = nil
     private var active = false
     private var lastWritten: WidgetTunnelSnapshot?
+    /// Mirrors WidgetPreviewVisibility; owned by `queue`.
+    private var previewVisible = false
+    /// The writer the process-wide Darwin observer forwards to.
+    private static weak var current: WidgetSnapshotWriter?
+    private static var previewObserverRegistered = false
 
     private var contracts = ContractTracker()
     private var contractRefreshPending = false
@@ -97,14 +108,20 @@ final class WidgetSnapshotWriter {
             active = true
             location = Self.locationSnapshot(device.getConnectLocation())
             providing = device.getProvideEnabled()
+            provideMode = device.getProvideControlMode()
             providers = Self.providerSnapshots(Self.orderedProviders(device))
             if let stats = device.getPacketStats() {
-                accumulator.recordClient(egress: stats.remoteEgressByteCount, ingress: stats.remoteIngressByteCount)
+                accumulator.recordClient(
+                    egress: stats.remoteEgressByteCount, ingress: stats.remoteIngressByteCount,
+                    egressPackets: stats.remoteEgressPacketCount, ingressPackets: stats.remoteIngressPacketCount
+                )
             }
             if let stats = device.getProviderPacketStats() {
                 accumulator.recordProvider(
                     egress: stats.localEgressByteCount + stats.blockEgressByteCount,
-                    ingress: stats.localIngressByteCount + stats.blockIngressByteCount
+                    ingress: stats.localIngressByteCount + stats.blockIngressByteCount,
+                    egressPackets: stats.localEgressPacketCount + stats.blockEgressPacketCount,
+                    ingressPackets: stats.localIngressPacketCount + stats.blockIngressPacketCount
                 )
             }
 
@@ -131,6 +148,16 @@ final class WidgetSnapshotWriter {
             }) {
                 subs.append(sub)
             }
+            if let sub = device.add(WidgetProvideControlModeListener { [weak self] mode in
+                self?.queue.async {
+                    guard let self, self.active, self.provideMode != mode else { return }
+                    self.provideMode = mode
+                    self.write()
+                    self.routineReload.request(urgent: true)
+                }
+            }) {
+                subs.append(sub)
+            }
             if let sub = device.add(WidgetConnectedProvidersListener { [weak self] in
                 self?.queue.async {
                     guard let self, self.active else { return }
@@ -149,9 +176,14 @@ final class WidgetSnapshotWriter {
                 guard let stats else { return }
                 let egress = stats.remoteEgressByteCount
                 let ingress = stats.remoteIngressByteCount
+                let egressPackets = stats.remoteEgressPacketCount
+                let ingressPackets = stats.remoteIngressPacketCount
                 self?.queue.async {
                     guard let self, self.active else { return }
-                    self.accumulator.recordClient(egress: egress, ingress: ingress)
+                    self.accumulator.recordClient(
+                        egress: egress, ingress: ingress,
+                        egressPackets: egressPackets, ingressPackets: ingressPackets
+                    )
                 }
             }) {
                 subs.append(sub)
@@ -160,9 +192,14 @@ final class WidgetSnapshotWriter {
                 guard let stats else { return }
                 let egress = stats.localEgressByteCount + stats.blockEgressByteCount
                 let ingress = stats.localIngressByteCount + stats.blockIngressByteCount
+                let egressPackets = stats.localEgressPacketCount + stats.blockEgressPacketCount
+                let ingressPackets = stats.localIngressPacketCount + stats.blockIngressPacketCount
                 self?.queue.async {
                     guard let self, self.active else { return }
-                    self.accumulator.recordProvider(egress: egress, ingress: ingress)
+                    self.accumulator.recordProvider(
+                        egress: egress, ingress: ingress,
+                        egressPackets: egressPackets, ingressPackets: ingressPackets
+                    )
                 }
             }) {
                 subs.append(sub)
@@ -187,12 +224,20 @@ final class WidgetSnapshotWriter {
             writeTimer.schedule(deadline: .now() + Self.writeInterval, repeating: Self.writeInterval, leeway: .seconds(5))
             writeTimer.setEventHandler { [weak self] in
                 guard let self, self.active else { return }
+                if self.previewVisible && !WidgetPreviewVisibility.isVisible {
+                    // the app died with the previews open: the mark expired
+                    self.applyPreviewVisibility()
+                }
                 if self.write() {
                     self.routineReload.request()
                 }
             }
             writeTimer.resume()
             self.writeTimer = writeTimer
+
+            Self.current = self
+            Self.registerPreviewObserver()
+            applyPreviewVisibility()
 
             let balanceTimer = DispatchSource.makeTimerSource(queue: queue)
             balanceTimer.schedule(
@@ -237,6 +282,10 @@ final class WidgetSnapshotWriter {
     }
 
     private func teardown() {
+        if Self.current === self {
+            Self.current = nil
+        }
+        previewVisible = false
         for sub in subs {
             sub.close()
         }
@@ -248,6 +297,52 @@ final class WidgetSnapshotWriter {
         routineReload.cancel()
         providerReload.cancel()
         contractReload.cancel()
+    }
+
+    // MARK: Preview visibility
+
+    /// One Darwin observer per process; the callback is a C function pointer,
+    /// so it reaches the live writer through `current`.
+    private static func registerPreviewObserver() {
+        guard !previewObserverRegistered else { return }
+        previewObserverRegistered = true
+        CFNotificationCenterAddObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            nil,
+            { _, _, _, _, _ in
+                WidgetSnapshotWriter.current?.previewVisibilityChanged()
+            },
+            WidgetPreviewVisibility.darwinNotificationName as CFString,
+            nil,
+            .deliverImmediately
+        )
+    }
+
+    private func previewVisibilityChanged() {
+        queue.async { [weak self] in
+            self?.applyPreviewVisibility()
+        }
+    }
+
+    /// Re-reads the mark and moves the write timer to the matching cadence.
+    /// Becoming visible publishes right away and refreshes what the previews
+    /// show that the routine cadence leaves stale: the contracts and the
+    /// balance.
+    private func applyPreviewVisibility() {
+        guard active else { return }
+        let visible = WidgetPreviewVisibility.isVisible
+        guard visible != previewVisible else { return }
+        previewVisible = visible
+        let interval = visible ? Self.previewWriteInterval : Self.writeInterval
+        writeTimer?.schedule(
+            deadline: .now() + interval, repeating: interval,
+            leeway: visible ? .milliseconds(500) : .seconds(5)
+        )
+        if visible {
+            write()
+            scheduleContractRefresh()
+            refreshBalance()
+        }
     }
 
     // MARK: Contracts
@@ -288,6 +383,7 @@ final class WidgetSnapshotWriter {
             updatedAt: Date(),
             tunnelActive: active ?? self.active,
             providing: providing,
+            provideMode: provideMode,
             location: location,
             providers: providers,
             throughput: accumulator.snapshot,
@@ -573,6 +669,12 @@ private final class WidgetProvideListener: NSObject, SdkProvideChangeListenerPro
     private let c: (Bool) -> Void
     init(c: @escaping (Bool) -> Void) { self.c = c }
     func provideChanged(_ provideEnabled: Bool) { c(provideEnabled) }
+}
+
+private final class WidgetProvideControlModeListener: NSObject, SdkProvideControlModeChangeListenerProtocol {
+    private let c: (String?) -> Void
+    init(c: @escaping (String?) -> Void) { self.c = c }
+    func provideControlModeChanged(_ provideControlMode: String?) { c(provideControlMode) }
 }
 
 private final class WidgetConnectedProvidersListener: NSObject, SdkConnectedProviderLocationChangeListenerProtocol {

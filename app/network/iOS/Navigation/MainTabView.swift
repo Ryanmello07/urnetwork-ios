@@ -21,7 +21,6 @@ struct MainTabView: View {
     @State private var opacity: Double = 0
     @StateObject var providerListSheetViewModel: ProviderListSheetViewModel = ProviderListSheetViewModel()
     
-    @StateObject var accountPaymentsViewModel: AccountPaymentsViewModel
     @StateObject var networkUserViewModel: NetworkUserViewModel
     @StateObject var referralLinkViewModel: ReferralLinkViewModel
     @StateObject private var networkReliabilityStore: NetworkReliabilityStore
@@ -30,6 +29,8 @@ struct MainTabView: View {
     
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var snackbarManager: UrSnackbarManager
+    @EnvironmentObject var deepLinkRouter: DeepLinkRouter
+    @EnvironmentObject var deviceManager: DeviceManager
     @Environment(\.presentationActive) private var presentationActive
     
     @State private var selectedTab = 0
@@ -56,12 +57,6 @@ struct MainTabView: View {
 
         self.providerListStore = providerStore
         self.isPro = isPro
-        
-        _accountPaymentsViewModel = StateObject.init(wrappedValue: AccountPaymentsViewModel(
-                api: api
-            )
-        )
-        
         _networkUserViewModel = StateObject(wrappedValue: NetworkUserViewModel(api: api))
         
         _referralLinkViewModel = StateObject(wrappedValue: ReferralLinkViewModel(api: api))
@@ -73,17 +68,11 @@ struct MainTabView: View {
         /**
          * Prompt introduction
          */
-        if (isPro || errorFetchingSubscriptionBalance) {
-            self.displayIntroduction = false
-        } else {
-            
-            if introductionComplete.wrappedValue {
-                self.displayIntroduction = false
-            } else {
-                self.displayIntroduction = true
-            }
-            
-        }
+        self.displayIntroduction = IntroductionGate.shouldDisplay(
+            introductionComplete: introductionComplete.wrappedValue,
+            isPro: isPro,
+            balanceUnavailable: errorFetchingSubscriptionBalance
+        )
         
         setupTabBar()
     }
@@ -95,11 +84,11 @@ struct MainTabView: View {
         TabView(selection: Binding(
             get: { selectedTab },
             set: { newValue in
-                if newValue == 0 && selectedTab == 0 {
-                    // re-tapped the connect tab
-                    connectTabReselectCount += 1
+                if newValue == 0 {
+                    selectConnectTab()
+                } else {
+                    selectedTab = newValue
                 }
-                selectedTab = newValue
             }
         )) {
 
@@ -143,7 +132,6 @@ struct MainTabView: View {
                 urApiService: urApiService,
                 device: device,
                 logout: logout,
-                accountPaymentsViewModel: accountPaymentsViewModel,
                 networkUserViewModel: networkUserViewModel,
                 referralLinkViewModel: referralLinkViewModel,
                 providerCountries: providerListStore.providerCountries,
@@ -204,6 +192,18 @@ struct MainTabView: View {
                 
         }
         .opacity(opacity)
+        // a widget tap lands on the connect tab. The dashboard widget does
+        // exactly what the Connect tab item does; the providers and contracts
+        // widgets select the tab and the connect view takes their sheet from
+        // there
+        .onReceive(deepLinkRouter.$pending) { destination in
+            guard let destination else { return }
+            if destination == .connect {
+                selectConnectTab()
+            } else {
+                selectedTab = 0
+            }
+        }
         .onAppear {
             setPresentationActive(presentationActive)
             withAnimation(.easeOut(duration: 1.0)) {
@@ -222,12 +222,19 @@ struct MainTabView: View {
 
                 IntroductionView(
                     close: {
+                        // finished or skipped: persist it before the cover
+                        // goes away, so a rebuilt tab view never re-prompts
+                        IntroductionGate.finish(
+                            introductionComplete: introductionComplete,
+                            persist: deviceManager.completeIntroFunnel
+                        )
                         displayIntroduction = false
                     },
                     totalReferrals: referralLinkViewModel.totalReferrals,
                     referralCode: referralLinkViewModel.referralCode ?? "",
                     meanReliabilityWeight: networkReliabilityStore.reliabilityWindow?.meanReliabilityWeight ?? 0,
-                    api: urApiService
+                    api: urApiService,
+                    referralTerms: referralLinkViewModel.terms
                 )
 
                 UrSnackBar(
@@ -274,6 +281,16 @@ struct MainTabView: View {
             referralLinkViewModel.clearCelebration()
         }
 
+    }
+
+    /// What a tap on the Connect tab item does: select the tab, and when it
+    /// is already selected, collapse the connect drawer. The tab item and the
+    /// dashboard widget both go through here so the two cannot diverge.
+    private func selectConnectTab() {
+        if selectedTab == 0 {
+            connectTabReselectCount += 1
+        }
+        selectedTab = 0
     }
 
     private func setPresentationActive(_ active: Bool) {

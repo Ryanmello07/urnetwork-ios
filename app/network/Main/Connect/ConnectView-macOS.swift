@@ -19,6 +19,7 @@ import URnetworkSdk
         @Environment(\.requestReview) private var requestReview
 
         @EnvironmentObject var connectViewModel: ConnectViewModel
+        @EnvironmentObject var deepLinkRouter: DeepLinkRouter
 
         @State var isLoading: Bool = false
 
@@ -29,26 +30,43 @@ import URnetworkSdk
         @State var displayReconnectTunnel: Bool = false
         @State private var presentedStatsSheet: ConnectStatsSheet? = nil
         
+        /// Presents the sheet a widget tap asked for, if one is pending.
+        private func presentWidgetDestination() {
+            guard let destination = deepLinkRouter.consume() else { return }
+            switch destination {
+            case .providers:
+                presentedStatsSheet = .providerLocations
+            case .contracts:
+                presentedStatsSheet = .clientContracts
+            case .connect:
+                break
+            }
+        }
+        
         let promptMoreDataFlow: () -> Void
         let meanReliabilityWeight: Double
-        let totalReferrals: Int
-        let referralCode: String?
         let isPro: Bool
+        let api: SdkApi
+        let urApiService: UrApiServiceProtocol
+        @ObservedObject var referralLinkViewModel: ReferralLinkViewModel
+        // the one Referrals screen, presented from the drawer's referral row
+        @State private var isPresentedReferrals = false
 
         init(
+            api: SdkApi,
             urApiService: UrApiServiceProtocol,
             providerStore: ProviderListStore,
             promptMoreDataFlow: @escaping () -> Void,
             meanReliabilityWeight: Double,
-            totalReferrals: Int,
-            referralCode: String?,
+            referralLinkViewModel: ReferralLinkViewModel,
             isPro: Bool
         ) {
+            self.api = api
+            self.urApiService = urApiService
             self.providerListStore = providerStore
             self.promptMoreDataFlow = promptMoreDataFlow
             self.meanReliabilityWeight = meanReliabilityWeight
-            self.totalReferrals = totalReferrals
-            self.referralCode = referralCode
+            self.referralLinkViewModel = referralLinkViewModel
             self.isPro = isPro
         }
 
@@ -105,9 +123,14 @@ import URnetworkSdk
                                 pendingByteCount: subscriptionBalanceViewModel.pendingByteCount,
                                 usedByteCount: subscriptionBalanceViewModel.usedBalanceByteCount,
                                 promptMoreDataFlow: promptMoreDataFlow,
+                                openUpgradeSheet: {
+                                    connectViewModel.isPresentedUpgradeSheet = true
+                                },
                                 meanReliabilityWeight: meanReliabilityWeight,
-                                totalReferrals: totalReferrals,
-                                referralCode: referralCode,
+                                totalReferrals: referralLinkViewModel.totalReferrals,
+                                openReferrals: {
+                                    isPresentedReferrals = true
+                                },
                                 isPro: isPro,
                                 selectedWindowType: $deviceManager.selectedWindowType,
                                 fixedIpSize: $deviceManager.fixedIpSize,
@@ -212,11 +235,30 @@ import URnetworkSdk
 
             // statistics and dns detail sheets (store subscription isolated in the modifier)
             .modifier(ConnectStatsSheets(presentedStatsSheet: $presentedStatsSheet))
+            // a Home Screen widget tap: provider details or client contracts
+            .onReceive(deepLinkRouter.$pending) { _ in
+                presentWidgetDestination()
+            }
+            .onAppear {
+                presentWidgetDestination()
+            }
+            // referrals: the Account section's screen, unchanged, in a sheet
+            .sheet(isPresented: $isPresentedReferrals) {
+                ReferralsSheet(
+                    api: urApiService,
+                    sdkApi: api,
+                    referralLinkViewModel: referralLinkViewModel,
+                    dismiss: { isPresentedReferrals = false }
+                )
+                .environmentObject(themeManager)
+                .frame(minWidth: 560, minHeight: 640)
+            }
             // upgrade subscription
             .sheet(isPresented: $connectViewModel.isPresentedUpgradeSheet) {
                 UpgradeSubscriptionSheet(
                     monthlyProduct: subscriptionManager.monthlySubscription,
                     yearlyProduct: subscriptionManager.yearlySubscription,
+                    purchaseUnavailable: { subscriptionManager.reportProductsUnavailable() },
                     purchase: { product in
 
                         // purchase fails in the Mac App Store if the vpn is

@@ -59,11 +59,14 @@ struct ConnectActions: View {
     let availableByteCount: Int
     let pendingByteCount: Int
     let usedByteCount: Int
+    // insufficient balance: the participate flow (introduction) for more data
     let promptMoreDataFlow: () -> Void
+    // Get Pro: the same upgrade sheet Account presents from its plan row
+    let openUpgradeSheet: () -> Void
     let meanReliabilityWeight: Double
     let totalReferrals: Int
-    // when set, the usage bar referral row shares the referral link
-    let referralCode: String?
+    // the usage bar referral row opens the one Referrals screen
+    let openReferrals: () -> Void
     let isPro: Bool
     @Binding var selectedWindowType: WindowType
     @Binding var fixedIpSize: Bool
@@ -299,7 +302,7 @@ struct ConnectActions: View {
 
                             if (!isPro) {
                                 Button(action: {
-                                    promptMoreDataFlow()
+                                    openUpgradeSheet()
                                 }) {
                                     Text("Get Pro")
                                         .font(themeManager.currentTheme.secondaryBodyFont)
@@ -315,7 +318,7 @@ struct ConnectActions: View {
                             meanReliabilityWeight: meanReliabilityWeight,
                             totalReferrals: totalReferrals,
                             dailyBalanceByteCount: dailyBalanceByteCount,
-                            referralCode: referralCode
+                            openReferrals: openReferrals
                         )
                         
                     }

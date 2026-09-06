@@ -103,7 +103,7 @@ struct WidgetProviderSnapshot: Codable, Equatable, Identifiable {
     }
 }
 
-/// One fixed-width bucket of bytes moved, per side.
+/// One fixed-width bucket of bytes and packets moved, per side.
 struct WidgetThroughputBucket: Codable, Equatable {
     /// Bucket start, unix seconds.
     var start: Int64
@@ -114,11 +114,50 @@ struct WidgetThroughputBucket: Codable, Equatable {
     /// blocked routes, as the app's provider charts draw them).
     var providerEgress: Int64
     var providerIngress: Int64
+    /// Packet counts for the same routes, drawn as the chart's second series
+    /// (pink) next to the bytes (green), as the app's TransferChart does.
+    /// Absent in snapshots written before packets were recorded: they decode
+    /// as zero, which draws as a flat packet line.
+    var clientEgressPackets: Int64 = 0
+    var clientIngressPackets: Int64 = 0
+    var providerEgressPackets: Int64 = 0
+    var providerIngressPackets: Int64 = 0
 
     static func empty(start: Int64) -> WidgetThroughputBucket {
         WidgetThroughputBucket(
             start: start, clientEgress: 0, clientIngress: 0, providerEgress: 0, providerIngress: 0
         )
+    }
+
+    init(
+        start: Int64,
+        clientEgress: Int64, clientIngress: Int64,
+        providerEgress: Int64, providerIngress: Int64,
+        clientEgressPackets: Int64 = 0, clientIngressPackets: Int64 = 0,
+        providerEgressPackets: Int64 = 0, providerIngressPackets: Int64 = 0
+    ) {
+        self.start = start
+        self.clientEgress = clientEgress
+        self.clientIngress = clientIngress
+        self.providerEgress = providerEgress
+        self.providerIngress = providerIngress
+        self.clientEgressPackets = clientEgressPackets
+        self.clientIngressPackets = clientIngressPackets
+        self.providerEgressPackets = providerEgressPackets
+        self.providerIngressPackets = providerIngressPackets
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        start = try c.decode(Int64.self, forKey: .start)
+        clientEgress = try c.decode(Int64.self, forKey: .clientEgress)
+        clientIngress = try c.decode(Int64.self, forKey: .clientIngress)
+        providerEgress = try c.decode(Int64.self, forKey: .providerEgress)
+        providerIngress = try c.decode(Int64.self, forKey: .providerIngress)
+        clientEgressPackets = try c.decodeIfPresent(Int64.self, forKey: .clientEgressPackets) ?? 0
+        clientIngressPackets = try c.decodeIfPresent(Int64.self, forKey: .clientIngressPackets) ?? 0
+        providerEgressPackets = try c.decodeIfPresent(Int64.self, forKey: .providerEgressPackets) ?? 0
+        providerIngressPackets = try c.decodeIfPresent(Int64.self, forKey: .providerIngressPackets) ?? 0
     }
 }
 
@@ -141,6 +180,9 @@ struct WidgetTunnelSnapshot: Codable, Equatable {
     /// NEVPNStatus for the on/off question and use this for the rest.
     var tunnelActive: Bool
     var providing: Bool
+    /// The provide control mode ("auto", "always", "network", "never"); nil
+    /// when unknown or written before this field existed.
+    var provideMode: String? = nil
     var location: WidgetLocationSnapshot?
     /// Active providers in the tunnel's window, oldest-connected first.
     var providers: [WidgetProviderSnapshot]
@@ -174,7 +216,7 @@ struct WidgetBalanceSnapshot: Codable, Equatable {
     }
 }
 
-/// Folds cumulative packet counters into fixed one-minute buckets. Pure
+/// Folds cumulative byte and packet counters into fixed one-minute buckets. Pure
 /// value type so the extension can persist it inside the snapshot and pick
 /// up where it left off after a restart (the chart then survives a tunnel
 /// restart instead of resetting to flat).
@@ -190,6 +232,10 @@ struct WidgetThroughputAccumulator: Codable, Equatable {
     private var lastClientIngress: Int64?
     private var lastProviderEgress: Int64?
     private var lastProviderIngress: Int64?
+    private var lastClientEgressPackets: Int64?
+    private var lastClientIngressPackets: Int64?
+    private var lastProviderEgressPackets: Int64?
+    private var lastProviderIngressPackets: Int64?
 
     init() {}
 
@@ -203,29 +249,49 @@ struct WidgetThroughputAccumulator: Codable, Equatable {
         WidgetThroughputSnapshot(bucketSeconds: Self.bucketSeconds, buckets: buckets)
     }
 
-    /// Record the client-side cumulative counters as of `date`.
-    mutating func recordClient(egress: Int64, ingress: Int64, at date: Date = Date()) {
+    /// Record the client-side cumulative counters (bytes and packets) as of `date`.
+    mutating func recordClient(
+        egress: Int64, ingress: Int64,
+        egressPackets: Int64, ingressPackets: Int64,
+        at date: Date = Date()
+    ) {
         let dEgress = Self.delta(from: lastClientEgress, to: egress)
         let dIngress = Self.delta(from: lastClientIngress, to: ingress)
+        let dEgressPackets = Self.delta(from: lastClientEgressPackets, to: egressPackets)
+        let dIngressPackets = Self.delta(from: lastClientIngressPackets, to: ingressPackets)
         lastClientEgress = egress
         lastClientIngress = ingress
-        guard 0 < dEgress || 0 < dIngress else { return }
+        lastClientEgressPackets = egressPackets
+        lastClientIngressPackets = ingressPackets
+        guard 0 < dEgress || 0 < dIngress || 0 < dEgressPackets || 0 < dIngressPackets else { return }
         var bucket = currentBucket(at: date)
         bucket.clientEgress += dEgress
         bucket.clientIngress += dIngress
+        bucket.clientEgressPackets += dEgressPackets
+        bucket.clientIngressPackets += dIngressPackets
         buckets[buckets.count - 1] = bucket
     }
 
-    /// Record the provider-side cumulative counters as of `date`.
-    mutating func recordProvider(egress: Int64, ingress: Int64, at date: Date = Date()) {
+    /// Record the provider-side cumulative counters (bytes and packets) as of `date`.
+    mutating func recordProvider(
+        egress: Int64, ingress: Int64,
+        egressPackets: Int64, ingressPackets: Int64,
+        at date: Date = Date()
+    ) {
         let dEgress = Self.delta(from: lastProviderEgress, to: egress)
         let dIngress = Self.delta(from: lastProviderIngress, to: ingress)
+        let dEgressPackets = Self.delta(from: lastProviderEgressPackets, to: egressPackets)
+        let dIngressPackets = Self.delta(from: lastProviderIngressPackets, to: ingressPackets)
         lastProviderEgress = egress
         lastProviderIngress = ingress
-        guard 0 < dEgress || 0 < dIngress else { return }
+        lastProviderEgressPackets = egressPackets
+        lastProviderIngressPackets = ingressPackets
+        guard 0 < dEgress || 0 < dIngress || 0 < dEgressPackets || 0 < dIngressPackets else { return }
         var bucket = currentBucket(at: date)
         bucket.providerEgress += dEgress
         bucket.providerIngress += dIngress
+        bucket.providerEgressPackets += dEgressPackets
+        bucket.providerIngressPackets += dIngressPackets
         buckets[buckets.count - 1] = bucket
     }
 
@@ -252,6 +318,85 @@ struct WidgetThroughputAccumulator: Codable, Equatable {
             buckets.removeFirst(buckets.count - Self.bucketCount)
         }
         return buckets[buckets.count - 1]
+    }
+}
+
+/// The cross-process "a snapshot was published" signal. Posted by whoever
+/// writes a snapshot (the tunnel extension, the app) and by every widget
+/// reload request, so the app's own view of the widgets (Account > Widgets)
+/// re-renders the moment the pinned widgets would. Darwin notifications
+/// carry no payload and cross the app / extension boundary; a listener
+/// re-reads the snapshot files.
+enum WidgetSnapshotChange {
+
+    static let darwinNotificationName = "network.ur.widgets.snapshot-changed"
+
+    static func post() {
+        CFNotificationCenterPostNotification(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            CFNotificationName(darwinNotificationName as CFString),
+            nil,
+            nil,
+            true
+        )
+    }
+}
+
+/// Account > Widgets is on screen: the app marks this while its live previews
+/// are visible, so the tunnel extension publishes at a preview cadence (every
+/// couple of seconds instead of once a minute) and the previews move like the
+/// pinned widgets would. The mark carries an expiry and the app re-arms it
+/// while the screen stays up, so an app that dies with the screen open cannot
+/// leave the extension writing fast forever. Posted as a Darwin notification,
+/// the one channel that crosses from the app to the extension.
+enum WidgetPreviewVisibility {
+
+    static let darwinNotificationName = "network.ur.widgets.preview-visibility"
+    static let fileName = "preview-visible.json"
+    /// How long one mark lasts; the app re-arms every `heartbeatInterval`.
+    static let markInterval: TimeInterval = 90
+    static let heartbeatInterval: TimeInterval = 30
+
+    private struct Mark: Codable {
+        var until: Date
+    }
+
+    /// True while an unexpired mark is on disk.
+    static var isVisible: Bool {
+        guard let url = WidgetSnapshotStore.directoryURL?.appendingPathComponent(fileName),
+              let data = try? Data(contentsOf: url),
+              let mark = try? WidgetSnapshotStore.decoder.decode(Mark.self, from: data) else {
+            return false
+        }
+        return Date() < mark.until
+    }
+
+    /// The previews are showing: mark (or re-arm) and tell the extension.
+    static func mark() {
+        guard let directory = WidgetSnapshotStore.directoryURL else { return }
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let data = try WidgetSnapshotStore.encoder.encode(Mark(until: Date().addingTimeInterval(markInterval)))
+            try data.write(to: directory.appendingPathComponent(fileName), options: .atomic)
+        } catch {
+            return
+        }
+        post()
+    }
+
+    /// The previews are gone: clear the mark and tell the extension.
+    static func clear() {
+        guard let url = WidgetSnapshotStore.directoryURL?.appendingPathComponent(fileName) else { return }
+        try? FileManager.default.removeItem(at: url)
+        post()
+    }
+
+    private static func post() {
+        CFNotificationCenterPostNotification(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            CFNotificationName(darwinNotificationName as CFString),
+            nil, nil, true
+        )
     }
 }
 
@@ -294,7 +439,7 @@ enum WidgetSnapshotStore {
         guard let directory = directoryURL else {
             return
         }
-        for fileName in [tunnelFileName, balanceFileName] {
+        for fileName in [tunnelFileName, balanceFileName, WidgetPreviewVisibility.fileName] {
             try? FileManager.default.removeItem(at: directory.appendingPathComponent(fileName))
         }
     }
@@ -315,19 +460,20 @@ enum WidgetSnapshotStore {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let data = try encoder.encode(value)
             try data.write(to: directory.appendingPathComponent(fileName), options: .atomic)
+            WidgetSnapshotChange.post()
             return true
         } catch {
             return false
         }
     }
 
-    private static var encoder: JSONEncoder {
+    static var encoder: JSONEncoder {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .secondsSince1970
         return encoder
     }
 
-    private static var decoder: JSONDecoder {
+    static var decoder: JSONDecoder {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .secondsSince1970
         return decoder

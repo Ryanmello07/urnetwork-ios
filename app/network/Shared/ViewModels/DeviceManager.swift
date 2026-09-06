@@ -1134,7 +1134,9 @@ extension DeviceManager {
             }
             
             DispatchQueue.main.async {
-                self.providePaused = providePaused
+                if self.providePaused != providePaused {
+                    self.providePaused = providePaused
+                }
             }
         })
         
@@ -1144,7 +1146,9 @@ extension DeviceManager {
             }
             
             DispatchQueue.main.async {
-                self.provideEnabled = provideEnabled
+                if self.provideEnabled != provideEnabled {
+                    self.provideEnabled = provideEnabled
+                }
             }
         })
         
@@ -1219,7 +1223,9 @@ extension DeviceManager {
         self.deviceProvideModeSub = device.add(ProvideModeChangeListener { [weak self] provideMode in
             try? self?.asyncLocalState?.getLocalState()?.setProvideMode(provideMode)
             DispatchQueue.main.async { [weak self] in
-                self?.currentProvideMode = provideMode
+                if self?.currentProvideMode != provideMode {
+                    self?.currentProvideMode = provideMode
+                }
             }
         })
 
@@ -1399,7 +1405,13 @@ private class SetJWTLocalStateCallback: NSObject, SdkCommitCallbackProtocol {
 @MainActor
 extension DeviceManager {
     
-    func authenticateNetworkClient(_ jwt: String) async -> Result<Void, Error> {
+    /**
+     * Signs the network in. The post-login onboarding flow is for a network
+     * that was just created (`newNetwork`), never for an existing account
+     * signing in: the SDK reads a missing flag as "may prompt", so the flag is
+     * written explicitly on every login, before the device reads it.
+     */
+    func authenticateNetworkClient(_ jwt: String, newNetwork: Bool = false) async -> Result<Void, Error> {
         guard let asyncLocalState = asyncLocalState,
               let localState = asyncLocalState.getLocalState() else {
             return .failure(NSError(domain: domain, code: 0, userInfo: [NSLocalizedDescriptionKey: "login: local state is nil"]))
@@ -1407,6 +1419,7 @@ extension DeviceManager {
 
         do {
             try localState.setByJwt(jwt)
+            try localState.setCanPromptIntroFunnel(newNetwork)
         } catch {
             return .failure(error)
         }
@@ -1479,6 +1492,16 @@ extension DeviceManager {
             return .failure(error)
         }
         
+    }
+
+    /**
+     * Records that the post-signup introduction finished or was skipped. The
+     * flag is written to the local state directly and pushed to the device, so
+     * a rebuilt view or a later launch never prompts again for this network.
+     */
+    func completeIntroFunnel() {
+        try? asyncLocalState?.getLocalState()?.setCanPromptIntroFunnel(false)
+        device?.setCanPromptIntroFunnel(false)
     }
 
     private func rollbackFailedNetworkClientAuthentication() async {

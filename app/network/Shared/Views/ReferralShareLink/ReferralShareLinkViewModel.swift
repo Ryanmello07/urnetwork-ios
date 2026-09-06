@@ -23,6 +23,8 @@ class ReferralLinkViewModel: ObservableObject {
 
     @Published private(set) var referralCode: String?
     @Published private(set) var totalReferrals: Int = 0
+    /// The referral cap and bonus, from the server with the code (defaults until the first fetch).
+    @Published private(set) var terms: ReferralTerms = .default
     @Published private(set) var isLoading: Bool = false
 
     /**
@@ -36,6 +38,9 @@ class ReferralLinkViewModel: ObservableObject {
     @Published private(set) var pendingCelebration: ReferralCelebration?
 
     func clearCelebration() {
+        // its observer (onChange in the tab views) calls this; write only on
+        // an actual change so the clear cannot re-publish into itself
+        guard pendingCelebration != nil else { return }
         pendingCelebration = nil
     }
 
@@ -168,6 +173,7 @@ class ReferralLinkViewModel: ObservableObject {
             
             self.referralCode = result.referralCode
             self.totalReferrals = result.totalReferrals
+            self.terms = ReferralTerms.from(result)
             self.isLoading = false
 
             self.maybeCelebrate(code: result.referralCode, count: result.totalReferrals)

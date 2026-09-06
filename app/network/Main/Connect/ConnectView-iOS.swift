@@ -19,6 +19,7 @@ struct ConnectView_iOS: View {
     @Environment(\.requestReview) private var requestReview
     
     @EnvironmentObject var connectViewModel: ConnectViewModel
+    @EnvironmentObject var deepLinkRouter: DeepLinkRouter
 
     @ObservedObject var referralLinkViewModel: ReferralLinkViewModel
     
@@ -26,6 +27,7 @@ struct ConnectView_iOS: View {
     
     let logout: () -> Void
     let api: SdkApi
+    let urApiService: UrApiServiceProtocol
     let promptMoreDataFlow: () -> Void
     let meanReliabilityWeight: Double
     let isPro: Bool
@@ -36,8 +38,23 @@ struct ConnectView_iOS: View {
     @State var displayReconnectTunnel: Bool = false
 
     @State private var isSheetExpanded = false
+    // the one Referrals screen, presented from the drawer's referral row
+    @State private var isPresentedReferrals = false
     @State private var sheetDragTranslation: CGFloat = 0
     @State private var presentedStatsSheet: ConnectStatsSheet? = nil
+    
+    /// Presents the sheet a widget tap asked for, if one is pending.
+    private func presentWidgetDestination() {
+        guard let destination = deepLinkRouter.consume() else { return }
+        switch destination {
+        case .providers:
+            presentedStatsSheet = .providerLocations
+        case .contracts:
+            presentedStatsSheet = .clientContracts
+        case .connect:
+            break
+        }
+    }
 
     // whether the expanded sheet's content is scrolled to the very top.
     // at the top, a downward drag closes the sheet instead of rubber-banding
@@ -77,6 +94,7 @@ struct ConnectView_iOS: View {
     ) {
         self.logout = logout
         self.api = api
+        self.urApiService = urApiService
         self.providerListSheetViewModel = providerListSheetViewModel
         self.referralLinkViewModel = referralLinkViewModel
         self.providerListStore = providerStore
@@ -222,9 +240,16 @@ struct ConnectView_iOS: View {
                                     promptMoreDataFlow()
                                     isSheetExpanded = false
                                 },
+                                openUpgradeSheet: {
+                                    isSheetExpanded = false
+                                    connectViewModel.isPresentedUpgradeSheet = true
+                                },
                                 meanReliabilityWeight: meanReliabilityWeight,
                                 totalReferrals: referralLinkViewModel.totalReferrals,
-                                referralCode: referralLinkViewModel.referralCode,
+                                openReferrals: {
+                                    isSheetExpanded = false
+                                    isPresentedReferrals = true
+                                },
                                 isPro: isPro,
                                 selectedWindowType: $deviceManager.selectedWindowType,
                                 fixedIpSize: $deviceManager.fixedIpSize,
@@ -383,11 +408,29 @@ struct ConnectView_iOS: View {
             }
             // statistics and dns detail sheets (store subscription isolated in the modifier)
             .modifier(ConnectStatsSheets(presentedStatsSheet: $presentedStatsSheet))
+        // a Home Screen widget tap: provider details or client contracts
+        .onReceive(deepLinkRouter.$pending) { _ in
+            presentWidgetDestination()
+        }
+        .onAppear {
+            presentWidgetDestination()
+        }
+        // referrals: the Account section's screen, unchanged, in a sheet
+        .sheet(isPresented: $isPresentedReferrals) {
+            ReferralsSheet(
+                api: urApiService,
+                sdkApi: api,
+                referralLinkViewModel: referralLinkViewModel,
+                dismiss: { isPresentedReferrals = false }
+            )
+            .environmentObject(themeManager)
+        }
             // upgrade subscription
             .sheet(isPresented: $connectViewModel.isPresentedUpgradeSheet) {
                 UpgradeSubscriptionSheet(
                     monthlyProduct: subscriptionManager.monthlySubscription,
                     yearlyProduct: subscriptionManager.yearlySubscription,
+                    purchaseUnavailable: { subscriptionManager.reportProductsUnavailable() },
                     purchase: { product in
 
                         // note: no VPN disconnect around the purchase on iOS —

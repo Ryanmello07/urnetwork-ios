@@ -30,11 +30,8 @@ struct AccountRootView: View {
     @StateObject private var viewModel: ViewModel = ViewModel()
 
     @ObservedObject var referralLinkViewModel: ReferralLinkViewModel
-    @ObservedObject var accountPaymentsViewModel: AccountPaymentsViewModel
+    @ObservedObject var accountPointsStore: AccountPointsStore
 
-    // presents the gold king-frog refer panel
-    @State private var isPresentedReferSheet = false
-    
     private let urnetworkAppStoreID = "6741000606"
     
     private func appStoreWriteReviewURL(appID: String) -> URL? {
@@ -55,7 +52,7 @@ struct AccountRootView: View {
         api: SdkApi,
         urApiService: UrApiServiceProtocol,
         referralLinkViewModel: ReferralLinkViewModel,
-        accountPaymentsViewModel: AccountPaymentsViewModel,
+        accountPointsStore: AccountPointsStore,
         networkName: String?,
         meanReliabilityWeight: Double,
         isPro: Bool
@@ -66,13 +63,25 @@ struct AccountRootView: View {
         self.urApiService = urApiService
         
         self.referralLinkViewModel = referralLinkViewModel
-        self.accountPaymentsViewModel = accountPaymentsViewModel
+        self.accountPointsStore = accountPointsStore
         self.networkName = networkName
         self.meanReliabilityWeight = meanReliabilityWeight
         self.isPro = isPro
     }
     
     
+    /**
+     * Opens the one Referrals screen. Guests create an account first, so the
+     * usage bar row, the Referrals row and the account menu all behave alike.
+     */
+    private func openReferrals(isGuest: Bool) {
+        if isGuest {
+            viewModel.isPresentedCreateAccount = true
+        } else {
+            navigate(.referrals)
+        }
+    }
+
     var body: some View {
         
         let isGuest = deviceManager.parsedJwt?.guestMode ?? true
@@ -116,7 +125,7 @@ struct AccountRootView: View {
                                 Button(action: {
                                     viewModel.isPresentedUpgradeSheet = true
                                 }) {
-                                    Text("Upgrade")
+                                    Text("Get Pro")
                                         .font(themeManager.currentTheme.secondaryBodyFont)
                                 }
                                 
@@ -133,7 +142,7 @@ struct AccountRootView: View {
                             meanReliabilityWeight: meanReliabilityWeight,
                             totalReferrals: referralLinkViewModel.totalReferrals,
                             dailyBalanceByteCount: subscriptionBalanceViewModel.startBalanceByteCount,
-                            referralCode: referralLinkViewModel.referralCode
+                            openReferrals: { openReferrals(isGuest: isGuest) }
                         )
                         
                         /**
@@ -169,7 +178,7 @@ struct AccountRootView: View {
                             .padding(.vertical, 16)
                         
                         HStack {
-                            Text("Network earnings")
+                            Text("Points earned")
                                 .font(themeManager.currentTheme.secondaryBodyFont)
                                 .foregroundColor(themeManager.currentTheme.textMutedColor)
                             Spacer()
@@ -177,15 +186,9 @@ struct AccountRootView: View {
                         
                         HStack(alignment: .firstTextBaseline) {
                             
-                            let totalPayouts = accountPaymentsViewModel.totalPayoutsUsdc
-                            
-                            Text(totalPayouts > 0 ? String(format: "%.4f", totalPayouts) : "0")
+                            Text(verbatim: SnAlpha.formatPoints(accountPointsStore.netPoints))
                                 .font(themeManager.currentTheme.titleCondensedFont)
                                 .foregroundColor(themeManager.currentTheme.textColor)
-                            
-                            Text("USDC")
-                                .font(themeManager.currentTheme.secondaryBodyFont)
-                                .foregroundColor(themeManager.currentTheme.textMutedColor)
                             
                             Spacer()
                             
@@ -228,71 +231,42 @@ struct AccountRootView: View {
                         )
                         .accessibilityIdentifier("acceptance.account.settings")
                         AccountNavLink(
-                            name: "Wallet",
+                            name: "Earnings",
                             iconPath: "ur.symbols.wallet",
                             action: {
                                 if isGuest {
                                     viewModel.isPresentedCreateAccount = true
                                 } else {
-                                    navigate(.wallets)
+                                    navigate(.earnings)
                                 }
                             }
                         )
                         
                         /**
-                         * Refer friends: opens the gold king-frog refer panel
-                         * (same as the ur.io referral panel)
+                         * Referrals: the network's code and share button, friends
+                         * joined, points from referrals and the referral network,
+                         * in its own section (it used to be a sheet here and split
+                         * across Settings)
                          */
-                        Button(action: {
-                            isPresentedReferSheet = true
-                        }) {
+                        AccountNavLink(
+                            name: "Referrals",
+                            iconPath: "ur.symbols.heart",
+                            action: { openReferrals(isGuest: isGuest) }
+                        )
 
-                            VStack(spacing: 0) {
-                                HStack {
-
-                                    Image("ur.symbols.heart")
-                                        .foregroundColor(themeManager.currentTheme.textMutedColor)
-
-                                    Spacer().frame(width: 16)
-
-                                    Text("Refer friends")
-                                        .font(themeManager.currentTheme.bodyFont)
-                                        .foregroundColor(themeManager.currentTheme.textColor)
-
-                                    Spacer()
-
-                                }
-                                .padding(.vertical, 8)
-                                .padding(.horizontal)
-
-                                Divider()
-                                    .background(themeManager.currentTheme.borderBaseColor)
-
+                        /**
+                         * Widgets: the quick connect control and the Home Screen
+                         * widgets with the steps to add them, the same content as
+                         * the last onboarding page
+                         */
+                        AccountNavLink(
+                            name: "Widgets",
+                            iconPath: "ur.symbols.widgets",
+                            action: {
+                                navigate(.widgets)
                             }
-
-                        }
-                        .buttonStyle(.plain)
-                        .sheet(isPresented: $isPresentedReferSheet) {
-                            #if os(iOS)
-                            ReferSheet(
-                                referralLinkViewModel: referralLinkViewModel,
-                                dismiss: {
-                                    isPresentedReferSheet = false
-                                }
-                            )
-                            .environmentObject(themeManager)
-                            .presentationDetents([.large])
-                            #elseif os(macOS)
-                            ReferSheet(
-                                referralLinkViewModel: referralLinkViewModel,
-                                dismiss: {
-                                    isPresentedReferSheet = false
-                                }
-                            )
-                            .environmentObject(themeManager)
-                            .frame(minWidth: 480, minHeight: 620)
-                            #endif
-                        }
+                        )
+                        .accessibilityIdentifier("acceptance.account.widgets")
                         
                         /**
                          * Review
@@ -463,6 +437,7 @@ struct AccountRootView: View {
             UpgradeSubscriptionSheet(
                 monthlyProduct: subscriptionManager.monthlySubscription,
                 yearlyProduct: subscriptionManager.yearlySubscription,
+                purchaseUnavailable: { subscriptionManager.reportProductsUnavailable() },
                 purchase: { product in
 
                     let initiallyConnected = deviceManager.device?.getConnected() ?? false
@@ -555,7 +530,7 @@ struct AccountRootView: View {
                     logout: logout,
                     networkName: networkName,
                     isPresentedCreateAccount: $viewModel.isPresentedCreateAccount,
-                    referralLinkViewModel: referralLinkViewModel
+                    openReferrals: { openReferrals(isGuest: isGuest) }
                 )
             }
         }
@@ -589,18 +564,18 @@ struct AccountRootView: View {
                     logout: logout,
                     networkName: networkName,
                     isPresentedCreateAccount: $viewModel.isPresentedCreateAccount,
-                    referralLinkViewModel: referralLinkViewModel
+                    openReferrals: { openReferrals(isGuest: isGuest) }
                 )
             }
             ToolbarItem(placement: .automatic) {
                 Button(action: {
                     Task {
-                        await accountPaymentsViewModel.fetchPayments()
+                        await accountPointsStore.fetchAccountPoints()
                     }
                 }) {
                     Image(systemName: "arrow.clockwise")
                 }
-                .disabled(accountPaymentsViewModel.isLoadingPayments)
+                .disabled(accountPointsStore.isLoading)
             }
         }
         #endif

@@ -18,36 +18,35 @@ struct DashboardView: View {
     let entry: SnapshotEntry
 
     var body: some View {
-        if family == .systemLarge {
-            VStack(alignment: .leading, spacing: 10) {
-                header
-                BalanceBarView(balance: entry.balance)
-                charts
-                Spacer(minLength: 0)
-                footer
+        Group {
+            if family == .systemLarge {
+                VStack(alignment: .leading, spacing: 10) {
+                    header
+                    BalanceBarView(balance: entry.balance)
+                    charts
+                    Spacer(minLength: 0)
+                    footer
+                }
+            } else {
+                // the short widget is exactly the large one's top section:
+                // location, provider count, quick connect, balance bar
+                VStack(alignment: .leading, spacing: 10) {
+                    header
+                    BalanceBarView(balance: entry.balance)
+                }
+                .frame(maxHeight: .infinity, alignment: .center)
             }
-        } else {
-            // the short widget is exactly the large one's top section:
-            // location, provider count, quick connect, balance bar
-            VStack(alignment: .leading, spacing: 10) {
-                header
-                BalanceBarView(balance: entry.balance)
-            }
-            .frame(maxHeight: .infinity, alignment: .center)
         }
+        // a tap anywhere else opens the app on the connect tab
+        .widgetURL(WidgetDestination.connect.url)
     }
 
     // MARK: Header: location + quick connect
 
     private var header: some View {
         HStack(spacing: 10) {
-            // the solid connector: white when off, the app's connected green
-            // when the tunnel is up (pink is reserved for the quick connect
-            // button and the control)
-            Image(WidgetTheme.connectorSymbolFill)
-                .font(.system(size: 22))
-                .foregroundStyle(entry.isOn ? WidgetTheme.connected : WidgetTheme.text)
-                .widgetAccentable()
+            // the location's country color, as the in-app location list shows it
+            LocationColorDot(location: entry.showsTunnelData ? entry.tunnel.location : nil)
             VStack(alignment: .leading, spacing: 2) {
                 Text(locationTitle)
                     .font(WidgetTheme.title)
@@ -103,24 +102,50 @@ struct DashboardView: View {
         return VStack(spacing: 8) {
             ThroughputChartView(
                 title: "Client",
-                color: WidgetTheme.clientSeries,
+                color: WidgetTheme.byteSeries,
                 points: throughput.buckets.map {
-                    ThroughputChartView.Point(start: $0.start, egress: $0.clientEgress, ingress: $0.clientIngress)
+                    ThroughputChartView.Point(
+                        start: $0.start,
+                        egress: $0.clientEgress, ingress: $0.clientIngress,
+                        egressPackets: $0.clientEgressPackets, ingressPackets: $0.clientIngressPackets
+                    )
                 },
                 bucketSeconds: throughput.bucketSeconds,
                 now: entry.date,
                 placeholder: nil
             )
             ThroughputChartView(
-                title: "Provider",
-                color: WidgetTheme.providerSeries,
+                title: providerTitle,
+                color: WidgetTheme.byteSeries,
                 points: throughput.buckets.map {
-                    ThroughputChartView.Point(start: $0.start, egress: $0.providerEgress, ingress: $0.providerIngress)
+                    ThroughputChartView.Point(
+                        start: $0.start,
+                        egress: $0.providerEgress, ingress: $0.providerIngress,
+                        egressPackets: $0.providerEgressPackets, ingressPackets: $0.providerIngressPackets
+                    )
                 },
                 bucketSeconds: throughput.bucketSeconds,
                 now: entry.date,
-                placeholder: entry.tunnel.providing ? nil : "Not providing"
+                placeholder: entry.tunnel.providing ? nil : "Provider stats will appear when the provider is enabled."
             )
+        }
+    }
+
+    /// "Provider · Auto": the chart name with the current provide mode.
+    private var providerTitle: LocalizedStringKey {
+        guard let mode = entry.tunnel.provideMode, let label = Self.provideModeLabel(mode) else {
+            return "Provider"
+        }
+        return "Provider · \(label)"
+    }
+
+    private static func provideModeLabel(_ mode: String) -> String? {
+        switch mode {
+        case "auto": return String(localized: "Auto")
+        case "always": return String(localized: "Always")
+        case "network": return String(localized: "Network")
+        case "never": return String(localized: "Never")
+        default: return nil
         }
     }
 
@@ -203,83 +228,6 @@ struct QuickConnectButton: View {
             }
             .buttonStyle(.bordered)
             .tint(WidgetTheme.tint)
-        }
-    }
-}
-
-/// The three-segment transfer balance bar, as the app's UsageBar draws it:
-/// used, pending, available out of the daily start balance. Segments are
-/// clamped to a minimum width so a small one still shows.
-struct BalanceBarView: View {
-
-    let balance: WidgetBalanceSnapshot?
-
-    private static let minimumFraction = 0.015
-    private static let barHeight: CGFloat = 8
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Balance")
-                    .font(WidgetTheme.caption)
-                    .foregroundStyle(WidgetTheme.textMuted)
-                Spacer()
-                Text(summary)
-                    .font(WidgetTheme.label)
-                    .foregroundStyle(WidgetTheme.text)
-                    .lineLimit(1)
-            }
-            GeometryReader { geometry in
-                HStack(spacing: 2) {
-                    ForEach(segments(width: geometry.size.width), id: \.id) { segment in
-                        Rectangle()
-                            .fill(segment.color)
-                            .frame(width: segment.width)
-                    }
-                }
-                .clipShape(Capsule())
-            }
-            .frame(height: Self.barHeight)
-        }
-    }
-
-    private var summary: String {
-        guard let balance else {
-            return "—"
-        }
-        let available = formatBalanceBytes(Int(clamping: balance.balanceByteCount))
-        let start = formatBalanceBytes(Int(clamping: balance.startBalanceByteCount))
-        return "\(available) / \(start)"
-    }
-
-    private struct Segment {
-        let id: Int
-        let color: Color
-        let width: CGFloat
-    }
-
-    private func segments(width: CGFloat) -> [Segment] {
-        guard let balance, 0 < balance.startBalanceByteCount else {
-            return [Segment(id: 0, color: WidgetTheme.balanceAvailable.opacity(0.5), width: width)]
-        }
-        let total = Double(balance.startBalanceByteCount)
-        let raw: [(Color, Double)] = [
-            (WidgetTheme.balanceUsed, Double(balance.usedByteCount) / total),
-            (WidgetTheme.balancePending, Double(balance.openTransferByteCount) / total),
-            (WidgetTheme.balanceAvailable, Double(balance.balanceByteCount) / total),
-        ]
-        // clamp non-zero segments up to the minimum, then renormalize
-        var fractions = raw.map { $0.1 <= 0 ? 0 : max($0.1, Self.minimumFraction) }
-        let sum = fractions.reduce(0, +)
-        if 0 < sum {
-            fractions = fractions.map { $0 / sum }
-        }
-        let gaps = CGFloat(max(0, fractions.filter { 0 < $0 }.count - 1)) * 2
-        let usable = max(0, width - gaps)
-        return raw.enumerated().compactMap { index, item in
-            let fraction = fractions[index]
-            guard 0 < fraction else { return nil }
-            return Segment(id: index, color: item.0, width: usable * CGFloat(fraction))
         }
     }
 }

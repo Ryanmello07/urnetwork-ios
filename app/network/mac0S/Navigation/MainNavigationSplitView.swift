@@ -27,6 +27,7 @@ struct MainNavigationSplitView: View {
     @Environment(\.presentationActive) private var presentationActive
 
     @State private var selectedTab: MainNavigationTab = .connect
+    @EnvironmentObject var deepLinkRouter: DeepLinkRouter
     @State private var displayIntroduction: Bool
     
     let api: SdkApi
@@ -34,13 +35,14 @@ struct MainNavigationSplitView: View {
     let device: SdkDeviceRemote
     let logout: () -> Void
     let isPro: Bool
+    // owned by ContentView; finishing the introduction writes it back
+    let introductionComplete: Binding<Bool>
 
     var iconWidth: CGFloat = 16
     
     // can probably pass this down from MainView
     @StateObject var providerListSheetViewModel: ProviderListSheetViewModel = ProviderListSheetViewModel()
     
-    @StateObject var accountPaymentsViewModel: AccountPaymentsViewModel
     @StateObject var networkUserViewModel: NetworkUserViewModel
     @StateObject var referralLinkViewModel: ReferralLinkViewModel
     
@@ -62,12 +64,6 @@ struct MainNavigationSplitView: View {
         self.logout = logout
         self.device = device
         self.providerListStore = providerListStore
-
-        _accountPaymentsViewModel = StateObject.init(wrappedValue: AccountPaymentsViewModel(
-                api: api
-            )
-        )
-        
         _networkUserViewModel = StateObject(wrappedValue: NetworkUserViewModel(api: api))
         
         _referralLinkViewModel = StateObject(wrappedValue: ReferralLinkViewModel(api: api))
@@ -75,17 +71,15 @@ struct MainNavigationSplitView: View {
         _networkReliabilityStore = StateObject(wrappedValue: NetworkReliabilityStore(api: urApiService))
         
         self.isPro = isPro
+        self.introductionComplete = introductionComplete
 
         /**
          * Prompt introduction (mirrors iOS MainTabView gating)
          */
-        if isPro {
-            self.displayIntroduction = false
-        } else if introductionComplete.wrappedValue {
-            self.displayIntroduction = false
-        } else {
-            self.displayIntroduction = true
-        }
+        self.displayIntroduction = IntroductionGate.shouldDisplay(
+            introductionComplete: introductionComplete.wrappedValue,
+            isPro: isPro
+        )
     }
     
     var body: some View {
@@ -93,7 +87,16 @@ struct MainNavigationSplitView: View {
         ZStack {
 
         NavigationSplitView {
-            List(selection: $selectedTab) {
+            List(selection: Binding(
+                get: { selectedTab },
+                set: { newValue in
+                    if newValue == .connect {
+                        selectConnectTab()
+                    } else {
+                        selectedTab = newValue
+                    }
+                }
+            )) {
                 
                 HStack {
 
@@ -156,12 +159,12 @@ struct MainNavigationSplitView: View {
             switch selectedTab {
             case .connect:
                 ConnectView_macOS(
+                    api: api,
                     urApiService: urApiService,
                     providerStore: providerListStore,
                     promptMoreDataFlow: { displayIntroduction = true },
                     meanReliabilityWeight: networkReliabilityStore.reliabilityWindow?.meanReliabilityWeight ?? 0,
-                    totalReferrals: referralLinkViewModel.totalReferrals,
-                    referralCode: referralLinkViewModel.referralCode,
+                    referralLinkViewModel: referralLinkViewModel,
                     isPro: isPro
                 )
             case .account:
@@ -170,8 +173,7 @@ struct MainNavigationSplitView: View {
                     urApiService: urApiService,
                     device: device,
                     logout: logout,
-                    accountPaymentsViewModel: accountPaymentsViewModel,
-                    networkUserViewModel: networkUserViewModel,
+                        networkUserViewModel: networkUserViewModel,
                     referralLinkViewModel: referralLinkViewModel,
                     providerCountries: providerListStore.providerCountries,
                     networkReliabilityWindow: networkReliabilityStore.reliabilityWindow,
@@ -197,13 +199,31 @@ struct MainNavigationSplitView: View {
                 }
             }
         }
-        .sheet(isPresented: $displayIntroduction) {
+        .sheet(
+            isPresented: $displayIntroduction,
+            // a sheet the system dismisses, Escape included, still counts as finished
+            onDismiss: {
+                IntroductionGate.finish(
+                    introductionComplete: introductionComplete,
+                    persist: deviceManager.completeIntroFunnel
+                )
+            }
+        ) {
             IntroductionView(
-                close: { displayIntroduction = false },
+                close: {
+                    // finished or skipped: persist it before the sheet goes
+                    // away, so a rebuilt split view never re-prompts
+                    IntroductionGate.finish(
+                        introductionComplete: introductionComplete,
+                        persist: deviceManager.completeIntroFunnel
+                    )
+                    displayIntroduction = false
+                },
                 totalReferrals: referralLinkViewModel.totalReferrals,
                 referralCode: referralLinkViewModel.referralCode ?? "",
                 meanReliabilityWeight: networkReliabilityStore.reliabilityWindow?.meanReliabilityWeight ?? 0,
-                api: urApiService
+                api: urApiService,
+                referralTerms: referralLinkViewModel.terms
             )
             .environmentObject(themeManager)
             .environmentObject(deviceManager)
@@ -214,6 +234,18 @@ struct MainNavigationSplitView: View {
         }
         .onAppear {
             setPresentationActive(presentationActive)
+        }
+        // a widget tap lands on the connect tab. The dashboard widget does
+        // exactly what the Connect sidebar item does; the providers and
+        // contracts widgets select the tab and the connect view takes their
+        // sheet from there
+        .onReceive(deepLinkRouter.$pending) { destination in
+            guard let destination else { return }
+            if destination == .connect {
+                selectConnectTab()
+            } else {
+                selectedTab = .connect
+            }
         }
         .onChange(of: presentationActive) { active in
             setPresentationActive(active)
@@ -254,6 +286,13 @@ struct MainNavigationSplitView: View {
             )
             referralLinkViewModel.clearCelebration()
         }
+    }
+
+    /// What a click on the Connect sidebar item does: select the tab. The
+    /// sidebar item and the dashboard widget both go through here so the two
+    /// cannot diverge.
+    private func selectConnectTab() {
+        selectedTab = .connect
     }
 
     private func setPresentationActive(_ active: Bool) {

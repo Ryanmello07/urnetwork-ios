@@ -127,7 +127,9 @@ class SubscriptionBalanceViewModel: ObservableObject {
     }
     
     private func setIsPolling(_ isPolling: Bool) {
-        self.isPolling = isPolling
+        if self.isPolling != isPolling {
+            self.isPolling = isPolling
+        }
     }
     
 //    func setCurrentPlan(_ plan: Plan) {
@@ -195,7 +197,7 @@ class SubscriptionBalanceViewModel: ObservableObject {
             
             
         } catch(let error) {
-            print("\(domain) error fetching payouts \(error)")
+            print("\(domain) error fetching subscription balance \(error)")
             self.isLoading = false
             self.errorFetchingSubscriptionBalance = true
         }
@@ -248,7 +250,9 @@ class SubscriptionBalanceViewModel: ObservableObject {
         backgroundPollingTimer = nil
 
         // a fresh confirmation attempt: clear any previous give-up, and arm the deadline
-        self.purchaseConfirmationTimedOut = false
+        if self.purchaseConfirmationTimedOut {
+            self.purchaseConfirmationTimedOut = false
+        }
         self.pollingDeadline = Date().addingTimeInterval(maxPollingDuration)
 
         self.setPollingInterval(interval)
@@ -326,14 +330,18 @@ class SubscriptionBalanceViewModel: ObservableObject {
      */
     private func timeOutPurchaseConfirmation() {
         stopPolling()
-        purchaseConfirmationTimedOut = true
+        if !purchaseConfirmationTimedOut {
+            purchaseConfirmationTimedOut = true
+        }
         if active && !isPro {
             startBackgroundPolling()
         }
     }
 
     func clearPurchaseConfirmationTimeout() {
-        purchaseConfirmationTimedOut = false
+        if purchaseConfirmationTimedOut {
+            purchaseConfirmationTimedOut = false
+        }
     }
     
     func isSupporterWithBalance() -> Bool {
@@ -345,7 +353,9 @@ class SubscriptionBalanceViewModel: ObservableObject {
         pollingTimer?.invalidate()
         pollingTimer = nil
         pollingDeadline = nil
-        isPolling = false
+        if isPolling {
+            isPolling = false
+        }
         backgroundPollingTimer?.invalidate()
         backgroundPollingTimer = nil
     }
