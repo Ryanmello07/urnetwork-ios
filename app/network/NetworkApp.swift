@@ -308,6 +308,9 @@ struct NetworkApp: App {
                         // a Home Screen widget tap: the tab view and the
                         // connect view route it
                         deepLinkRouter.open(destination)
+                    } else if let destination = OnboardingDestination(url: url) {
+                        // an onboarding email's link, after the ur.io landing page
+                        deepLinkRouter.open(destination)
                     } else {
                         GIDSignIn.sharedInstance.handle(url)
                     }
@@ -326,6 +329,10 @@ struct NetworkApp: App {
                 }
                 .onChange(of: scenePhase) { phase in
                     setPresentationActive(phase == .active)
+                    if phase == .background {
+                        // pending product events go out before the system suspends the app
+                        ClientEvents.shared.flush()
+                    }
                     if phase == .active {
                         // a reload requested while the app is in the
                         // foreground is not charged against the widget budget,
@@ -333,6 +340,7 @@ struct NetworkApp: App {
                         // them -- so opening the app is the reliable way to
                         // un-stick a widget the system has been deferring
                         WidgetRefresh.reloadAll()
+                        WidgetPlacementReporter.report()
                         refreshJwtOnForeground()
                     }
                 }
@@ -350,6 +358,10 @@ struct NetworkApp: App {
                 #endif
             #elseif os(macOS)
             ContentView()
+                // the open window takes every urnetwork:// callback (wallet
+                // connect, widgets, onboarding) instead of SwiftUI opening a
+                // new window for it
+                .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
                 .environmentObject(themeManager)
                 .environmentObject(deviceManager)
                 .environmentObject(connectViewModel)
@@ -365,6 +377,9 @@ struct NetworkApp: App {
                     if let destination = WidgetDestination(url: url) {
                         // a Home Screen widget tap: the tab view and the
                         // connect view route it
+                        deepLinkRouter.open(destination)
+                    } else if let destination = OnboardingDestination(url: url) {
+                        // an onboarding email's link, after the ur.io landing page
                         deepLinkRouter.open(destination)
                     } else {
                         GIDSignIn.sharedInstance.handle(url)
@@ -388,6 +403,9 @@ struct NetworkApp: App {
                 }
                 .onChange(of: scenePhase) { phase in
                     setMacPresentationActive(sceneActive: phase == .active)
+                    if phase == .background {
+                        ClientEvents.shared.flush()
+                    }
                     if phase == .active {
                         // a reload requested while the app is in the
                         // foreground is not charged against the widget budget,
@@ -395,6 +413,7 @@ struct NetworkApp: App {
                         // them -- so opening the app is the reliable way to
                         // un-stick a widget the system has been deferring
                         WidgetRefresh.reloadAll()
+                        WidgetPlacementReporter.report()
                         refreshJwtOnForeground()
                     }
                 }

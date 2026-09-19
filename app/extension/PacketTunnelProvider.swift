@@ -10,6 +10,9 @@ import URnetworkExtensionSdk
 import OSLog
 import Security
 import CryptoKit
+#if os(iOS)
+import CoreTelephony
+#endif
 
 //import Atomics
 
@@ -336,33 +339,25 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             logger.fault("[PacketTunnelProvider]FIPS 140 is outside the network-extension memory budget")
         }
 
-        if #available(iOS 26, macOS 26, *) {
-            // the memory limit in the PacketTunnelProvider is 50mib in iOS 16, 17, 18, 26
-            // the binary and go runtime take about 16mib of that
-            // see https://forums.developer.apple.com/forums/thread/73148?page=2
-            //
-            // SdkSetMemoryLimit sizes the global message pools (packet 12 :
-            // large-object 2, of 34 parts) + go soft limit; the per-device
-            // memory target is set separately at device creation. 32mb total
-            // footprint budget for the constrained extension. At this target
-            // the aggregate platform budget admits H1 + H3, so iOS keeps the
-            // normal Auto policy. Smaller targets admit H1 first and leave H3
-            // unstarted when the two carriers do not fit together.
-#if os(iOS)
-            SdkSetMemoryLimit(32 * 1024 * 1024)
-#else
-            SdkSetMemoryLimit(64 * 1024 * 1024)
-#endif
-        } else if #available(iOS 16, macOS 13, *) {
-            #if os(iOS)
-            SdkSetMemoryLimit(32 * 1024 * 1024)
-            #else
-            SdkSetMemoryLimit(48 * 1024 * 1024)
-            #endif
-        } else {
-            // note provider is also disabled for these
-            SdkSetMemoryLimit(8 * 1024 * 1024)
-        }
+        // the memory limit in the PacketTunnelProvider is 50mib on iOS
+        // see https://forums.developer.apple.com/forums/thread/73148?page=2
+        //
+        // SdkSetMemoryLimit sizes the global message pools (packet 12 :
+        // large-object 2, of 34 parts) + the go soft limit; the per-device
+        // memory target is set separately at device creation and must fit
+        // inside this budget twice over (TunnelDeviceMemoryTarget). iOS holds a
+        // 32mib footprint for the constrained extension; macOS, which reports
+        // no packet-tunnel jetsam limit, runs whichever desktop tier its
+        // MEASURED host memory selects. The tier is resolved once per process,
+        // so this budget and the device target read at session start are always
+        // the same pair.
+        //
+        // One value per platform, not per OS version: the extension deploys to
+        // iOS 16 / macOS 13.5, so every version it runs on takes the same
+        // budget. The availability ladder this replaces ended in an
+        // unreachable 8mib branch that no shipped OS could select, and 8mib
+        // was a quarter of the device target it was setting the limit for.
+        SdkSetMemoryLimit(TunnelDeviceMemoryTarget.processBudgetByteCount)
 
         // respond to memory pressure events
         // see https://developer.apple.com/documentation/dispatch/dispatchsource/makememorypressuresource(eventmask:queue:)
@@ -700,12 +695,14 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                         // rpc is started explicitly below with the per-session server pem
                         false,
                         keyMaterial,
-                        // the per-device memory target (split dns 2 : client 14 :
-                        // provider 4 inside the sdk, with the provider share backing the
-                        // client pair while providing is off), set explicitly where the
-                        // device is created; the process-level SdkSetMemoryLimit above
-                        // sizes the shared message pools and go soft limit
-                        20 * 1024 * 1024,
+                        // the per-device memory target (split dns 2 : client 9 :
+                        // platform carriers 5 : provider 4 inside the sdk, with the
+                        // provider share backing the client pair while providing is
+                        // off), set explicitly where the device is created: 20 MiB on
+                        // iOS, 64 MiB on macOS (see TunnelDeviceMemoryTarget). The
+                        // process-level SdkSetMemoryLimit above sizes the shared
+                        // message pools and go soft limit
+                        TunnelDeviceMemoryTarget.byteCount,
                         &err
                     )
                     if let err {
@@ -1200,6 +1197,14 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             var pathSignatureGeneration: UInt64 = 0
             var physicalPathWasUnavailable = false
             var lastPathConstrained: Bool = false
+            var qualityTracker = TunnelNetworkQualityTracker()
+#if os(iOS)
+            let telephonyInfo = CTTelephonyNetworkInfo()
+#endif
+            var wifiSignalLevel: Int? = nil
+#if os(iOS)
+            var wifiQualityFetchInFlight = false
+#endif
             // degraded performance: a device in low power mode, thermally throttled, or on
             // a constrained (Low Data Mode) path answers control pings slowly — ease the
             // SDK's liveness probe timings so slow is not misread as dead
@@ -1211,10 +1216,15 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                     || lastPathConstrained
                 device.setPerformanceDegraded(degraded)
             }
-            let handlePathUpdate = { (path: Network.NWPath) in
+            var handlePathUpdate: ((Network.NWPath) -> Void)!
+            handlePathUpdate = { (path: Network.NWPath) in
+                guard self.providerSessions.isCurrent(providerTicket) else { return }
                 updatePath(path)
                 lastPathConstrained = path.isConstrained
                 updatePerformanceDegraded()
+                if !path.usesInterfaceType(.wifi) {
+                    wifiSignalLevel = nil
+                }
                 pathSignatureGeneration &+= 1
                 let generation = pathSignatureGeneration
                 guard path.status == .satisfied else {
@@ -1237,13 +1247,34 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                     .sorted()
                     .joined(separator: ",")
                 let pathSignature = "interfaces=\(interfaces)|gateways=\(gateways)"
+#if os(iOS)
+                let cellularTypes = tunnelActiveCellularTypes(
+                    usesCellular: path.usesInterfaceType(.cellular),
+                    dataServiceIdentifier: telephonyInfo.dataServiceIdentifier,
+                    serviceTypes: telephonyInfo.serviceCurrentRadioAccessTechnology ?? [:]
+                )
+#else
+                let cellularTypes: [String] = []
+#endif
+                let quality = TunnelNetworkQuality(
+                    expensive: path.isExpensive,
+                    constrained: path.isConstrained,
+                    supportsDns: path.supportsDNS,
+                    supportsIpv4: path.supportsIPv4,
+                    supportsIpv6: path.supportsIPv6,
+                    cellularTypes: cellularTypes,
+                    wifiSignalLevel: wifiSignalLevel
+                )
 
                 pathMonitorQueue.asyncAfter(
                     deadline: .now() + self.transportRecoveryDebounce
                 ) {
+                    guard self.providerSessions.isCurrent(providerTicket) else { return }
                     guard generation == pathSignatureGeneration else { return }
-                    if let previous = stablePathSignature,
-                       previous != pathSignature || physicalPathWasUnavailable {
+                    let hardPathChange = stablePathSignature.map {
+                        $0 != pathSignature || physicalPathWasUnavailable
+                    } ?? false
+                    if hardPathChange {
                         let reason = physicalPathWasUnavailable
                             ? "physical-path-restored"
                             : "physical-path-change"
@@ -1251,6 +1282,17 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                             "[PacketTunnelProvider][\(self.lifecycleId)] stable physical path transition=\(reason); scheduling transport recovery"
                         )
                         self.requestTransportRecovery(reason: reason)
+                    } else if qualityTracker.observe(
+                        pathSignature: pathSignature,
+                        quality: quality
+                    ) {
+                        self.logger.info(
+                            "[PacketTunnelProvider][\(self.lifecycleId)] physical network quality changed; remeasuring transfer pacing"
+                        )
+                        device.networkQualityChanged()
+                    }
+                    if hardPathChange {
+                        _ = qualityTracker.observe(pathSignature: pathSignature, quality: quality)
                     }
                     stablePathSignature = pathSignature
                     physicalPathWasUnavailable = false
@@ -1260,6 +1302,40 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 handlePathUpdate(path)
             }
             pathMonitor.start(queue: pathMonitorQueue)
+            // Apple exposes Wi-Fi strength as a snapshot rather than a change
+            // listener. Sample one five-bar value at a low cadence; the first
+            // successful value is a baseline and later bar crossings remeasure.
+#if os(iOS)
+            let wifiQualityTimer = DispatchSource.makeTimerSource(queue: pathMonitorQueue)
+            wifiQualityTimer.schedule(
+                deadline: .now(), repeating: .seconds(5), leeway: .seconds(1)
+            )
+            wifiQualityTimer.setEventHandler {
+                guard self.providerSessions.isCurrent(providerTicket) else { return }
+                let path = pathMonitor.currentPath
+                guard path.status == .satisfied, path.usesInterfaceType(.wifi),
+                      !wifiQualityFetchInFlight else { return }
+                wifiQualityFetchInFlight = true
+                let fetchGeneration = pathSignatureGeneration
+                NEHotspotNetwork.fetchCurrent { network in
+                    pathMonitorQueue.async {
+                        wifiQualityFetchInFlight = false
+                        guard self.providerSessions.isCurrent(providerTicket) else { return }
+                        // A result requested on an older path is not evidence
+                        // about the current Wi-Fi association.
+                        guard fetchGeneration == pathSignatureGeneration else { return }
+                        let currentPath = pathMonitor.currentPath
+                        guard currentPath.status == .satisfied,
+                              currentPath.usesInterfaceType(.wifi) else { return }
+                        let nextLevel = tunnelWifiSignalLevel(network?.signalStrength)
+                        guard nextLevel != wifiSignalLevel else { return }
+                        wifiSignalLevel = nextLevel
+                        handlePathUpdate(currentPath)
+                    }
+                }
+            }
+            wifiQualityTimer.resume()
+#endif
             // NEProvider.defaultPath is the VPN-aware default-path signal; it can lead the
             // physical monitor on transitions, so a change prompts a re-check of the
             // physical path signature (the signature dedups the double notification)
@@ -1283,6 +1359,15 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             ) { _ in
                 pathMonitorQueue.async { updatePerformanceDegraded() }
             }
+#if os(iOS)
+            let cellularTypeObserver = NotificationCenter.default.addObserver(
+                forName: .CTServiceRadioAccessTechnologyDidChange,
+                object: nil,
+                queue: nil
+            ) { _ in
+                pathMonitorQueue.async { handlePathUpdate(pathMonitor.currentPath) }
+            }
+#endif
             pathMonitorQueue.async { updatePerformanceDegraded() }
             // wake() refreshes path/power state. A stable signature change requests
             // one transport recovery; an unchanged healthy path remains untouched.
@@ -1333,7 +1418,13 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 defaultPathObservation.invalidate()
                 NotificationCenter.default.removeObserver(powerStateObserver)
                 NotificationCenter.default.removeObserver(thermalStateObserver)
+#if os(iOS)
+                NotificationCenter.default.removeObserver(cellularTypeObserver)
+#endif
                 self.recoverySession.retire(sessionTicket)
+#if os(iOS)
+                wifiQualityTimer.cancel()
+#endif
                 pathMonitor.cancel()
                 provideChangeSub?.close()
                 provideSecretKeysSub?.close()
@@ -1504,8 +1595,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         // exclude the local network from the tunnel, matching Android (MainService's
         // excludeRoute set): the RFC1918 private ranges bypass the tunnel so LAN
         // traffic reaches local devices directly. DNS is unaffected — it still routes
-        // to the tunnel resolver via matchDomains below. The tunnel advertises no IPv6
-        // settings, so there are no IPv6 tunnel routes to exclude.
+        // to the tunnel resolver via matchDomains below.
         ipv4Settings.excludedRoutes = [
             NEIPv4Route(destinationAddress: "10.0.0.0", subnetMask: "255.0.0.0"),
             NEIPv4Route(destinationAddress: "172.16.0.0", subnetMask: "255.240.0.0"),
@@ -1513,18 +1603,29 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         ]
         networkSettings.ipv4Settings = ipv4Settings
 
-        // Remote providers do not forward IPv6 yet. Keep the tunnel IPv4-only:
-        // do not assign an IPv6 address, install IPv6 routes, or advertise an
-        // IPv6 tunnel interface that applications might select.
-        networkSettings.ipv6Settings = nil
+        // IPv6 Configuration: the tunnel is dual-stack (connect/IPV6.md C2).
+        // The device's ULA tunnel address on its /64, the ::/0 default route,
+        // and the same shape of exclusions as IPv4 (link-local, ULA, multicast,
+        // loopback; see TunnelIpv6Routes.swift). Capturing ::/0 also closes the
+        // bypass a dual-stack network had while the tunnel advertised no IPv6
+        // interface: applications preferred the native IPv6 path around it.
+        let tunnelLocalAddressIpv6 = device.tunnelLocalAddressIpv6()
+        let ipv6Settings = NEIPv6Settings(
+            addresses: [tunnelLocalAddressIpv6],
+            networkPrefixLengths: [NSNumber(value: SdkGetTunnelLocalPrefixLengthIpv6())]
+        )
+        ipv6Settings.includedRoutes = [NEIPv6Route.default()]
+        ipv6Settings.excludedRoutes = tunnelIpv6ExcludedRoutes().map { $0.neRoute }
+        networkSettings.ipv6Settings = ipv6Settings
 
         // DNS from the SDK device: the dns settings' unencrypted local servers
         // when set, otherwise the distinct plain-DNS UpgradeMux mask (see
-        // `tunnelDnsServers`). Always plain :53, never OS-level
-        // encrypted DNS (DoH/DoT): the UpgradeMux claims :53 and performs the
-        // unencrypted-DNS -> DoH upgrade itself, so enabling encrypted DNS at the OS
-        // level here (e.g. NEDNSOverHTTPSSettings/NEDNSOverTLSSettings) would bypass
-        // the mux and hide queries from it.
+        // `tunnelDnsServers`), on both families. Always plain :53, never
+        // OS-level encrypted DNS (DoH/DoT): the UpgradeMux claims :53 and
+        // performs the unencrypted-DNS -> DoH upgrade itself, so enabling
+        // encrypted DNS at the OS level here (e.g.
+        // NEDNSOverHTTPSSettings/NEDNSOverTLSSettings) would bypass the mux
+        // and hide queries from it.
         let dnsServers = self.tunnelDnsServers(device: device)
         if !dnsServers.isEmpty {
             let dnsSettings = NEDNSSettings(servers: dnsServers)
@@ -1532,12 +1633,19 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             networkSettings.dnsSettings = dnsSettings
         }
 
-        // Keep one full encrypted tunnel packet eligible for H3's single-
-        // DATAGRAM lane. This is the same value used by provider packetization.
+        // The interface MTU (connect.DefaultTunnelMtu): 1280, the IPv6 minimum
+        // link MTU, which the OS requires before it assigns an IPv6 address.
+        // Packets stay within the smaller packet-size contract, so one full
+        // encrypted tunnel packet still fits H3's single-DATAGRAM lane.
         let tunnelMtu = SdkGetDefaultTunnelMtu()
         networkSettings.mtu = NSNumber(value: tunnelMtu)
 
-        let signature = "v4=\(tunnelLocalAddress)|v6=off|dns=\(dnsServers.joined(separator: ","))|mtu=\(tunnelMtu)"
+        let signature = tunnelNetworkSettingsSignature(
+            ipv4Address: tunnelLocalAddress,
+            ipv6Address: tunnelLocalAddressIpv6,
+            dnsServers: dnsServers,
+            mtu: tunnelMtu
+        )
         return TunnelNetworkSettingsPlan(
             settings: networkSettings,
             signature: signature
@@ -1771,11 +1879,15 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     /// The plain-dns servers for the tunnel, from the sdk device like the tunnel
     /// address: the dns settings' unencrypted local servers when set, otherwise the
     /// default plain-DNS resolvers (which the UpgradeMux can intercept and upgrade).
-    /// The tunnel is ipv4-only (no ipv6 addresses or routes), so only the ipv4
-    /// resolvers apply.
+    /// The tunnel is dual-stack, so the ipv4 resolvers come first and the ipv6
+    /// resolvers follow; both route into the tunnel (the ipv6 exclusions leave
+    /// the resolver prefix alone).
     private func tunnelDnsServers(device: SdkDeviceLocal) -> [String] {
         var servers: [String] = []
-        if let addresses = device.tunnelDnsAddressesIpv4() {
+        for addresses in [device.tunnelDnsAddressesIpv4(), device.tunnelDnsAddressesIpv6()] {
+            guard let addresses else {
+                continue
+            }
             for i in 0..<addresses.len() {
                 servers.append(addresses.get(i))
             }

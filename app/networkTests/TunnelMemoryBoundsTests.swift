@@ -1,6 +1,119 @@
 import XCTest
 
 final class TunnelMemoryBoundsTests: XCTestCase {
+    // The device target each platform hands SdkNewDeviceLocalWithMemoryTarget,
+    // and the budget it hands SdkSetMemoryLimit: iOS 20 inside 32 MiB (jetsam),
+    // macOS 128 inside 384, or 256 inside 768 on any Mac sold as 8 GiB or more.
+    func testDeviceMemoryTargetPerPlatform() {
+        XCTAssertEqual(TunnelDeviceMemoryTarget.iosByteCount, 20 * 1024 * 1024)
+        XCTAssertEqual(TunnelDeviceMemoryTarget.macosByteCount, 128 * 1024 * 1024)
+        XCTAssertEqual(TunnelDeviceMemoryTarget.macosLargeHostByteCount, 256 * 1024 * 1024)
+        XCTAssertEqual(TunnelDeviceMemoryTarget.iosProcessBudgetByteCount, 32 * 1024 * 1024)
+        XCTAssertEqual(TunnelDeviceMemoryTarget.macosProcessBudgetByteCount, 384 * 1024 * 1024)
+        XCTAssertEqual(
+            TunnelDeviceMemoryTarget.macosLargeHostProcessBudgetByteCount,
+            768 * 1024 * 1024
+        )
+        XCTAssertEqual(
+            TunnelDeviceMemoryTarget.largeHostThresholdByteCount,
+            7 * 1024 * 1024 * 1024
+        )
+#if os(iOS)
+        XCTAssertEqual(TunnelDeviceMemoryTarget.byteCount, 20 * 1024 * 1024)
+        XCTAssertEqual(TunnelDeviceMemoryTarget.processBudgetByteCount, 32 * 1024 * 1024)
+#else
+        // Whatever this Mac measures, the resolved pair is one of the two tiers
+        // and never a mix of them.
+        XCTAssertEqual(
+            TunnelDeviceMemoryTarget.tier,
+            TunnelDeviceMemoryTarget.macosTier(
+                hostMemoryByteCount: TunnelDeviceMemoryTarget.hostMemoryByteCount()
+            )
+        )
+#endif
+    }
+
+    // The gate over the measurement, including the failure case. With the bar
+    // this low nearly every real Mac is on one side of it, so an off-by-one in
+    // the comparison would be invisible in practice: the three rows around
+    // 7 GiB are the only thing that would catch it. The two rows after them are
+    // the machines the decision is about, and fail if the bar is rounded up
+    // to 8.
+    func testMacosTierIsChosenFromMeasuredHostMemory() {
+        let gib: Int64 = 1024 * 1024 * 1024
+        let base = TunnelDeviceMemoryTarget.macosByteCount
+        let large = TunnelDeviceMemoryTarget.macosLargeHostByteCount
+        let rows: [(Int64?, Int64)] = [
+            (nil, base),               // sysctl failed
+            (0, base),                 // nothing measured
+            (-1, base),                // a nonsense measurement
+            (4 * gib, base),           // a genuinely small host
+            (7 * gib - 1, base),       // one byte under the bar
+            (7 * gib, base),           // exactly at it: the comparison is strict
+            (7 * gib + 1, large),      // one byte over
+            (8 * gib, large),          // an 8 GiB Mac: hw.memsize reports it exactly
+            (8_048_972 * 1024, large), // an 8 GiB machine's usable ~7.68 GiB
+            (64 * gib, large),
+        ]
+        for (host, expected) in rows {
+            XCTAssertEqual(
+                TunnelDeviceMemoryTarget.macosTier(hostMemoryByteCount: host).deviceTargetByteCount,
+                expected,
+                "host \(String(describing: host))"
+            )
+        }
+        // The budget always moves with the target it backs, including on the
+        // rare unknown-host path: nil resolves to 128 in 384.
+        XCTAssertEqual(
+            TunnelDeviceMemoryTarget.macosTier(hostMemoryByteCount: nil),
+            TunnelDeviceMemoryTarget.Tier(
+                deviceTargetByteCount: 128 * 1024 * 1024,
+                processBudgetByteCount: 384 * 1024 * 1024
+            )
+        )
+        XCTAssertEqual(
+            TunnelDeviceMemoryTarget.macosTier(hostMemoryByteCount: 7 * gib).processBudgetByteCount,
+            TunnelDeviceMemoryTarget.macosProcessBudgetByteCount
+        )
+        XCTAssertEqual(
+            TunnelDeviceMemoryTarget.macosTier(hostMemoryByteCount: 7 * gib + 1).processBudgetByteCount,
+            TunnelDeviceMemoryTarget.macosLargeHostProcessBudgetByteCount
+        )
+        // An 8 GiB Mac gets the whole large pair, not just the large target.
+        XCTAssertEqual(
+            TunnelDeviceMemoryTarget.macosTier(hostMemoryByteCount: 8 * gib),
+            TunnelDeviceMemoryTarget.Tier(
+                deviceTargetByteCount: 256 * 1024 * 1024,
+                processBudgetByteCount: 768 * 1024 * 1024
+            )
+        )
+    }
+
+    // Both constraints on BOTH macOS tiers and at the bar itself. iOS is the
+    // documented exception (jetsam caps the budget at 32 MiB), so it is pinned
+    // above by value and deliberately not asserted here.
+    func testEveryMacosTierIsBackedAndCollectorSafe() {
+        let gib: Int64 = 1024 * 1024 * 1024
+        for host: Int64? in [nil, 7 * gib - 1, 7 * gib, 7 * gib + 1, 8 * gib, 128 * gib] {
+            let tier = TunnelDeviceMemoryTarget.macosTier(hostMemoryByteCount: host)
+            XCTAssertTrue(tier.isBacked, "host \(String(describing: host)) target is not backed")
+            XCTAssertTrue(
+                tier.isCollectorSafe,
+                "host \(String(describing: host)) budget is too close to its target"
+            )
+        }
+    }
+
+    // The probe on the machine running the test: either a real measurement or
+    // nil, never a value that would read as a large host by accident.
+    func testHostMemoryProbeReadsThisMachineOrNothing() {
+        guard let byteCount = TunnelDeviceMemoryTarget.hostMemoryByteCount() else {
+            return
+        }
+        XCTAssertGreaterThan(byteCount, 512 * 1024 * 1024)
+        XCTAssertLessThan(byteCount, 64 * 1024 * 1024 * 1024 * 1024)
+    }
+
     func testPacketEncoderBoundsAndRoundTripsBurst() {
         let packets = (0..<140).map { index in
             var packet = Data(

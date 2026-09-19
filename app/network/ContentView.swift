@@ -78,6 +78,8 @@ struct ContentView: View {
                                 
                                 Task {
                                     connectViewModel.disconnect()
+                                    // the session's pending product events go out before it ends
+                                    ClientEvents.shared.stop()
                                     deviceManager.logout()
                                 }
                                 
@@ -154,7 +156,21 @@ struct ContentView: View {
         .onReceive(deviceManager.$device) { device in
   
             updatePath()
+
+            // the product-event sender lives with the device session: bound to
+            // its network space when the session comes up, closed when it ends
+            if device != nil, let networkSpace = deviceManager.networkSpace {
+                ClientEvents.shared.start(networkSpace: networkSpace)
+            } else if device == nil {
+                ClientEvents.shared.stop(timeoutMillis: 500)
+            }
             
+        }
+        .onReceive(connectViewModel.$connectionStatus) { status in
+            // once per network: the first successful connection
+            if status == .connected, let networkId = deviceManager.parsedJwt?.networkId?.idStr {
+                ClientEvents.shared.connectFirst(networkId: networkId)
+            }
         }
         
     }
@@ -185,16 +201,15 @@ struct ContentView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
     }
     
-    private func handleSuccessWithJwt(_ jwt: String) async {
-
-        // the onboarding flow follows a network that was just created, never an
-        // existing account signing in
-        let newNetwork = UrApiService.consumeNewNetwork(jwt: jwt)
-        
+    private func handleSuccessWithJwt(_ login: NetworkLogin) async {
+        print("[ContentView] authenticating \(login.newNetwork ? "created" : "existing") network login")
         self.welcomeAnimationComplete = false
-        self.introductionComplete = !newNetwork
+        self.introductionComplete = !login.newNetwork
      
-        let result = await deviceManager.authenticateNetworkClient(jwt, newNetwork: newNetwork)
+        let result = await deviceManager.authenticateNetworkClient(
+            login.jwt,
+            newNetwork: login.newNetwork
+        )
         
         if case .failure(let error) = result {
             print("[ContentView] handleSuccessWithJwt: \(error.localizedDescription)")

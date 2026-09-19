@@ -338,8 +338,8 @@ struct ConnectView_iOS: View {
                     onChanged: { translation in
                         sheetDragOnChanged(translation, collapsedHeight: sheetCollapsedHeight, maxHeight: sheetExpandedHeight)
                     },
-                    onEnded: { translation in
-                        sheetDragOnEnded(translation, collapsedHeight: sheetCollapsedHeight, maxHeight: sheetExpandedHeight)
+                    onEnded: { translation, velocity in
+                        sheetDragOnEnded(translation, velocity: velocity, collapsedHeight: sheetCollapsedHeight, maxHeight: sheetExpandedHeight)
                     },
                     shouldBegin: { translation, location in
                         if !isSheetExpanded {
@@ -512,9 +512,9 @@ struct ConnectView_iOS: View {
                         connectViewModel.isPresentedCreateAccount = false
                     },
                     
-                    handleSuccess: { jwt in
+                    handleSuccess: { login in
                         Task {
-                            await handleSuccessWithJwt(jwt)
+                            await handleSuccessWithJwt(login.jwt)
                             connectViewModel.isPresentedCreateAccount = false
                         }
                     }
@@ -597,14 +597,17 @@ struct ConnectView_iOS: View {
         sheetDragTranslation = max(-range, min(range, translation))
     }
 
-    private func sheetDragOnEnded(_ translation: CGFloat, collapsedHeight: CGFloat, maxHeight: CGFloat) {
+    // A release decides by speed first (a flick opens or closes the drawer
+    // however short it was), then by distance. The content stays where it
+    // is: a flick that opens the drawer shows the content from its top.
+    private func sheetDragOnEnded(_ translation: CGFloat, velocity: CGFloat, collapsedHeight: CGFloat, maxHeight: CGFloat) {
         let range = maxHeight - collapsedHeight
-        let threshold = range * 0.25
-        if isSheetExpanded {
-            if translation > threshold { isSheetExpanded = false }
-        } else {
-            if -translation > threshold { isSheetExpanded = true }
-        }
+        isSheetExpanded = ConnectSheetMomentum.isExpandedAfterRelease(
+            isExpanded: isSheetExpanded,
+            translation: translation,
+            velocity: velocity,
+            range: range
+        )
         sheetDragTranslation = 0
     }
 

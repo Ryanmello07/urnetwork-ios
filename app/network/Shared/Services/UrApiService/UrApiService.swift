@@ -9,22 +9,6 @@ import Foundation
 import URnetworkSdk
 
 class UrApiService: UrApiServiceProtocol {
-
-    /**
-     * The jwts handed out by network creation (sign-up, instant account,
-     * verified sign-up): the post-login onboarding flow is for these and never
-     * for an existing account signing in. Consumed by the login handler.
-     */
-    private static var newNetworkJwts = Set<String>()
-
-    static func markNewNetwork(_ jwt: String) {
-        newNetworkJwts.insert(jwt)
-    }
-
-    static func consumeNewNetwork(jwt: String) -> Bool {
-        newNetworkJwts.remove(jwt) != nil
-    }
-
     
     // Resolved live on every call instead of captured once at init. This
     // mirrors Android's `application.api` (a `get() = networkSpaceManagerProvider
@@ -460,7 +444,7 @@ extension UrApiService {
         }
     }
     
-    func createInstantAccount(referralCode: String?) async throws -> (jwt: String, seedphrase: String) {
+    func createInstantAccount(referralCode: String?, productUpdatesOptOut: Bool) async throws -> (jwt: String, seedphrase: String) {
         let api = try requireApi()
         return try await withCheckedThrowingContinuation { continuation in
             
@@ -496,7 +480,6 @@ extension UrApiService {
                 if let network = result.network {
                     switch self.nonEmptyJwt(network.byJwt, context: "createInstantAccount") {
                     case .success(let jwt):
-                        UrApiService.markNewNetwork(jwt)
                         continuation.resume(returning: (jwt, seedphrase))
                     case .failure(let error):
                         continuation.resume(throwing: error)
@@ -521,6 +504,8 @@ extension UrApiService {
             if let referralCode = referralCode, !referralCode.isEmpty {
                 args.referralCode = referralCode
             }
+            // the sign-up form's "Periodic product updates" switch; off = opted out
+            args.productUpdatesOptOut = productUpdatesOptOut
             api.networkCreate(args, callback: callback)
             
         }
@@ -555,7 +540,6 @@ extension UrApiService {
                 if let network = result.network {
                     switch self.nonEmptyJwt(network.byJwt, context: "createNetwork") {
                     case .success(let jwt):
-                        UrApiService.markNewNetwork(jwt)
                         continuation.resume(returning: .successWithJwt(jwt))
                     case .failure(let error):
                         continuation.resume(throwing: error)
@@ -914,7 +898,7 @@ extension UrApiService {
 // MARK - subscription calls
 extension UrApiService {
     
-    func fetchSubscriptionBalance() async throws -> SdkSubscriptionBalanceResult {
+    func fetchSubscriptionBalance(storefrontCountry: String?) async throws -> SdkSubscriptionBalanceResult {
         
         let api = try requireApi()
         
@@ -936,9 +920,62 @@ extension UrApiService {
                 
             }
             
-            api.subscriptionBalance(callback)
+            if let storefrontCountry, !storefrontCountry.isEmpty {
+                api.subscriptionBalance(forStorefront: storefrontCountry, callback: callback)
+            } else {
+                api.subscriptionBalance(callback)
+            }
         }
         
+    }
+
+    func issueOnboardingOffer(surface: String, storefrontCountry: String?) async throws -> SdkOnboardingOffer {
+        let api = try requireApi()
+        return try await withCheckedThrowingContinuation { continuation in
+            let callback = OnboardingOfferIssueCallback { result, err in
+                if let err {
+                    continuation.resume(throwing: err)
+                    return
+                }
+                guard let result else {
+                    continuation.resume(throwing: NSError(domain: "UrApiService", code: 0, userInfo: [NSLocalizedDescriptionKey: "OnboardingOfferIssue result is nil"]))
+                    return
+                }
+                if let error = result.error {
+                    continuation.resume(throwing: NSError(domain: "UrApiService", code: 0, userInfo: [NSLocalizedDescriptionKey: error.message]))
+                    return
+                }
+                guard let offer = result.offer else {
+                    continuation.resume(throwing: NSError(domain: "UrApiService", code: 0, userInfo: [NSLocalizedDescriptionKey: "OnboardingOfferIssue returned no offer"]))
+                    return
+                }
+                continuation.resume(returning: offer)
+            }
+            let args = SdkOnboardingOfferIssueArgs()
+            args.surface = surface
+            if let storefrontCountry {
+                args.storefrontCountry = storefrontCountry
+            }
+            api.onboardingOfferIssue(args, callback: callback)
+        }
+    }
+
+    func onboardingFeedbackToken(_ token: String, rating: Int, reason: String) async throws -> SdkOnboardingFeedbackTokenResult {
+        let api = try requireApi()
+        return try await withCheckedThrowingContinuation { continuation in
+            let callback = OnboardingFeedbackTokenCallback { result, err in
+                if let err {
+                    continuation.resume(throwing: err)
+                    return
+                }
+                guard let result else {
+                    continuation.resume(throwing: NSError(domain: "UrApiService", code: 0, userInfo: [NSLocalizedDescriptionKey: "OnboardingFeedbackToken result is nil"]))
+                    return
+                }
+                continuation.resume(returning: result)
+            }
+            api.onboardingFeedbackToken(token, rating: rating, reason: reason, callback: callback)
+        }
     }
     
     func redeemBalanceCode(_ code: String) async throws -> SdkRedeemBalanceCodeResult {
@@ -1331,6 +1368,18 @@ private class AuthWalletChallengeCallback: SdkCallback<SdkAuthWalletChallengeRes
 
 private class ValidateReferralCallback: SdkCallback<SdkValidateReferralCodeResult, SdkValidateReferralCodeCallbackProtocol>, SdkValidateReferralCodeCallbackProtocol {
     func result(_ result: SdkValidateReferralCodeResult?, err: Error?) {
+        handleResult(result, err: err)
+    }
+}
+
+private class OnboardingOfferIssueCallback: SdkCallback<SdkOnboardingOfferIssueResult, SdkOnboardingOfferIssueCallbackProtocol>, SdkOnboardingOfferIssueCallbackProtocol {
+    func result(_ result: SdkOnboardingOfferIssueResult?, err: Error?) {
+        handleResult(result, err: err)
+    }
+}
+
+private class OnboardingFeedbackTokenCallback: SdkCallback<SdkOnboardingFeedbackTokenResult, SdkOnboardingFeedbackTokenCallbackProtocol>, SdkOnboardingFeedbackTokenCallbackProtocol {
+    func result(_ result: SdkOnboardingFeedbackTokenResult?, err: Error?) {
         handleResult(result, err: err)
     }
 }

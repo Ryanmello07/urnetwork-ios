@@ -13,9 +13,11 @@ struct AccountNavStackView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var deviceManager: DeviceManager
     @StateObject private var viewModel: ViewModel = ViewModel()
+    @EnvironmentObject var deepLinkRouter: DeepLinkRouter
     
     @StateObject var accountPreferencesViewModel: AccountPreferencesViewModel
     @StateObject var earningsViewModel: EarningsViewModel
+    @StateObject var usdcWalletsViewModel: UsdcWalletsViewModel
     @StateObject var accountPointsStore: AccountPointsStore
     
     @ObservedObject var networkUserViewModel: NetworkUserViewModel
@@ -49,6 +51,9 @@ struct AccountNavStackView: View {
         )
         _earningsViewModel = StateObject(wrappedValue: EarningsViewModel(
             client: EarningsSdkClient(api: api, urApiService: urApiService, device: device)
+        ))
+        _usdcWalletsViewModel = StateObject(wrappedValue: UsdcWalletsViewModel(
+            client: UsdcWalletsSdkClient(api: api, urApiService: urApiService)
         ))
         _accountPointsStore = StateObject.init(wrappedValue: AccountPointsStore(api: api))
         
@@ -86,6 +91,11 @@ struct AccountNavStackView: View {
             )
             .navigationTitle("Account")
             .background(themeManager.currentTheme.backgroundColor.ignoresSafeArea())
+            // an onboarding email's widgets link lands on Account > Widgets
+            .onReceive(deepLinkRouter.$pendingAccountPath) { path in
+                guard path != nil, let path = deepLinkRouter.consumeAccountPath() else { return }
+                viewModel.navigate(path)
+            }
             .navigationDestination(for: AccountNavigationPath.self) { path in
                 switch path {
                     
@@ -126,7 +136,8 @@ struct AccountNavStackView: View {
                         accountPointsStore: accountPointsStore,
                         networkReliabilityWindow: networkReliabilityWindow,
                         fetchNetworkReliability: fetchNetworkReliability,
-                        viewModel: earningsViewModel
+                        viewModel: earningsViewModel,
+                        usdcViewModel: usdcWalletsViewModel
                     )
                     .navigationTitle("Earnings")
                     .background(themeManager.currentTheme.backgroundColor.ignoresSafeArea())
@@ -145,6 +156,12 @@ struct AccountNavStackView: View {
                         .navigationTitle("Widgets")
                         .background(themeManager.currentTheme.backgroundColor.ignoresSafeArea())
                     
+                case .extenders:
+
+                    ExtendersView()
+                        .navigationTitle("Extenders")
+                        .background(themeManager.currentTheme.backgroundColor.ignoresSafeArea())
+
                 case .blockedLocations:
 
                     BlockedLocationsView(

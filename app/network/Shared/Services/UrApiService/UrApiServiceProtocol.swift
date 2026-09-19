@@ -41,7 +41,13 @@ protocol UrApiServiceProtocol {
     /**
      * Subscription
      */
-    func fetchSubscriptionBalance() async throws -> SdkSubscriptionBalanceResult
+    /// The balance with the price tier, the welcome offer and the experiment
+    /// assignments; `storefrontCountry` is the App Store storefront when known.
+    func fetchSubscriptionBalance(storefrontCountry: String?) async throws -> SdkSubscriptionBalanceResult
+    /// Issues the welcome offer once for this network (idempotent server-side).
+    func issueOnboardingOffer(surface: String, storefrontCountry: String?) async throws -> SdkOnboardingOffer
+    /// The rating and reason an email feedback link carries.
+    func onboardingFeedbackToken(_ token: String, rating: Int, reason: String) async throws -> SdkOnboardingFeedbackTokenResult
     func redeemBalanceCode(_ code: String) async throws -> SdkRedeemBalanceCodeResult
     func getRedeemedBalanceCodes() async throws -> SdkGetNetworkRedeemedBalanceCodesResult
     
@@ -66,7 +72,7 @@ protocol UrApiServiceProtocol {
      * Settings
      */
     func loginWithSeedphrase(seedphrase: String) async throws -> AuthLoginResult
-    func createInstantAccount(referralCode: String?) async throws -> (jwt: String, seedphrase: String)
+    func createInstantAccount(referralCode: String?, productUpdatesOptOut: Bool) async throws -> (jwt: String, seedphrase: String)
     func deleteAccount() async throws -> SdkNetworkDeleteResult
     func getReferralNetwork() async throws -> SdkGetReferralNetworkResult
     func setNetworkReferral(_ referralCode: String) async throws -> SdkSetNetworkReferralResult
@@ -95,4 +101,10 @@ protocol UrApiServiceProtocol {
      */
     func getNetworkClients() async throws -> SdkNetworkClientsResult
     func deviceSetName(deviceId: SdkId, deviceName: String) async throws -> Void
+}
+
+extension UrApiServiceProtocol {
+    func fetchSubscriptionBalance() async throws -> SdkSubscriptionBalanceResult {
+        try await fetchSubscriptionBalance(storefrontCountry: nil)
+    }
 }

@@ -281,7 +281,21 @@ struct AccountRootView: View {
                             }
                         )
                         .accessibilityIdentifier("acceptance.account.widgets")
-                        
+
+                        /**
+                         * Extenders: the network space's extender dns name,
+                         * gossip url and manual hosts, the private extender,
+                         * and the share / import codes (EXTENDER.md K6, K7)
+                         */
+                        AccountNavLink(
+                            name: "Extenders",
+                            iconPath: "ur.symbols.globe",
+                            action: {
+                                navigate(.extenders)
+                            }
+                        )
+                        .accessibilityIdentifier("acceptance.account.extenders")
+
                         /**
                          * Review
                          */
@@ -527,10 +541,10 @@ struct AccountRootView: View {
                     viewModel.isPresentedCreateAccount = false
                 },
                 
-                handleSuccess: { jwt in
+                handleSuccess: { login in
                     Task {
                         // viewModel.isPresentedCreateAccount = false
-                        await handleSuccessWithJwt(jwt)
+                        await handleSuccessWithJwt(login.jwt)
                     }
                 }
             )
@@ -557,9 +571,9 @@ struct AccountRootView: View {
                 cancel: {
                     viewModel.isPresentedCreateAccount = false
                 },
-                handleSuccess: { jwt in
+                handleSuccess: { login in
                     Task {
-                        await handleSuccessWithJwt(jwt)
+                        await handleSuccessWithJwt(login.jwt)
                     }
                 }
             )
