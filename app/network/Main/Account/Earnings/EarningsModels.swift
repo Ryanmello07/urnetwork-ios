@@ -10,6 +10,7 @@
 //
 
 import Foundation
+import URnetworkSdk
 
 /// The coldkey alpha settles to. Attached to this device's provider client.
 struct SnWalletInfo: Equatable {
@@ -155,6 +156,65 @@ struct SnLedgerAccountInfo: Identifiable, Equatable {
 }
 
 /// What the v2 claim needs from the SDK's chain settings.
+/// What URnetwork's claim relay says of the network's settlement v2 balance
+/// (sdk SnClaimStatusResult): who claims it, why it is still pending, and what
+/// Claim now can do. The decisions are the sdk's (sn_claim_relay.go); this only
+/// carries them to the screen.
+struct SnClaimStatusInfo: Equatable {
+    /// the relay's state, sdk SnClaimRelayStateUnavailable without an answer
+    var relayState: String = SdkSnClaimRelayStateUnavailable
+    var coldkeySs58: String = ""
+    /// sdk SnClaimAction*: what the main control does
+    var action: String = SdkSnClaimActionNone
+    /// sdk SnClaimReason*: why the balance is pending
+    var reason: String = SdkSnClaimReasonNothingPending
+    var claimableRao: Int64 = 0
+    var valueTaoRao: Int64 = 0
+    var pendingRao: Int64 = 0
+    var claimNowAvailable = false
+    /// sdk SnClaimNowReason*, or an SnClaimReason*, while Claim now can't act
+    var claimNowReason: String = ""
+    var claimNowNextAtMillis: Int64 = 0
+    /// the device's own claim with its gas key can claim this now
+    var selfClaimAvailable = false
+    var selfClaimNeedsGas = false
+    /// in rao of α at the relay's last price, 0 without one
+    var automaticThresholdRao: Int64 = 0
+    /// in rao of TAO
+    var automaticThresholdTaoRao: Int64 = 0
+    var transferFloorTaoRao: Int64 = 0
+    var claimNowPeriodDays: Int64 = 0
+    /// the balances could not be read: unavailable, never zero
+    var unavailable = false
+    /// the sdk's rule for the Settlement v2 tile of a network with no wallet on
+    /// this device (SnClaimStatusResult.ShowsTile): a claimable or pending
+    /// balance, or a claim URnetwork paid in full. Never while unavailable
+    var showsTile = false
+    /// the claimed state, the mocks' 4d (sdk ShowsClaimed): URnetwork's claim is
+    /// the primary account's latest, and nothing is claimable now
+    var showsClaimed = false
+    /// that claim's page on the explorer (sdk ClaimTxUrl), "" without one
+    var claimTxUrl: String = ""
+    /// what that claim paid, in rao of α (sdk ClaimAmountRao)
+    var claimAmountRao: Int64 = 0
+
+    /// URnetwork is the one claiming: it is, or it will once a balance or a
+    /// new day allows. Otherwise the device's own claim is the way for now.
+    var relayClaims: Bool {
+        reason != SdkSnClaimReasonRelayNotRunning && reason != SdkSnClaimReasonRelayPaused
+    }
+}
+
+/// The answer to a Claim now tap.
+enum SnClaimNowOutcome: Equatable {
+    /// URnetwork sends it first, within the day's budget
+    case requested
+    /// not taken: sdk SnClaimNowReason* or SnClaimReason*, and when the
+    /// coldkey's limit ends for a tap the limit refused
+    case refused(reason: String, nextAtMillis: Int64)
+    case failed(String)
+}
+
 struct SnLedgerChainInfo: Equatable {
     /// the STSettlementVault2 v2 claims go to; "" until v2 claims are
     /// configured (before activation)

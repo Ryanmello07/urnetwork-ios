@@ -9,6 +9,7 @@
 //
 
 import SwiftUI
+import URnetworkSdk
 #if canImport(UIKit)
 import UIKit
 #elseif canImport(AppKit)
@@ -210,16 +211,21 @@ struct Top200Tile: View {
 }
 
 /// The Bittensor wallet block: the connect call when none is attached, the
-/// coldkey and the settlement note once it is. Its wallet options connect the
-/// Solana wallet USDC payouts go to until the migration to Bittensor is
-/// complete: next to the connect button, or at the trailing end of the header
-/// once a coldkey is attached.
+/// coldkey and the settlement note once it is. While no wallet is read and the
+/// payout key is on this device, the key's address takes the connect call's
+/// place, so the one tap leaves no second wallet to connect. Its wallet options
+/// connect the Solana wallet USDC payouts go to until the migration to
+/// Bittensor is complete: next to the connect button, or at the trailing end of
+/// the header once a coldkey or the key is shown.
 struct BittensorWalletCard: View {
 
     @EnvironmentObject var themeManager: ThemeManager
     @Environment(\.openURL) private var openURL
 
     let wallet: SnWalletInfo?
+    /// the payout key on this device, while no wallet is read: shown in place
+    /// of the connect call, which would invite a second wallet
+    var localKey: BittensorWalletCardLocalKey? = nil
     let shortAddress: (String) -> String
     let connect: () -> Void
     /// the final USDC payout waiting while there is no Solana payout wallet,
@@ -270,6 +276,35 @@ struct BittensorWalletCard: View {
             } else if loadFailed {
                 UrLabel(text: "Bittensor wallet")
                 SectionLoadFailedView(retry: retry)
+            } else if let localKey {
+                HStack {
+                    UrLabel(text: "Bittensor wallet")
+                    Spacer()
+                    WalletOverflowMenu(style: .plain) {
+                        connectSolanaItem
+                    }
+                }
+                pendingLine
+                HStack(spacing: 8) {
+                    Image(systemName: localKey.linked ? "checkmark.seal.fill" : "key.fill")
+                        .foregroundColor(localKey.linked ? themeManager.currentTheme.accentColor : themeManager.currentTheme.textMutedColor)
+                        .accessibilityHidden(true)
+                    Text(verbatim: shortAddress(localKey.address))
+                        .font(.system(.body, design: .monospaced))
+                        .foregroundColor(themeManager.currentTheme.textColor)
+                    Spacer()
+                }
+                .accessibilityIdentifier("earnings.wallet.localKey")
+                if localKey.linked {
+                    Text("Connected to the UR protocol. Claims land here. Alpha accrues from the next epoch after connecting.")
+                        .font(themeManager.currentTheme.secondaryBodyFont)
+                        .foregroundColor(themeManager.currentTheme.textMutedColor)
+                } else {
+                    Text("Your key is on this device, but payouts aren't set up yet.")
+                        .font(themeManager.currentTheme.secondaryBodyFont)
+                        .foregroundColor(themeManager.currentTheme.textMutedColor)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             } else {
                 UrLabel(text: "Bittensor wallet")
                 WalletNotRetroactiveNote()
@@ -310,6 +345,22 @@ struct BittensorWalletCard: View {
             }
         }
         .accessibilityIdentifier("acceptance.earnings.connectSolana")
+    }
+}
+
+/// The payout key on this device as the wallet card shows it: its address, and
+/// whether the network's consent pays it yet. Nil without a stored key.
+struct BittensorWalletCardLocalKey: Equatable {
+
+    let address: String
+    let linked: Bool
+
+    init?(card: BittensorKeyCardInfo) {
+        guard !card.storedAddress.isEmpty else {
+            return nil
+        }
+        address = card.storedAddress
+        linked = card.state == SdkBittensorLocalKeyStateSaveLaterLinked
     }
 }
 
@@ -414,6 +465,9 @@ struct UnclaimedAlphaTile: View {
     let totalClaimableRao: Int64
     let claimableEpochs: Int
     let claim: () -> Void
+    /// the claim card's disclaimer (sdk BittensorFundsDisclaimer*): Earnings
+    /// shows it once, here only while the payout card has none
+    var fundsDisclaimer: String = SdkBittensorFundsDisclaimerNone
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -432,6 +486,8 @@ struct UnclaimedAlphaTile: View {
                 .foregroundColor(themeManager.currentTheme.textMutedColor)
             Spacer().frame(height: 8)
             UrButton(text: "Claim", action: claim, enabled: claimableEpochs > 0)
+            BittensorFundsDisclaimerText(disclaimer: fundsDisclaimer)
+                .padding(.top, 4)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -452,6 +508,16 @@ struct SnLedgerTile: View {
 
     let presentation: SnLedgerTilePresentation
     let claim: () -> Void
+    /// what URnetwork's claim relay says, nil while it says nothing: the tile
+    /// is then the device's own claim, as before the relay
+    var relay: SnClaimStatusInfo? = nil
+    /// Claim now's sheet
+    var claimNow: () -> Void = {}
+    /// the device's own claim, with its gas key
+    var selfClaim: () -> Void = {}
+    /// the claim card's disclaimer (sdk BittensorFundsDisclaimer*), when this
+    /// is the first claim tile on Earnings
+    var fundsDisclaimer: String = SdkBittensorFundsDisclaimerNone
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -465,16 +531,40 @@ struct SnLedgerTile: View {
                 ForEach(accounts) { account in
                     accountBalances(account)
                 }
+            case .claimable(let rao):
+                amount(rao)
+                Text("Claimable")
+                    .font(themeManager.currentTheme.secondaryBodyFont)
+                    .foregroundColor(themeManager.currentTheme.textMutedColor)
             }
-            if presentation.showsClaim {
+            // the relay's section while it has something to say: a balance it
+            // claims or waits on, or a claim it paid in full (the claimed state)
+            if let relay, !relay.unavailable, relay.action != SdkSnClaimActionNone || 0 < relay.claimableRao || relay.showsClaimed {
+                Spacer().frame(height: 8)
+                SnClaimRelaySection(status: relay, claimNow: claimNow, selfClaim: selfClaim, inSheet: false)
+            } else if presentation.showsClaim {
                 Spacer().frame(height: 8)
                 UrButton(text: "Claim", action: claim, enabled: presentation.claimEnabled)
             }
+            BittensorFundsDisclaimerText(disclaimer: fundsDisclaimer)
+                .padding(.top, 4)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(themeManager.currentTheme.tintedBackgroundBase)
         .cornerRadius(12)
+    }
+
+    private func amount(_ rao: Int64) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(verbatim: SnAlpha.formatAmount(rao: rao))
+                .font(Font.custom("ABCGravity-ExtraCondensed", size: 42))
+                .foregroundColor(themeManager.currentTheme.textColor)
+            Text(verbatim: SnAlpha.symbol)
+                .font(themeManager.currentTheme.secondaryBodyFont)
+                .foregroundColor(themeManager.currentTheme.textMutedColor)
+            Spacer()
+        }
     }
 
     @ViewBuilder
@@ -571,25 +661,39 @@ struct NetworkConsentCard: View {
                     }
                 }
             case .active(let coldkeySs58):
-                Text("Earnings are paid to \(shortAddress(coldkeySs58))")
-                    .font(themeManager.currentTheme.bodyFont)
-                    .foregroundColor(themeManager.currentTheme.textColor)
-                if let key, let keyActions {
-                    BittensorKeyActiveLines(key: key, actions: keyActions)
-                }
-                if hasNetworkCredential {
-                    Spacer().frame(height: 4)
-                    UrButton(text: "Change wallet", action: sign, style: .secondary)
+                if let key, let keyActions, BittensorKeyActiveBody.draws(key) {
+                    BittensorKeyActiveBody(
+                        key: key,
+                        coldkeySs58: coldkeySs58,
+                        shortAddress: shortAddress,
+                        changesWallet: hasNetworkCredential,
+                        changeWallet: sign,
+                        actions: keyActions
+                    )
+                    if !hasNetworkCredential {
+                        ownerOnly
+                    }
                 } else {
-                    ownerOnly
+                    Text("Earnings are paid to \(shortAddress(coldkeySs58))")
+                        .font(themeManager.currentTheme.bodyFont)
+                        .foregroundColor(themeManager.currentTheme.textColor)
+                    if let key, let keyActions {
+                        BittensorKeyActiveLines(key: key, actions: keyActions)
+                    }
+                    if hasNetworkCredential {
+                        Spacer().frame(height: 4)
+                        UrButton(text: "Change wallet", action: sign, style: .secondary)
+                    } else {
+                        ownerOnly
+                    }
+                    Text("A new wallet takes effect from the next epoch.")
+                        .font(themeManager.currentTheme.secondaryBodyFont)
+                        .foregroundColor(themeManager.currentTheme.textMutedColor)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                Text("A new wallet takes effect from the next epoch.")
-                    .font(themeManager.currentTheme.secondaryBodyFont)
-                    .foregroundColor(themeManager.currentTheme.textMutedColor)
-                    .fixedSize(horizontal: false, vertical: true)
-                if let key, let keyActions {
-                    BittensorKeyCreateHereLink(key: key, actions: keyActions)
-                }
+            }
+            if let key {
+                BittensorFundsDisclaimerText(disclaimer: key.fundsDisclaimer)
             }
         }
         .padding()

@@ -63,6 +63,13 @@ final class EarningsViewModel: ObservableObject {
     @Published private(set) var ledgerClaimProgress: [SnLedgerAccountKey: LedgerClaimRowState] = [:]
     @Published private(set) var isLedgerClaiming = false
 
+    /// what URnetwork's claim relay says of the network's v2 balance; nil
+    /// until read, or with no sdk to ask
+    @Published private(set) var claimStatus: SnClaimStatusInfo?
+    /// the claim sheet's Claim now: nil before a tap
+    @Published private(set) var claimNowOutcome: SnClaimNowOutcome?
+    @Published private(set) var isClaimingNow = false
+
     let client: EarningsClient
     private var walletSubscription: EarningsSubscription?
     private var chainSettingsSynced = false
@@ -128,6 +135,41 @@ final class EarningsViewModel: ObservableObject {
         SnLedgerTilePresentation.of(load: ledger, claimConfigured: ledgerChain.claimConfigured, isClaiming: isLedgerClaiming)
     }
 
+    /// The Settlement v2 tile with the relay: the device's wallet's ledger as
+    /// before, or, for a network with no wallet on this device, the balance
+    /// the relay claims for its consent, while the sdk says the tile shows
+    /// (SnClaimStatusResult.ShowsTile), the one rule every app draws by.
+    var ledgerTileWithRelay: SnLedgerTilePresentation? {
+        if hasWallet, let ledgerTile {
+            return ledgerTile
+        }
+        guard let claimStatus, claimStatus.showsTile else {
+            return nil
+        }
+        return SnLedgerTilePresentation(balances: .claimable(claimStatus.claimableRao), showsClaim: false, claimEnabled: false, showsPools: false)
+    }
+
+    /// Reads what the relay says, after the wallet and the ledger.
+    func refreshClaimStatus() async {
+        claimStatus = await client.claimStatus()
+    }
+
+    func resetClaimNow() {
+        claimNowOutcome = nil
+    }
+
+    /// Claim now: URnetwork claims the relay's coldkey now, at most once in
+    /// the period, and pays the gas.
+    func claimNow() async {
+        guard let claimStatus, claimStatus.claimNowAvailable, !isClaimingNow else {
+            return
+        }
+        isClaimingNow = true
+        claimNowOutcome = await client.claimNow(coldkeySs58: claimStatus.coldkeySs58)
+        isClaimingNow = false
+        await refreshClaimStatus()
+    }
+
     /// the v2 accounts a claim pays: every one with something claimable
     var ledgerClaimableAccounts: [SnLedgerAccountInfo] {
         ledger.accounts.filter { $0.claimableRao > 0 }
@@ -160,10 +202,14 @@ final class EarningsViewModel: ObservableObject {
     /// How and when the provider is paid, for the foot of the points card;
     /// nil until the wallet read settles (a failed read with no cached wallet
     /// says nothing about the coldkey).
-    func payoutLine(nowMillis: Int64, formatTime: (Int64) -> String) -> SnPayoutLine? {
-        SnPayoutLine.of(
-            walletKnown: loadedOnce && (hasWallet || !walletLoadFailed),
-            hasColdkey: hasWallet,
+    /// `localKeyPaid`: the network's consent pays the payout key on this
+    /// device, a coldkey before the wallet read lists it, so there is no
+    /// coldkey left to set.
+    func payoutLine(nowMillis: Int64, formatTime: (Int64) -> String, localKeyPaid: Bool = false) -> SnPayoutLine? {
+        let hasColdkey = hasWallet || localKeyPaid
+        return SnPayoutLine.of(
+            walletKnown: loadedOnce && (hasColdkey || !walletLoadFailed),
+            hasColdkey: hasColdkey,
             totalClaimableRao: totalClaimableRao,
             schedule: schedule,
             nowMillis: nowMillis,
@@ -204,6 +250,7 @@ final class EarningsViewModel: ObservableObject {
         }
 
         await refreshSubnet()
+        await refreshClaimStatus()
 
         loadedOnce = true
         isLoading = false
