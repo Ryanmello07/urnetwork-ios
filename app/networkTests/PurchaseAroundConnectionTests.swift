@@ -4,15 +4,19 @@ import Testing
 import URnetworkSdk
 @testable import URnetwork
 
-/// The macOS purchase flow (ConnectViewModel.purchaseAroundConnection, which
-/// every surface's purchase goes through by ConnectionAwareSubscriptionStore).
+/// The Mac App Store purchase flow (ConnectViewModel.purchaseAroundConnection,
+/// which every surface's purchase goes through by ConnectionAwareSubscriptionStore).
 /// It drops the connection for the store, so it tells the user first, and only
 /// a connection the user requested is dropped and brought back: the rpc link to
 /// the extension is up with none requested too, while providing or with the
 /// kill switch on, and bringing "it" back started a connection nobody asked for.
+/// Every other build buys with the connection as it is
+/// (BillingDistribution.purchaseDropsConnection). With the kill switch on the
+/// store can't be reached around a disconnect, and the user is told to turn it
+/// off instead.
 ///
 /// The store, the sdk's commands and the notice are fakes, and the view model
-/// the real one; `purchaseDropsConnection` stands in for the platform, so this
+/// the real one; `purchaseDropsConnection` stands in for the build, so this
 /// runs the same on macOS and on the iOS simulator. Nothing waits on time.
 @MainActor
 @Suite(.serialized)
@@ -106,13 +110,16 @@ struct PurchaseAroundConnectionTests {
     private static let now = Date(timeIntervalSince1970: 1_000_000)
     private static let offer = PlanOffer(percentOff: 25, monthsFree: 3, expiresAt: Date(timeIntervalSince1970: 1_800_000_000), appleOfferCode: "WELCOME")
 
-    /// A macOS flow with the sdk's controller reporting `status`, the device's
-    /// rpc link `rpcUp`, and the user answering the notice `answer`. The balance
+    /// A Mac App Store flow with the sdk's controller reporting `status`, the
+    /// device's rpc link `rpcUp` and its tunnel `tunnelStarted`, the kill switch
+    /// `killSwitchOn`, and the user answering the notice `answer`. The balance
     /// is funded and fresh. Commands take effect at once unless `commands` holds
-    /// them.
+    /// them. The kill switch alert is an event too.
     private static func flow(
         status: ConnectionStatus?,
         rpcUp: Bool,
+        tunnelStarted: Bool = false,
+        killSwitchOn: Bool = false,
         answer: Bool = true,
         commands: ConnectTapStateTests.HeldCommands? = nil
     ) -> Flow {
@@ -140,7 +147,11 @@ struct PurchaseAroundConnectionTests {
             events.append("notice")
             return answer
         }
-        let device = ConnectTapStateTests.FakeDevice(location: nil)
+        model.killSwitchOn = { killSwitchOn }
+        model.tellPurchaseNeedsKillSwitchOff = {
+            events.append("kill switch")
+        }
+        let device = ConnectTapStateTests.FakeDevice(location: nil, tunnelStarted: tunnelStarted)
         device.remoteConnected = rpcUp
         model.setup(api: nil, device: device, connectViewController: nil)
         let store = FakeStore(events: events)
@@ -378,11 +389,93 @@ struct PurchaseAroundConnectionTests {
         #expect(flow.events.all == ["notice", "disconnect", "store yearly", "connect"])
     }
 
-    // MARK: the platform and the stores
+    // MARK: the kill switch
 
-    /// iOS keeps the connection: App Store traffic does not ride the tunnel
-    /// there, so nothing is dropped and there is nothing to tell (the A6 note on
-    /// AppStoreSubscriptionManager.purchase).
+    /// The reported gap: with the kill switch on, the notice's disconnect did not
+    /// free the store. The kill switch keeps the tunnel up after it
+    /// (VPNDesiredState.shouldRun) and the sdk drops what it captures with no
+    /// connection, so the purchase failed, and the notice had said the traffic
+    /// would go around the VPN while it was blocked. The user is told to turn the
+    /// kill switch off instead, and nothing is dropped, brought back or bought.
+    @Test func aKillSwitchThatIsOnIsToldAndNothingIsDroppedOrBought() async {
+        for status in [ConnectionStatus.connecting, .destinationSet, .connected, .connectFailed] {
+            let flow = Self.flow(status: status, rpcUp: true, killSwitchOn: true)
+            await flow.buy()
+            await flow.buying.redeemOffer(Self.offer, onSuccess: {})
+            await flow.model.connectCommandsSettled()
+            #expect(flow.events.all == ["kill switch", "kill switch"], "\(status)")
+        }
+        let flow = Self.flow(status: .connected, rpcUp: true, killSwitchOn: true)
+        await flow.buy()
+        #expect(flow.model.connectionStatus == .connected)
+    }
+
+    /// With no connection requested the kill switch still runs the tunnel and
+    /// drops what it captures, so the store can't be reached either.
+    @Test func aKillSwitchThatIsOnWithTheTunnelUpAndNoConnectionIsTold() async {
+        let flow = Self.flow(status: .disconnected, rpcUp: true, tunnelStarted: true, killSwitchOn: true)
+        await flow.model.connectCommandsSettled()
+        #expect(flow.model.tunnelConnected)
+        await flow.buy()
+        #expect(flow.events.all == ["kill switch"])
+    }
+
+    /// With no tunnel and no connection nothing stands in the store's way.
+    @Test func aKillSwitchWithNoTunnelAndNoConnectionIsNotInTheWay() async {
+        let flow = Self.flow(status: .disconnected, rpcUp: false, killSwitchOn: true)
+        await flow.model.connectCommandsSettled()
+        #expect(!flow.model.tunnelConnected)
+        await flow.buy()
+        #expect(flow.events.all == ["store yearly"])
+    }
+
+    /// The kill switch off: the notice, the disconnect, the store and the
+    /// reconnect, as before.
+    @Test func aKillSwitchThatIsOffKeepsTheNotice() async {
+        let flow = Self.flow(status: .connected, rpcUp: true, tunnelStarted: true, killSwitchOn: false)
+        await flow.model.connectCommandsSettled()
+        await flow.buy()
+        #expect(flow.events.all == ["notice", "disconnect", "store yearly", "connect"])
+    }
+
+    /// One at a time, as for the notice: a tap while the alert is up does nothing.
+    @Test func aSecondTapWhileTheKillSwitchAlertIsUpDoesNothing() async {
+        let flow = Self.flow(status: .connected, rpcUp: true, killSwitchOn: true)
+        var tapped = false
+        flow.model.tellPurchaseNeedsKillSwitchOff = { [buying = flow.buying, events = flow.events] in
+            events.append("kill switch")
+            guard !tapped else {
+                return
+            }
+            tapped = true
+            await buying.purchase(plan: .monthly, onSuccess: {})
+        }
+        await flow.buy()
+        #expect(flow.events.all == ["kill switch"])
+    }
+
+    /// The direct download keeps the connection, so the kill switch is not asked
+    /// about: connected, its page goes through the tunnel.
+    @Test func theDirectDownloadIsNotStoppedForTheKillSwitch() async {
+        let flow = Self.flow(status: .connected, rpcUp: true, tunnelStarted: true, killSwitchOn: true)
+        flow.model.purchaseDropsConnection = BillingDistribution.direct.purchaseDropsConnection
+        await flow.model.connectCommandsSettled()
+        await flow.buy()
+        #expect(flow.events.all == ["store yearly"])
+    }
+
+    /// Until the app hands it the setting (NetworkApp), the kill switch reads off,
+    /// which is the flow as it was.
+    @Test func theKillSwitchReadsOffUntilTheAppHandsItTheSetting() {
+        #expect(!ConnectViewModel().killSwitchOn())
+    }
+
+    // MARK: the builds and the stores
+
+    /// iOS and the direct download keep the connection, so nothing is dropped
+    /// and there is nothing to tell: iOS App Store traffic does not ride the
+    /// tunnel (the A6 note on AppStoreSubscriptionManager.purchase), and the
+    /// direct download's page rides it whatever happens around the purchase call.
     @Test func withoutTheDropThereIsNoNoticeAndNoDisconnect() async {
         let flow = Self.flow(status: .connected, rpcUp: true)
         flow.model.purchaseDropsConnection = false
@@ -391,24 +484,71 @@ struct PurchaseAroundConnectionTests {
         #expect(flow.model.connectionStatus == .connected)
     }
 
+    /// Only the Mac App Store build drops the connection for a purchase. The
+    /// direct download's page loads after the purchase call has returned, so a
+    /// drop around the call was over before the page asked for anything: it
+    /// gained nothing, left the traffic unprotected for a moment, and the
+    /// notice's Cancel stopped the purchase.
+    @Test func onlyTheMacAppStoreBuildDropsTheConnection() {
+        #expect(!BillingDistribution.direct.purchaseDropsConnection)
+        #if os(macOS)
+        #expect(BillingDistribution.appStore.purchaseDropsConnection)
+        #else
+        #expect(!BillingDistribution.appStore.purchaseDropsConnection)
+        #endif
+    }
+
+    /// The view model drops the connection as its build does.
+    @Test func theViewModelDropsAsItsBuildDoes() {
+        #expect(ConnectViewModel().purchaseDropsConnection == BillingDistribution.current.purchaseDropsConnection)
+        #if DIRECT_DOWNLOAD
+        #expect(!ConnectViewModel().purchaseDropsConnection)
+        #endif
+    }
+
+    /// The reported gap: the direct download disconnected for its checkout and
+    /// reconnected before the page loaded. It buys with the connection as it is
+    /// now, whatever the user requested: no notice, no disconnect, nothing
+    /// brought back, and the welcome offer the same.
+    @Test func theDirectDownloadBuysWithTheConnectionAsItIs() async {
+        for status in [ConnectionStatus.connecting, .destinationSet, .connected, .connectFailed, .disconnected] {
+            let flow = Self.flow(status: status, rpcUp: true)
+            flow.model.purchaseDropsConnection = BillingDistribution.direct.purchaseDropsConnection
+            await flow.buy()
+            await flow.buying.redeemOffer(Self.offer, onSuccess: {})
+            await flow.model.connectCommandsSettled()
+            #expect(flow.events.all == ["store yearly", "store offer"], "\(status)")
+        }
+        let flow = Self.flow(status: .connected, rpcUp: true)
+        flow.model.purchaseDropsConnection = BillingDistribution.direct.purchaseDropsConnection
+        await flow.buy()
+        #expect(flow.model.connectionStatus == .connected)
+    }
+
     /// A surface gets its store from the factory, so neither store can be bought
     /// from past the flow. Neither sells here, the manager with no network and the
-    /// client with no server: both refuse after the flow's notice and disconnect.
+    /// client with no server: both refuse, after the flow's notice and disconnect
+    /// where the flow drops the connection (the Mac App Store build, stood in for
+    /// here), and with the connection as it is where it does not.
     @Test func bothStoresTheFactoryMakesGoThroughTheFlow() async {
         for distribution in [BillingDistribution.appStore, .direct] {
-            let flow = Self.flow(status: .connected, rpcUp: true)
-            let store = makeSubscriptionStore(
-                for: distribution,
-                appStore: AppStoreSubscriptionManager(networkId: nil),
-                stripe: StripeSubscriptionStore(client: StripeSubscriptionStoreTests.FakeClient(), openExternal: { _ in false }),
-                connection: flow.model
-            )
-            #expect(store.distribution == distribution)
+            for drops in [true, false] {
+                let flow = Self.flow(status: .connected, rpcUp: true)
+                flow.model.purchaseDropsConnection = drops
+                let store = makeSubscriptionStore(
+                    for: distribution,
+                    appStore: AppStoreSubscriptionManager(networkId: nil),
+                    stripe: StripeSubscriptionStore(client: StripeSubscriptionStoreTests.FakeClient(), openExternal: { _ in false }),
+                    connection: flow.model
+                )
+                #expect(store.distribution == distribution)
 
-            await store.purchase(plan: .yearly, onSuccess: {})
-            await flow.model.connectCommandsSettled()
+                await store.purchase(plan: .yearly, onSuccess: {})
+                await flow.model.connectCommandsSettled()
 
-            #expect(flow.events.all == ["notice", "disconnect", "connect"], "\(distribution)")
+                let expected: [String] = drops ? ["notice", "disconnect", "connect"] : []
+                #expect(flow.events.all == expected, "\(distribution) drops \(drops)")
+            }
         }
     }
 
